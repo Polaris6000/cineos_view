@@ -1,0 +1,318 @@
+/* HomePage.module.css — 홈 스플래시 화면 */
+
+/* 전체 화면 풀스크린 */
+.home {
+    position: fixed; /* CustomerLayout 헤더를 덮도록 fixed */
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--bg-base);
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    z-index: 50; /* 헤더 위에 올라오도록 */
+}
+
+/* 로고 (좌상단 고정) */
+.logo {
+    position: absolute;
+    top: 28px;
+    left: 36px;
+    z-index: 5;
+    pointer-events: none; /* 클릭 이벤트 body에 위임 */
+}
+
+.logo img {
+    height: 30px;
+    width: auto;
+}
+
+/* 슬라이드쇼 컨테이너 */
+.slideshow {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+/* 개별 슬라이드 */
+.slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.9s ease-in-out;
+    pointer-events: none;
+}
+
+/* 현재 활성 슬라이드 */
+.slideActive {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* 슬라이드 배경 */
+.slideBg {
+    position: absolute;
+    inset: 0;
+}
+
+/* 슬라이드별 그라디언트 팔레트 (포스터 없을 때 표시) */
+.slideBg1 {
+    background: linear-gradient(135deg, #1a1410 0%, #4f4537 100%);
+}
+
+.slideBg2 {
+    background: linear-gradient(135deg, #001c38 0%, #155f90 100%);
+}
+
+.slideBg3 {
+    background: linear-gradient(135deg, #003828 0%, #006b60 100%);
+}
+
+.slideBg4 {
+    background: linear-gradient(135deg, #380808 0%, #8a2020 100%);
+}
+
+.slideBg5 {
+    background: linear-gradient(135deg, #2e1800 0%, #9d6600 100%);
+}
+
+.slideBg6 {
+    background: linear-gradient(135deg, #1c001c 0%, #5a1060 100%);
+}
+
+/* 포스터 이미지 */
+.slidePoster {
+    position: fixed;  /* 부모 컨테이너를 기준으로 삼지 않고, 화면(window)을 기준으로 삼음 */
+    top: 50%;   /* 화면 정중앙 좌표 설정 */
+    left: 50%;
+    transform: translate(-50%, -50%);   /* 이미지 자체의 중심을 중앙 좌표와 맞춤 (X, Y축 -50% 이동) */
+    /* 원하는 크기 설정 (예: 화면 높이의 80%, 너비는 비율에 맞게) */
+    /* FHD 키오스크(1080x1920)라면 구체적인 픽셀 값을 줘도 됨 */
+    height: 100vh; /* viewport height 기준 80% */
+    width: auto;  /* 원본 비율 유지 */
+    /* 만약 크기를 고정하고 싶다면 (FHD 세로 기준 예시) */
+    /* width: 800px; */
+    /* height: 1200px; */
+    /* 여전히 cover가 필요하다면 사용 (지정한 width/height 안에서 cover) */
+    object-fit: cover;
+    opacity: 0.55;
+    z-index: 1; /* 다른 배경 요소보다 위에 뜨게 하려면 필요할 수 있음 */
+}
+
+/* 하단 딤 오버레이 */
+.slideOverlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+            to top,
+            rgba(14, 11, 8, 0.97) 0%,
+            rgba(14, 11, 8, 0.65) 35%,
+            rgba(14, 11, 8, 0.25) 65%,
+            rgba(14, 11, 8, 0.10) 100%
+    );
+}
+
+/* 슬라이드 텍스트 콘텐츠 (하단 중앙) */
+.slideContent {
+    position: absolute;
+    bottom: 130px;
+    left: 0;
+    right: 0;
+    padding: 0 10vw;
+    z-index: 3;
+    text-align: center;
+}
+
+/* 관람 등급 배지 */
+.ratingBadge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    margin-bottom: 18px;
+}
+
+.ratingALL {
+    background: var(--badge-all);
+    color: #fff;
+}
+
+/* 전체관람가 */
+.rating12 {
+    background: var(--color-brand-default);
+    color: #0e0b08;
+}
+
+/* 12세 (홈 슬라이드용 골드) */
+.rating15 {
+    background: #ff8c00;
+    color: #fff;
+}
+
+/* 15세 (주황) */
+.rating19 {
+    background: var(--color-error-main);
+    color: #fff;
+}
+
+/* 청불 (레드) */
+
+/* 영화 제목 */
+.slideTitle {
+    font-size: clamp(2rem, 6vw, 4rem);
+    font-weight: 800;
+    color: var(--text-primary); /* 웜 화이트 (구 color-neutral-warm-white) */
+    margin: 0 0 14px;
+    line-height: 1.15;
+    text-shadow: 0 3px 16px rgba(0, 0, 0, 0.6);
+    word-break: keep-all;
+}
+
+/* 장르 */
+.slideGenre {
+    font-size: clamp(0.9rem, 2vw, 1.1rem);
+    color: var(--text-secondary); /* 구 color-neutral-200 */
+    margin: 0 0 10px;
+    font-weight: 500;
+}
+
+/* 상영 기간 */
+.slidePeriod {
+    font-size: clamp(0.85rem, 1.8vw, 1rem);
+    color: var(--color-brand-default); /* 골드 강조 */
+    margin: 0 0 30px;
+    font-weight: 600;
+}
+
+/* 터치 유도 문구 — 깜빡임 애니메이션 */
+.cta {
+    font-size: clamp(0.8rem, 1.6vw, 0.95rem);
+    color: var(--text-secondary); /* 구 color-neutral-200 */
+    margin: 0;
+    letter-spacing: 0.04em;
+    animation: ctaPulse 2.2s ease-in-out infinite;
+}
+
+@keyframes ctaPulse {
+    0%, 100% {
+        opacity: 0.4;
+    }
+    50% {
+        opacity: 0.9;
+    }
+}
+
+/* 슬라이드 인디케이터 (하단 점) */
+.indicators {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    z-index: 4;
+}
+
+.indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.25);
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.35s ease, transform 0.35s ease, width 0.35s ease;
+}
+
+/* 현재 슬라이드 인디케이터 — 캡슐 모양 */
+.indicatorActive {
+    background: var(--color-brand-default); /* 골드 활성 인디케이터 */
+    width: 24px;
+    border-radius: 4px;
+    transform: scaleY(1.1);
+}
+
+/* 관리자 버튼 (우하단) */
+.adminBtn {
+    position: absolute;
+    bottom: 22px;
+    right: 28px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 22px 12px;
+    min-width: 72px;
+    background: rgba(46, 40, 32, 0.55);
+    border: 1px solid rgba(79, 69, 55, 0.5);
+    border-radius: 8px;
+    backdrop-filter: blur(6px);
+    cursor: pointer;
+    color: var(--text-muted); /* 구 color-neutral-400 */
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    transition: background 0.2s, border-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.adminBtn:active {
+    background: rgba(79, 69, 55, 0.7);
+    border-color: rgba(255, 184, 0, 0.4);
+}
+
+/* 탭 카운트 도트 */
+.adminDots {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    min-height: 9px; /* 도트 없을 때도 공간 유지 */
+}
+
+.adminDot {
+    display: block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    background: transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+/* 탭 누적 시 골드로 채워짐 */
+.adminDotFilled {
+    background: var(--color-brand-default);
+    border-color: var(--color-brand-default);
+    transform: scale(1.15);
+}
+
+.adminLabel {
+    pointer-events: none;
+}
+
+/* 빈 상태 UI */
+.empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: var(--text-secondary); /* 구 color-neutral-200 */
+}
+
+.emptyTitle {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary); /* 웜 화이트 (구 color-neutral-warm-white) */
+}
+
+.emptySub {
+    font-size: 0.9rem;
+}

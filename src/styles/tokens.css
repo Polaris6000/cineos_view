@@ -1,0 +1,238 @@
+/* =====================================================
+   CineOS — 디자인 토큰 v2
+   =====================================================
+   3-레이어 구조:
+
+   Layer 1 │ PRIMITIVE   — 순수 색상 팔레트 (숫자 스케일)
+            │               모드 무관, 값 자체는 절대 변하지 않음
+            │
+   Layer 2 │ SEMANTIC    — 역할/의미 기반 alias
+            │               :root          → 다크 모드 (고객 화면 기본)
+            │               [data-theme="light"] → 라이트 모드 (관리자 화면)
+            │
+   Layer 3 │ COMPONENT   — 컴포넌트 전용 토큰
+            │               Semantic 변수만 참조, 직접 색상값 금지
+
+   ※ 컴포넌트 CSS에서는 반드시 Semantic/Component 토큰만 사용할 것.
+      Primitive 토큰을 직접 참조하는 것은 안티패턴임.
+   ===================================================== */
+
+/* ── 유틸리티 ─────────────────────────────────────── */
+[hidden] { display: none !important; }
+
+
+/* =====================================================
+   LAYER 1 ─ PRIMITIVE TOKENS
+   순수 색상 값. 절대 오버라이드하지 말 것.
+   ===================================================== */
+:root {
+
+  /* ── Brand: 골드 ────────────────────────────────── */
+  --primitive-brand-50:   #fff8e6;   /* 가장 연한 골드 틴트 */
+  --primitive-brand-100:  #ffedcb;
+  --primitive-brand-200:  #ffdb7a;
+  --primitive-brand-400:  #ffb800;   /* Primary 골드 */
+  --primitive-brand-500:  #cd8e00;   /* Hover 상태 */
+  --primitive-brand-600:  #9d6600;   /* Active 상태 */
+  --primitive-brand-700:  #714000;   /* 텍스트용 (라이트 배경) */
+  --primitive-brand-800:  #4c1c00;   /* 골드 버튼 위 텍스트 */
+
+  /* ── Neutral: 웜 다크 그레이 스케일 ──────────────── */
+  --primitive-neutral-0:   #ffffff;
+  --primitive-neutral-50:  #fff8f0;   /* Warm White */
+  --primitive-neutral-100: #f5f3ef;   /* 라이트 배경 기본 */
+  --primitive-neutral-200: #dfe0df;   /* 라이트 보더 */
+  --primitive-neutral-300: #b6a999;   /* Secondary 텍스트 */
+  --primitive-neutral-400: #4f4537;   /* Muted 텍스트 / 다크 보더 */
+  --primitive-neutral-700: #2e2820;   /* 다크 Surface */
+  --primitive-neutral-800: #1a1410;   /* 다크 Modal / 카드 */
+  --primitive-neutral-900: #0e0b08;   /* 다크 Base (최하단 배경) */
+
+  /* ── Success: 에메랄드 그린 ──────────────────────── */
+  --primitive-success-100: #e6faf3;   /* 라이트 배경 */
+  --primitive-success-300: #00e7a8;   /* 다크 강조 텍스트 */
+  --primitive-success-500: #00ad74;   /* 메인 */
+  --primitive-success-600: #008a5d;   /* 라이트 최적화 메인 */
+  --primitive-success-700: #006b60;   /* 어두운 톤 */
+  --primitive-success-900: #003828;   /* 다크 배경 */
+
+  /* ── Error: 레드 ─────────────────────────────────── */
+  --primitive-error-100: #fdeaea;     /* 라이트 배경 */
+  --primitive-error-300: #f08080;     /* 다크 강조 텍스트 */
+  --primitive-error-500: #e03c3c;     /* 메인 */
+  --primitive-error-600: #d13438;     /* 라이트 최적화 메인 */
+  --primitive-error-700: #a82020;     /* 어두운 톤 */
+  --primitive-error-900: #380808;     /* 다크 배경 */
+
+  /* ── Warning: 앰버 ───────────────────────────────── */
+  --primitive-warning-100: #fff8e6;   /* 라이트 배경 */
+  --primitive-warning-200: #ffdb7a;   /* 다크 강조 텍스트 */
+  --primitive-warning-500: #ffb800;   /* 메인 */
+  --primitive-warning-600: #cd8e00;   /* 라이트 최적화 메인 */
+  --primitive-warning-700: #714000;   /* 어두운 톤 */
+  --primitive-warning-900: #2e1800;   /* 다크 배경 */
+
+  /* ── Info: 블루 ──────────────────────────────────── */
+  --primitive-info-100: #e8f4fc;      /* 라이트 배경 */
+  --primitive-info-200: #b3d9ff;      /* 라이트 강조 */
+  --primitive-info-300: #70b8e0;      /* 다크 강조 텍스트 */
+  --primitive-info-500: #2a88c8;      /* 메인 */
+  --primitive-info-600: #0078d4;      /* 라이트 최적화 메인 */
+  --primitive-info-700: #005896;      /* 어두운 톤 */
+  --primitive-info-900: #001c38;      /* 다크 배경 */
+
+  /* ── Accent: 차트·통계 전용 ──────────────────────── */
+  --primitive-accent-purple: #9c7aff;
+  --primitive-accent-bronze: #c87d3a;
+
+  /* ── Special: 모드 불변 전용 색상 ───────────────── */
+  --primitive-badge-green:      #4caf50;  /* 전체관람가 배지 */
+  --primitive-seat-disabled-bg: #005248;  /* 장애인석 */
+  --primitive-seat-couple-bg:   #402e32;  /* 커플석 */
+}
+
+
+/* =====================================================
+   LAYER 2 ─ SEMANTIC TOKENS (DARK MODE, 기본값)
+   고객 화면 기본 테마 (웜 다크).
+   ===================================================== */
+:root {
+
+  /* ── 배경 레이어 ─────────────────────────────────── */
+  --bg-base:    var(--primitive-neutral-900);   /* #0e0b08  페이지 최하단 배경 */
+  --bg-surface: var(--primitive-neutral-700);   /* #2e2820  카드·섹션 배경    */
+  --bg-modal:   var(--primitive-neutral-800);   /* #1a1410  모달·드롭다운      */
+  --bg-overlay: rgba(14, 11, 8, 0.72);          /* 딤처리 오버레이             */
+
+  /* ── 텍스트 ──────────────────────────────────────── */
+  --text-primary:   var(--primitive-neutral-50);    /* #fff8f0 본문 주텍스트   */
+  --text-secondary: var(--primitive-neutral-300);   /* #b6a999 보조 텍스트     */
+  --text-muted:     var(--primitive-neutral-400);   /* #4f4537 비활성·힌트     */
+  --text-on-brand:  var(--primitive-brand-800);     /* #4c1c00 골드 버튼 위 글자 */
+  --text-disabled:  var(--primitive-neutral-400);   /* 비활성화 상태 텍스트    */
+
+  /* ── 보더 ─────────────────────────────────────────── */
+  --border-default: var(--primitive-neutral-400);       /* #4f4537 기본 선  */
+  --border-subtle:  rgba(223, 224, 223, 0.15);           /* 미묘한 구분선   */
+  --border-focus:   var(--primitive-brand-400);          /* #ffb800 포커스 링 */
+
+  /* ── Brand CTA ───────────────────────────────────── */
+  --color-brand-default: var(--primitive-brand-400);    /* #ffb800 기본 골드 */
+  --color-brand-hover:   var(--primitive-brand-500);    /* #cd8e00 호버 골드 */
+  --color-brand-active:  var(--primitive-brand-600);    /* #9d6600 액티브 골드 */
+
+  /* ── Status: Success ─────────────────────────────── */
+  --color-success-bg:   var(--primitive-success-900);   /* #003828 어두운 배경 */
+  --color-success-text: var(--primitive-success-300);   /* #00e7a8 강조 텍스트 */
+  --color-success-main: var(--primitive-success-500);   /* #00ad74 메인 색상   */
+
+  /* ── Status: Error ───────────────────────────────── */
+  --color-error-bg:   var(--primitive-error-900);       /* #380808 어두운 배경 */
+  --color-error-text: var(--primitive-error-300);       /* #f08080 강조 텍스트 */
+  --color-error-main: var(--primitive-error-500);       /* #e03c3c 메인 색상   */
+
+  /* ── Status: Warning ─────────────────────────────── */
+  --color-warning-bg:   var(--primitive-warning-900);   /* #2e1800 어두운 배경 */
+  --color-warning-text: var(--primitive-warning-200);   /* #ffdb7a 강조 텍스트 */
+  --color-warning-main: var(--primitive-warning-500);   /* #ffb800 메인 색상   */
+
+  /* ── Status: Info ────────────────────────────────── */
+  /* ✅  버그 수정: 이전 값 #70b8e0 은 밝은 색이라 다크 배경에 부적합했음 */
+  --color-info-bg:   var(--primitive-info-900);         /* #001c38 어두운 배경 */
+  --color-info-text: var(--primitive-info-300);         /* #70b8e0 강조 텍스트 */
+  --color-info-main: var(--primitive-info-500);         /* #2a88c8 메인 색상   */
+
+  /* ── 입력 필드 ───────────────────────────────────── */
+  --input-bg:          var(--primitive-neutral-800);    /* #1a1410 입력 배경   */
+  --input-placeholder: var(--primitive-neutral-400);    /* #4f4537 플레이스홀더 */
+
+  /* ── 좌석 상태 ───────────────────────────────────── */
+  --color-seat-empty:        var(--primitive-neutral-700);  /* #2e2820 빈 좌석 */
+  --color-seat-empty-border: var(--primitive-neutral-400);  /* #4f4537 테두리  */
+  --color-seat-selected:     var(--primitive-brand-400);    /* #ffb800 선택됨  */
+  --color-seat-booked:       var(--primitive-success-500);  /* #00ad74 예매됨  */
+  --color-seat-sold-out:     var(--primitive-neutral-400);  /* #4f4537 매진    */
+  --color-seat-disabled:     var(--primitive-seat-disabled-bg); /* 장애인석   */
+  --color-seat-couple:       var(--primitive-seat-couple-bg);   /* 커플석     */
+}
+
+
+/* =====================================================
+   LAYER 2 ─ SEMANTIC TOKENS (LIGHT MODE 오버라이드)
+   <body data-theme="light"> 에 적용 (관리자 화면).
+   Primitive는 건드리지 않음, Semantic만 덮어씀.
+   ===================================================== */
+[data-theme="light"] {
+
+  /* ── 배경 레이어 ─────────────────────────────────── */
+  --bg-base:    var(--primitive-neutral-100);   /* #f5f3ef 라이트 기본 배경  */
+  --bg-surface: var(--primitive-neutral-0);     /* #ffffff 카드·섹션 배경   */
+  --bg-modal:   var(--primitive-neutral-0);     /* #ffffff 모달·드롭다운    */
+  --bg-overlay: rgba(0, 0, 0, 0.45);            /* 딤처리 오버레이           */
+
+  /* ── 텍스트 ──────────────────────────────────────── */
+  --text-primary:   var(--primitive-neutral-900);   /* #0e0b08 본문 주텍스트   */
+  --text-secondary: var(--primitive-neutral-400);   /* #4f4537 보조 텍스트     */
+  --text-muted:     var(--primitive-neutral-300);   /* #b6a999 비활성·힌트     */
+  --text-disabled:  var(--primitive-neutral-300);   /* 비활성화 텍스트         */
+  /* --text-on-brand 은 모드 불변이므로 오버라이드 불필요 */
+
+  /* ── 보더 ─────────────────────────────────────────── */
+  --border-default: var(--primitive-neutral-200);       /* #dfe0df 기본 선     */
+  --border-subtle:  rgba(79, 69, 55, 0.12);              /* 미묘한 구분선       */
+  /* --border-focus 는 골드라 모드 불변 */
+
+  /* ── Status: Success ─────────────────────────────── */
+  --color-success-bg:   var(--primitive-success-100);   /* #e6faf3 밝은 배경      */
+  --color-success-text: var(--primitive-success-700);   /* #006b60 진한 텍스트    */
+  --color-success-main: var(--primitive-success-600);   /* #008a5d 라이트 최적화  */
+
+  /* ── Status: Error ───────────────────────────────── */
+  --color-error-bg:   var(--primitive-error-100);       /* #fdeaea 밝은 배경      */
+  --color-error-text: var(--primitive-error-700);       /* #a82020 진한 텍스트    */
+  --color-error-main: var(--primitive-error-600);       /* #d13438 라이트 최적화  */
+
+  /* ── Status: Warning ─────────────────────────────── */
+  --color-warning-bg:   var(--primitive-warning-100);   /* #fff8e6 밝은 배경      */
+  --color-warning-text: var(--primitive-warning-700);   /* #714000 진한 텍스트    */
+  --color-warning-main: var(--primitive-warning-600);   /* #cd8e00 라이트 최적화  */
+
+  /* ── Status: Info ────────────────────────────────── */
+  --color-info-bg:   var(--primitive-info-100);         /* #e8f4fc 밝은 배경      */
+  --color-info-text: var(--primitive-info-700);         /* #005896 진한 텍스트    */
+  --color-info-main: var(--primitive-info-600);         /* #0078d4 라이트 최적화  */
+
+  /* ── 입력 필드 ───────────────────────────────────── */
+  --input-bg:          #f9f9f9;
+  --input-placeholder: var(--primitive-neutral-300);
+}
+
+
+/* =====================================================
+   LAYER 3 ─ COMPONENT TOKENS
+   컴포넌트 전용. 반드시 Semantic 변수를 참조할 것.
+   ===================================================== */
+:root {
+
+  /* ── CTA 버튼 (Primary) ──────────────────────────── */
+  --btn-primary-bg:     var(--color-brand-default);   /* 골드 기본 */
+  --btn-primary-hover:  var(--color-brand-hover);     /* 골드 호버 */
+  --btn-primary-active: var(--color-brand-active);    /* 골드 액티브 */
+  --btn-primary-text:   var(--text-on-brand);         /* 버튼 위 텍스트 */
+
+  /* ── 관람등급 배지 ────────────────────────────────── */
+  --badge-all: var(--primitive-badge-green);          /* 전체관람가 #4caf50 */
+  --badge-12:  var(--primitive-info-500);             /* 12세  #2a88c8 (파랑) */
+  --badge-15:  var(--color-brand-default);            /* 15세  #ffb800 (골드) */
+  --badge-18:  var(--primitive-error-500);            /* 청불  #e03c3c (레드) */
+
+  /* ── 차트 / 통계 전용 액센트 ─────────────────────── */
+  --color-accent-purple: var(--primitive-accent-purple);   /* #9c7aff */
+  --color-accent-bronze: var(--primitive-accent-bronze);   /* #c87d3a */
+
+  /* ── Alpha 오버레이 (컴포넌트용) ─────────────────── */
+  --color-overlay-dark:   rgba(14, 11, 8, 0.72);       /* 다크 딤 */
+  --color-overlay-light:  rgba(0, 0, 0, 0.45);         /* 라이트 딤 */
+  --color-surface-alpha:  rgba(223, 224, 223, 0.15);   /* 미묘한 분리선 */
+  --color-border-alpha:   rgba(79, 69, 55, 0.12);      /* 아주 연한 보더 */
+}

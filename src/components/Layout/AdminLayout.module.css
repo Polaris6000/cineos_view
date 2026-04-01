@@ -1,0 +1,180 @@
+/* AdminLayout.module.css
+   관리자 영역 레이아웃 (라이트 테마)
+   사이드바 240px + 나머지 콘텐츠 영역 */
+
+/* 전체 레이아웃: 사이드바 + 콘텐츠 가로 배치 */
+.layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--bg-base); /* 라이트 테마에서 #f5f3ef */
+}
+
+/* ── 사이드바 ── */
+.sidebar {
+  width: 240px;
+  min-height: 100vh;
+  background-color: var(--bg-surface); /* 라이트: #ffffff */
+  border-right: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  /* 스크롤 시 사이드바 고정 */
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+/* 사이드바 상단: 로고 + 관리자 배지 */
+.sidebarLogo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.logo {
+  height: 28px;
+  width: auto;
+}
+
+.adminBadge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--btn-primary-text); /* 진한 갈색 */
+  background-color: var(--btn-primary-bg); /* 골드 */
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
+/* 네비게이션 영역 */
+.nav {
+  padding: 12px 8px;
+  flex: 1;
+}
+
+/* 섹션 구분 */
+.navSection {
+  margin-bottom: 16px;
+}
+
+/* 섹션 제목 (통계, 영화 관리 등) */
+.navSectionTitle {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted); /* 라이트: #b6a999 */
+  padding: 4px 8px;
+  margin-bottom: 4px;
+}
+
+/* 네비게이션 링크 */
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary); /* 라이트: #4f4537 */
+  transition: background-color 0.15s, color 0.15s;
+  margin-bottom: 2px;
+}
+
+.navItem:hover {
+  background-color: var(--primitive-brand-50); /* 연한 골드 배경 */
+  color: var(--primitive-brand-700);
+}
+
+/* 현재 활성 링크 */
+.navItemActive {
+  background-color: var(--primitive-brand-100);
+  color: var(--primitive-brand-700);
+  font-weight: 600;
+}
+
+/* ── 콘텐츠 영역 ── */
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* flex 자식 overflow 방지 */
+}
+
+/* 상단 헤더: 페이지 제목 + 로그아웃 버튼 */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border-default);
+  background-color: var(--bg-surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.pageTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* 헤더 우측 버튼 그룹 */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 다크모드 토글 버튼 */
+.themeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+.themeBtn:hover {
+  background-color: var(--primitive-brand-50);
+  color: var(--primitive-brand-700);
+  border-color: var(--border-focus); /* 골드 포커스 링 재활용 */
+}
+
+.logoutBtn {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background-color: transparent;
+  transition: background-color 0.15s, color 0.15s;
+}
+.logoutBtn:hover {
+  background-color: var(--color-error-bg);
+  color: var(--color-error-main);
+  border-color: var(--color-error-text); /* 에러 강조 텍스트 색 = 구 error-light */
+}
+
+/* 메인 콘텐츠 패딩 */
+.main {
+  flex: 1;
+  padding: 24px;
+  overflow-x: hidden;
+}
+
+.pageWrapper {
+  /* 최소 높이 보장 */
+  min-height: calc(100vh - 56px);
+}
