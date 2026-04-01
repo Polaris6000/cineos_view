@@ -345,7 +345,7 @@ function PaymentPage() {
                     type="number"
                     value={pointInput}
                     onChange={(e) => setPointInput(e.target.value)}
-                    onFocus={(e) => openKeyboard(e.target, pointInput, setPointInput)}
+                    onFocus={(e) => openKeyboard(e.target, pointInput, setPointInput, 'numeric')}
                     placeholder="사용할 포인트 입력"
                     style={inputStyle}
                     min={0}
