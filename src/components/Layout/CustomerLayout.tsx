@@ -31,16 +31,16 @@ import styles from './CustomerLayout.module.css'
  */
 function InnerLayout() {
     // 남은 비조작 시간 (초)
-    const {remain, isHome} = useIdleTimer()
+    const {remain, isExcluded} = useIdleTimer()
 
     // 남은 시간에 따른 타이머 색상: 30초 이하면 경고색
-    const timerUrgent = remain <= 30 && !isHome
+    const timerUrgent = remain <= 30 && !isExcluded
 
     return (
         <div className={styles.layout}>
 
-            {/* ── 상단 헤더 (isHome이 아닐 때만 렌더링) ── */}
-            {!isHome && (
+            {/* ── 상단 헤더 (isExcluded이 아닐 때만 렌더링) ── */}
+            {!isExcluded && (
                 <header className={styles.header}>
                     {/* 로고 */}
                     <Link to="/" className={styles.logoLink}>
@@ -52,7 +52,7 @@ function InnerLayout() {
                     </Link>
 
                     {/* 비조작 타이머 (홈 화면이 아닐 때만 표시) */}
-                    {!isHome && (
+                    {!isExcluded && (
                         <div className={`${styles.timerBadge} ${timerUrgent ? styles.timerUrgent : ''}`}>
                             <Clock size={16}/>
                             <span className={styles.timerText}>

@@ -26,7 +26,7 @@ function MovieListAdminPage() {
     m.title.includes(search) || m.genre.includes(search)
   )
 
-  /** UC-20: 삭제 — 익일 00시 반영 + 잔여 예매 자동 환불 확인 */
+  /** 삭제 — 익일 00시 반영 + 잔여 예매 자동 환불 확인 */
   const handleDelete = (movie) => {
     const ok = window.confirm(
       `"${movie.title}" 을 삭제하시겠습니까?\n\n` +
@@ -43,7 +43,7 @@ function MovieListAdminPage() {
     <div>
       <div style={headerRow}>
         <h2 style={pageTitle}>영화 목록</h2>
-        {/* UC-18: 영화 등록 */}
+        {/* 영화 등록 */}
         <button onClick={() => navigate('/admin/management/movie/form')} style={addBtn}>
           + 영화 등록
         </button>
@@ -100,12 +100,12 @@ function MovieListAdminPage() {
                     </td>
                     <td style={td}>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        {/* UC-19: 수정 */}
+                        {/* 수정 */}
                         <button
                           onClick={() => navigate('/admin/management/movie/form', { state: { movie: m } })}
                           style={editBtn}
                         >수정</button>
-                        {/* UC-20: 삭제 */}
+                        {/* 삭제 */}
                         <button
                           onClick={() => handleDelete(m)}
                           style={deleteBtn}

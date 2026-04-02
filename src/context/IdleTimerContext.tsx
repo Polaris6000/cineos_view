@@ -26,11 +26,11 @@ const IDLE_LIMIT = 60
 const IdleTimerContext = createContext<{
   remain: number
   resetTimer: () => void
-  isHome: boolean
+  isExcluded: boolean
 }>({
   remain: IDLE_LIMIT,
   resetTimer: () => {},
-  isHome: false,
+  isExcluded: false,
 })
 
 /**
@@ -48,7 +48,7 @@ export function IdleTimerProvider({ children }: { children: ReactNode }) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
 
   // 홈 화면이면 타이머를 일시 중지 (홈→홈 리다이렉트 방지)
-  const isHome = location.pathname === '/'
+  const isExcluded = location.pathname === '/' || location.pathname.startsWith('/admin');
 
   /**
    * 타이머 리셋 함수
@@ -86,8 +86,8 @@ export function IdleTimerProvider({ children }: { children: ReactNode }) {
    * 0초 도달 시 홈으로 이동.
    */
   useEffect(() => {
-    // 홈 화면이면 항상 IDLE_LIMIT 로 초기화하고 카운트다운 중지
-    if (isHome) {
+    // isExcluded이면 항상 IDLE_LIMIT 로 초기화하고 카운트다운 중지
+    if (isExcluded) {
       setRemain(IDLE_LIMIT)
       clearInterval(intervalRef.current)
       return
@@ -108,10 +108,10 @@ export function IdleTimerProvider({ children }: { children: ReactNode }) {
 
     // cleanup: 경로 변경 또는 언마운트 시 인터벌 제거
     return () => clearInterval(intervalRef.current)
-  }, [isHome, navigate, location.pathname]) // 경로 바뀔 때마다 타이머 리셋
+  }, [isExcluded, navigate, location.pathname]) // 경로 바뀔 때마다 타이머 리셋
 
   return (
-    <IdleTimerContext.Provider value={{ remain, resetTimer, isHome }}>
+    <IdleTimerContext.Provider value={{ remain, resetTimer, isExcluded }}>
       {children}
     </IdleTimerContext.Provider>
   )
@@ -121,7 +121,7 @@ export function IdleTimerProvider({ children }: { children: ReactNode }) {
  * useIdleTimer — Context 소비 훅
  * remain: 남은 시간 (초)
  * resetTimer: 타이머 수동 리셋 함수
- * isHome: 홈 화면 여부
+ * isExcluded: 타이머를 적용할 화면 여부
  */
 export function useIdleTimer() {
   return useContext(IdleTimerContext)
