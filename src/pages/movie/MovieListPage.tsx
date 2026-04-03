@@ -22,7 +22,6 @@ import {
   GENRE_OPTIONS, RATING_OPTIONS, THEATER_TYPE_OPTIONS,
   MOCK_SCHEDULES, MOCK_THEATERS,
 } from '../../api/mockData'
-import { useKeyboard } from '../../context/KeyboardContext'
 import styles from './MovieListPage.module.css'
 
 /** 등급 → 표시 텍스트 (카드용 짧은 형식) */
@@ -43,8 +42,6 @@ function formatRuntime(minutes) {
 
 function MovieListPage() {
   const navigate = useNavigate()
-  // KeyboardContext: 터치 키보드 열기 함수
-  const { openKeyboard } = useKeyboard()
 
   // 현재 활성 탭: 'now' | 'upcoming'
   const [activeTab, setActiveTab] = useState('now')
@@ -113,15 +110,6 @@ function MovieListPage() {
   /** 카드 클릭 → 영화 상세 페이지 */
   const handleCardClick = (movieId) => {
     navigate(`/movie/detail/${movieId}`)
-  }
-
-  /**
-   * 검색 input 터치(포커스) 핸들러
-   * openKeyboard(inputEl, 현재값, setState) 호출 → 하단 터치 키보드 표시
-   * 키보드에서 입력하면 setSearchQuery 가 호출되어 상태가 업데이트됨
-   */
-  const handleSearchFocus = (e) => {
-    openKeyboard(e.target, searchQuery, setSearchQuery)
   }
 
   return (
@@ -219,7 +207,6 @@ function MovieListPage() {
               placeholder="영화 제목을 입력해 주세요"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              onFocus={handleSearchFocus}  /* 터치(포커스) 시 터치 키보드 열기 */
               autoComplete="off"
               maxLength={50}
             />

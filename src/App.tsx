@@ -139,8 +139,10 @@ function AnimatedRoutes() {
               <Route path="management/members" element={<MemberListPage />} />
             </Route>
 
-            {/* 계정/권한 관리 — account.manage 권한 필요 (SUPER_ADMIN 전용) */}
-            <Route element={<PrivateRoute permission="account.manage" />}>
+            {/* 계정/권한 관리 — 로그인만 필요 (컴포넌트 내부에서 SUPER_ADMIN/MANAGER 역할 분기)
+                SUPER_ADMIN: 모든 계정 권한 조회·수정 가능
+                MANAGER: 본인 계정 권한 조회만 가능 (읽기 전용) */}
+            <Route element={<PrivateRoute />}>
               <Route path="management/accounts" element={<AdminAccountPage />} />
             </Route>
 

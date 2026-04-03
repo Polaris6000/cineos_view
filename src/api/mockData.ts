@@ -42,6 +42,7 @@ export interface Theater {
   hasRecliner: boolean;
   hasVip: boolean;
   hasCouple: boolean;
+  cleanupTime: number; // 상영 후 정리시간 (분) — 스케줄 종료시간 계산에 사용됨
 }
 
 /* ───────────────────────────────────────────────────
@@ -160,6 +161,21 @@ export const MOCK_MOVIES = [
     startAt: '2026-07-04',
     endAt: null,
   },
+  // 상영종료된 영화 — 전체 로그 기능 테스트용
+  {
+    id: 9,
+    title: '오펜하이머',
+    genre: '드라마 / 역사',
+    rating: '15',
+    posterUrl: '/placeholder-poster.jpg',
+    synopsis:
+      '원자폭탄의 아버지 로버트 오펜하이머의 이야기. 세상을 바꾼 발명과 그에 따른 도덕적 갈등을 그린 크리스토퍼 놀란 감독의 역작.',
+    director: '크리스토퍼 놀란',
+    cast: '킬리언 머피, 에밀리 블런트, 맷 데이먼',
+    runtime: 180,
+    startAt: '2026-01-01',
+    endAt: '2026-03-15', // 이미 종영된 영화 (오늘 기준 과거)
+  },
 ]
 
 /** 현재 상영 중인 영화 (endAt 이 있는 것) */
@@ -217,6 +233,7 @@ export const MOCK_THEATERS = [
     hasRecliner: false,
     hasVip: true,
     hasCouple: true,
+    cleanupTime: 15, // 정리시간 15분
   },
   {
     id: 2,
@@ -227,7 +244,8 @@ export const MOCK_THEATERS = [
     basePrice: 14000,
     hasRecliner: false,
     hasVip: false,
-    hasCouple: false,
+    hasCouple: true, // 마지막 행 커플석 있음
+    cleanupTime: 10, // 정리시간 10분
   },
   {
     id: 3,
@@ -238,7 +256,8 @@ export const MOCK_THEATERS = [
     basePrice: 14000,
     hasRecliner: false,
     hasVip: false,
-    hasCouple: false,
+    hasCouple: true, // 마지막 행 커플석 있음
+    cleanupTime: 10, // 정리시간 10분
   },
   {
     id: 4,
@@ -250,6 +269,7 @@ export const MOCK_THEATERS = [
     hasRecliner: true,
     hasVip: false,
     hasCouple: false,
+    cleanupTime: 20, // 리클라이너관 정리시간 20분
   },
 ]
 
@@ -315,28 +335,73 @@ export interface Seat {
   seatType: 'NORMAL' | 'RECLINER' | 'COUPLE' | 'VIP';
 }
 
-export function generateSeats(
-  rows: number,
-  cols: number,
-  hasRecliner = false,
-  hasVip = false,
-  hasCouple = false
-): Seat[] {
+/**
+ * generateSeats(theater) — 상영관별 고유 좌석 배치 생성
+ *
+ * 상영관별 레이아웃 규칙:
+ *   1관 (10×15, hasVip)  : 1행(A) = VIP / 마지막행(J) = COUPLE / 나머지 = NORMAL
+ *   2관 (10×12)          : 마지막행(J) = COUPLE / 좌우 끝 일부 disabled / 나머지 = NORMAL
+ *   3관 (8×10)           : 마지막행(H) = COUPLE / C·D행 1번 좌석 disabled(휠체어 공간) / 나머지 = NORMAL
+ *   4관 (10×10, recliner): 전 좌석 RECLINER, 커플석 없음
+ *
+ * sold_out 처리: 결정론적 해시 ((r*7 + c*3 + theaterId*13) % 17)로 일부 좌석 매진 표시
+ *   - COUPLE / VIP 은 매진 임계값을 낮춰 희소하게 표현
+ */
+export function generateSeats(theater: Theater): Seat[] {
+  const { id, rows, cols, hasRecliner } = theater;
   const rowLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const seats: Seat[] = [];
 
   for (let r = 0; r < rows; r++) {
+    const isLastRow = r === rows - 1; // 마지막 행 여부
+
     for (let c = 1; c <= cols; c++) {
-      // ... 기존 로직과 동일
-      seats.push({
-        id: `${rowLabels[r]}${c}`,
-        row: rowLabels[r],
-        col: c,
-        status: 'empty', // 로직에 따라 status 할당
-        seatType: 'NORMAL', // 로직에 따라 타입 할당
-      });
+      const seatId = `${rowLabels[r]}${c}`;
+
+      /* ── 좌석 타입 결정 ── */
+      let seatType: Seat['seatType'] = 'NORMAL';
+
+      if (hasRecliner) {
+        // 4관(리클라이너): 전 좌석 RECLINER, 커플석 없음
+        seatType = 'RECLINER';
+      } else if (isLastRow) {
+        // 일반관 마지막 행: 전 좌석 COUPLE
+        seatType = 'COUPLE';
+      } else if (id === 1 && r === 0) {
+        // 1관 A행(최전방): VIP 석
+        seatType = 'VIP';
+      }
+
+      /* ── 좌석 상태 결정 ── */
+      let status: Seat['status'] = 'empty';
+
+      // 상영관별 disabled 처리 (휠체어·통로 공간)
+      if (id === 2) {
+        // 2관: B~F행 좌우 끝 1열 disabled (양쪽 통로 접근석)
+        if ((c === 1 || c === cols) && r >= 1 && r <= 5) {
+          status = 'disabled';
+        }
+      } else if (id === 3) {
+        // 3관: C·D행(r=2,3) 1번 좌석 disabled (휠체어 공간)
+        if (c === 1 && (r === 2 || r === 3)) {
+          status = 'disabled';
+        }
+      }
+
+      // 결정론적 sold_out 처리 (같은 입력이면 항상 같은 결과)
+      if (status === 'empty') {
+        const hash = (r * 7 + c * 3 + id * 13) % 17;
+        // COUPLE·VIP은 희소하게(임계값 낮음), 일반석은 더 많이 매진
+        const threshold = (seatType === 'COUPLE' || seatType === 'VIP') ? 2 : 5;
+        if (hash < threshold) {
+          status = 'sold_out';
+        }
+      }
+
+      seats.push({ id: seatId, row: rowLabels[r], col: c, status, seatType });
     }
   }
+
   return seats;
 }
 
@@ -423,7 +488,7 @@ export const MOCK_BOOKINGS = [
     phone: '010-1234-5678',
     movieTitle: '듄: 파트 2',
     theaterName: '1관',
-    date: '2026-03-29',
+    date: '2026-04-15',  // 미래 날짜 — 상영시작 전 → 환불 가능 테스트용
     startTime: '19:00',
     seats: ['G7', 'G8'],
     ticketCount: 2,
@@ -482,11 +547,10 @@ export const PERSON_TYPES = [
 ]
 
 /**
- * 결제 수단 — 현금 제거, 카드 및 간편결제만 지원
+ * 결제 수단 — 현금·네이버페이 제거, 카드 및 간편결제만 지원
  */
 export const PAYMENT_METHODS = [
   { id: 'CARD',   label: '신용/체크카드' },
   { id: 'KAKAO',  label: '카카오페이' },
-  { id: 'NAVER',  label: '네이버페이' },
   { id: 'TOSS',   label: '토스' },
 ] as const; // 값을 읽기 전용 상수로 고정

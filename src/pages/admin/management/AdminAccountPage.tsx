@@ -1,18 +1,18 @@
 /**
- * AdminAccountPage.tsx — 관리자 계정 및 권한 관리 (SUPER_ADMIN 전용)
+ * AdminAccountPage.tsx — 관리자 계정 및 권한 관리
  *
- * 기능:
- *  - 관리자 계정 목록 조회
- *  - 계정별 개별 권한 토글 (MANAGER에게 특정 권한만 추가/제거)
- *  - SUPER_ADMIN 계정은 권한 수정 불가 (잠금 처리)
+ * 접근 권한 분리:
+ *  - SUPER_ADMIN: 모든 계정 권한 조회 및 수정 가능
+ *  - MANAGER: 본인 계정만 조회 가능 (읽기 전용, 수정 불가)
  *
  * TODO: GET /api/admin/accounts 연동
  * TODO: PUT /api/admin/accounts/:id/permissions 연동
  */
 import { useState, useCallback } from 'react'
-import { ShieldCheck, ShieldOff, Lock, Save, RotateCcw } from 'lucide-react'
+import { ShieldCheck, ShieldOff, Lock, Save, RotateCcw, Eye } from 'lucide-react'
 import type { AdminUser, Permission } from '../../../types/auth'
 import { MOCK_ADMIN_ACCOUNTS, ROLE_PERMISSIONS } from '../../../types/auth'
+import { useAuth } from '../../../context/AuthContext'
 
 /**
  * 각 권한의 표시명과 설명
@@ -50,9 +50,15 @@ const PERMISSION_GROUPS = [
 ]
 
 function AdminAccountPage() {
+  // 현재 로그인한 관리자 정보 및 최고관리자 여부
+  const { currentAdmin, isSuperAdmin } = useAuth()
+
   // 더미 계정 목록으로 초기화
+  // SUPER_ADMIN은 전체 계정, MANAGER는 본인 계정만 볼 수 있음
   const [accounts, setAccounts] = useState<AdminUser[]>(
-    MOCK_ADMIN_ACCOUNTS.map((a) => ({ ...a, permissions: [...a.permissions] }))
+    MOCK_ADMIN_ACCOUNTS
+      .filter((a) => isSuperAdmin || a.id === currentAdmin?.id) // MANAGER는 본인만 필터링
+      .map((a) => ({ ...a, permissions: [...a.permissions] }))
   )
   // 저장 중 상태 (계정 id → boolean)
   const [saving, setSaving] = useState<Record<string, boolean>>({})
@@ -110,23 +116,32 @@ function AdminAccountPage() {
       {/* 페이지 헤더 */}
       <div style={pageHeader}>
         <h2 style={pageTitle}>계정 및 권한 관리</h2>
-        <p style={pageDesc}>
-          일반관리자 계정의 개별 권한을 추가하거나 제거할 수 있습니다.
-          최고관리자 계정의 권한은 수정할 수 없습니다.
-        </p>
+        {isSuperAdmin ? (
+          <p style={pageDesc}>
+            일반관리자 계정의 개별 권한을 추가하거나 제거할 수 있습니다.
+            최고관리자 계정의 권한은 수정할 수 없습니다.
+          </p>
+        ) : (
+          // MANAGER는 본인 권한 조회만 가능 — 수정 불가 안내
+          <p style={{ ...pageDesc, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Eye size={14} color="var(--text-muted)" />
+            내 권한을 조회할 수 있습니다. 권한 변경은 최고관리자에게 문의하세요.
+          </p>
+        )}
       </div>
 
       {/* 계정 카드 목록 */}
       <div style={cardList}>
         {accounts.map((account) => {
-          const isSuperAdmin = account.role === 'SUPER_ADMIN'
+          // isAccountSuperAdmin: 이 카드가 최고관리자 계정인지 여부
+          const isAccountSuperAdmin = account.role === 'SUPER_ADMIN'
           const isChanged = JSON.stringify(account.permissions.sort())
             !== JSON.stringify(ROLE_PERMISSIONS[account.role].slice().sort())
 
           return (
             <div key={account.id} style={{
               ...card,
-              opacity: isSuperAdmin ? 0.75 : 1,
+              opacity: isAccountSuperAdmin ? 0.75 : 1,
             }}>
               {/* 계정 정보 헤더 */}
               <div style={cardHeader}>
@@ -138,13 +153,19 @@ function AdminAccountPage() {
                   {/* 역할 뱃지 */}
                   <span style={{
                     padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700,
-                    background: isSuperAdmin ? 'rgba(255,184,0,0.15)' : 'rgba(130,176,255,0.15)',
-                    color: isSuperAdmin ? '#ffb800' : '#82b0ff',
+                    background: isAccountSuperAdmin ? 'rgba(255,184,0,0.15)' : 'rgba(130,176,255,0.15)',
+                    color: isAccountSuperAdmin ? '#ffb800' : '#82b0ff',
                   }}>
-                    {isSuperAdmin ? '최고관리자' : '일반관리자'}
+                    {isAccountSuperAdmin ? '최고관리자' : '일반관리자'}
                   </span>
-                  {/* SUPER_ADMIN 잠금 아이콘 */}
-                  {isSuperAdmin && <Lock size={14} color="var(--text-muted)" />}
+                  {/* SUPER_ADMIN 계정 잠금 아이콘 */}
+                  {isAccountSuperAdmin && <Lock size={14} color="var(--text-muted)" />}
+                  {/* 현재 로그인 계정 표시 */}
+                  {account.id === currentAdmin?.id && (
+                    <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4,
+                                   background: 'var(--color-info-bg)', color: 'var(--color-info-dark)',
+                                   fontWeight: 600 }}>내 계정</span>
+                  )}
                 </div>
               </div>
 
@@ -156,7 +177,12 @@ function AdminAccountPage() {
                     {group.permissions.map((perm) => {
                       const meta = PERMISSION_META[perm]
                       const has  = account.permissions.includes(perm)
-                      const locked = isSuperAdmin // SUPER_ADMIN은 모든 토글 잠금
+                      /**
+                       * 토글 잠금 조건:
+                       *  1. 대상 계정이 SUPER_ADMIN이면 항상 잠금 (최고관리자 권한은 변경 불가)
+                       *  2. 현재 로그인한 사용자가 MANAGER이면 항상 잠금 (읽기 전용)
+                       */
+                      const locked = isAccountSuperAdmin || !isSuperAdmin
 
                       return (
                         <button
@@ -185,8 +211,8 @@ function AdminAccountPage() {
                 </div>
               ))}
 
-              {/* 저장/리셋 버튼 — MANAGER만 표시 */}
-              {!isSuperAdmin && (
+              {/* 저장/리셋 버튼 — 현재 로그인이 SUPER_ADMIN이고, 대상이 MANAGER인 경우만 표시 */}
+              {isSuperAdmin && !isAccountSuperAdmin && (
                 <div style={cardFooter}>
                   {savedMsg[account.id] && (
                     <span style={{ fontSize: 13, color: 'var(--color-success-text)', fontWeight: 600 }}>

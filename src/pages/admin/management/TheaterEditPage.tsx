@@ -25,10 +25,11 @@ function TheaterEditPage() {
   }
 
   const [form, setForm] = useState({
-    rows:       theater.rows,
-    cols:       theater.cols,
-    basePrice:  theater.basePrice,
-    hasRecliner:theater.hasRecliner,
+    rows:        theater.rows,
+    cols:        theater.cols,
+    basePrice:   theater.basePrice,
+    hasRecliner: theater.hasRecliner,
+    cleanupTime: theater.cleanupTime ?? 10, // 정리시간(분) — 없으면 기본 10분
   })
 
   const [success, setSuccess] = useState(false)
@@ -106,6 +107,26 @@ function TheaterEditPage() {
             <label style={fieldLabel}>기본 요금 (원)</label>
             <input type="number" value={form.basePrice} min={0} step={1000}
               onChange={(e) => change('basePrice', Number(e.target.value))} style={input} />
+          </div>
+        </div>
+
+        {/* 정리시간 */}
+        <div style={card}>
+          <p style={sLabel}>상영 후 정리시간 (분)</p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
+            스케줄 종료시간 = 시작시간 + 런타임 + 정리시간 으로 계산됩니다.
+          </p>
+          <div style={fieldWrap}>
+            <label style={fieldLabel}>정리시간 (분)</label>
+            <input
+              type="number"
+              value={form.cleanupTime}
+              min={0}
+              max={60}
+              step={5}
+              onChange={(e) => change('cleanupTime', Number(e.target.value))}
+              style={input}
+            />
           </div>
         </div>
 

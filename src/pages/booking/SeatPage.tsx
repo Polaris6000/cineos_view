@@ -39,17 +39,12 @@ function SeatPage() {
 
   /**
    * 좌석 목록 생성
-   * theater.hasRecliner, hasVip, hasCouple 옵션에 따라 좌석 타입 부여
+   * generateSeats(theater) — theater 객체를 통째로 전달
+   * 상영관 ID 기반으로 레이아웃(VIP / COUPLE / RECLINER / disabled) 결정
    * TODO: GET /api/seats?scheduleId=schedule.scheduleId 로 교체
    */
   const initialSeats = useMemo(
-    () => generateSeats(
-      theater.rows,
-      theater.cols,
-      theater.hasRecliner,
-      theater.hasVip,
-      theater.hasCouple
-    ),
+    () => generateSeats(theater),
     [theater]
   )
   const [seats, setSeats] = useState(initialSeats)

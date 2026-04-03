@@ -22,7 +22,6 @@ import {Clock} from 'lucide-react'
 import {pageVariants, pageTransition} from '../../styles/transitions'
 import {IdleTimerProvider, useIdleTimer} from '../../context/IdleTimerContext'
 import {KeyboardProvider} from '../../context/KeyboardContext'
-import TouchKeyboard from '../TouchKeyboard/TouchKeyboard'
 import styles from './CustomerLayout.module.css'
 
 /**
@@ -83,8 +82,7 @@ function InnerLayout() {
                 </motion.div>
             </main>
 
-            {/* ── 터치 키보드 (입력창 포커스 시 자동 표시) ── */}
-            <TouchKeyboard/>
+            {/* 터치 키보드 제거 — 실물 키보드 사용 */}
         </div>
     )
 }

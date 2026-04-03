@@ -11,20 +11,35 @@ import { MOCK_DAILY_STATS } from '../../../api/mockData'
 
 const today = new Date().toISOString().slice(0, 10)
 
+/** 테이블 한 페이지에 표시할 행 수 */
+const PAGE_SIZE = 7
+
 function StatsDailyPage() {
   // 기본: 최근 7일
   const defaultFrom = MOCK_DAILY_STATS[MOCK_DAILY_STATS.length - 7]?.date ?? today
   const [from, setFrom] = useState(defaultFrom)
   const [to,   setTo]   = useState(today)
 
+  // 테이블 페이지 (0-indexed)
+  const [page, setPage] = useState(0)
+
   const filtered = useMemo(
-    () => MOCK_DAILY_STATS.filter((d) => d.date >= from && d.date <= to),
+    () => {
+      // 날짜 범위가 바뀌면 페이지 초기화
+      setPage(0)
+      return MOCK_DAILY_STATS.filter((d) => d.date >= from && d.date <= to)
+    },
     [from, to]
   )
 
   const totalRevenue = filtered.reduce((a, d) => a + d.revenue, 0)
   const totalTickets = filtered.reduce((a, d) => a + d.tickets, 0)
   const maxRevenue   = Math.max(...filtered.map((d) => d.revenue), 1)
+
+  // 최신 날짜가 먼저 오도록 reverse 후 페이지 슬라이싱
+  const reversedFiltered = useMemo(() => [...filtered].reverse(), [filtered])
+  const totalPages = Math.ceil(reversedFiltered.length / PAGE_SIZE)
+  const pagedRows  = reversedFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
   return (
     <div>
@@ -91,7 +106,7 @@ function StatsDailyPage() {
             {filtered.length === 0 ? (
               <tr><td colSpan={4} style={noData}>해당 기간 데이터 없음</td></tr>
             ) : (
-              [...filtered].reverse().map((d) => (
+              pagedRows.map((d) => (
                 <tr key={d.date} style={tr}>
                   <td style={td}>{d.date}</td>
                   <td style={td}>{d.tickets.toLocaleString()}</td>
@@ -103,6 +118,32 @@ function StatsDailyPage() {
           </tbody>
         </table>
       </div>
+
+      {/* 페이지네이션 — 데이터가 PAGE_SIZE 초과일 때만 표시 */}
+      {totalPages > 1 && (
+        <div style={pagination}>
+          <button
+            style={{ ...pageBtn, opacity: page === 0 ? 0.4 : 1 }}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+          >
+            ← 이전
+          </button>
+          <span style={pageInfo}>
+            {page + 1} / {totalPages} 페이지
+            <span style={{ color: 'var(--text-muted)', fontSize: 12, marginLeft: 6 }}>
+              (전체 {filtered.length}일)
+            </span>
+          </span>
+          <button
+            style={{ ...pageBtn, opacity: page >= totalPages - 1 ? 0.4 : 1 }}
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
+          >
+            다음 →
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -136,5 +177,10 @@ const th         = { padding: '12px 16px', textAlign: 'left', fontSize: 13,
 const tr         = { borderBottom: '1px solid var(--border-subtle)' }
 const td         = { padding: '11px 16px', fontSize: 14, color: 'var(--text-primary)' }
 const noData     = { padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }
+const pagination = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 16 }
+const pageBtn    = { padding: '8px 18px', background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
+                     borderRadius: 8, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer',
+                     fontWeight: 600, transition: 'opacity 0.2s' }
+const pageInfo   = { fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }
 
 export default StatsDailyPage

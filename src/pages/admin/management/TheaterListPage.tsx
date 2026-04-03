@@ -23,6 +23,8 @@ function TheaterListPage() {
               <dt style={dt}>총 좌석</dt>  <dd style={dd}>{t.totalSeats}석</dd>
               <dt style={dt}>배치</dt>     <dd style={dd}>{t.rows}행 × {t.cols}열</dd>
               <dt style={dt}>기본 요금</dt><dd style={dd}>{t.basePrice.toLocaleString()}원</dd>
+              {/* 정리시간: 스케줄 종료시간 계산에 사용되는 값 */}
+              <dt style={dt}>정리시간</dt> <dd style={dd}>{t.cleanupTime}분</dd>
               <dt style={dt}>리클라이너</dt>
               <dd style={dd}>
                 {t.hasRecliner
