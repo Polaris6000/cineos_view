@@ -36,10 +36,19 @@ function AdminLoginPage() {
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
+
+    // 앞뒤 공백 제거 후 검사 — 공백만 입력한 경우도 빈 값으로 처리
+    const trimId = id.trim()
+    const trimPw = pw.trim()
+    if (!trimId || !trimPw) {
+      setError('아이디와 비밀번호를 입력해 주세요.')
+      return
+    }
+
     setLoading(true)
 
-    // AuthContext.login() 호출 — 성공: true, 실패: false 반환
-    const ok = await login(id, pw)
+    // AuthContext.login() 호출 — 공백 제거된 값으로 비교, 성공: true, 실패: false 반환
+    const ok = await login(trimId, trimPw)
 
     if (ok) {
       // 로그인 성공 → 원래 접근하려던 페이지(또는 대시보드)로 이동

@@ -16,10 +16,12 @@
  * state 수신: movieId, movieTitle, schedule, persons, totalPersons
  * TODO: GET /api/seats?scheduleId= 연동 + WebSocket STOMP 구독
  */
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Info, CreditCard } from 'lucide-react'
-import { generateSeats, MOCK_THEATERS, SEAT_PRICES, SEAT_TYPE_LABEL, PERSON_TYPES } from '../../api/mockData'
+import { MOCK_THEATERS, SEAT_PRICES, SEAT_TYPE_LABEL, PERSON_TYPES } from '../../api/mockData'
+// store에서 좌석 배치 가져오기 — 어드민 SeatEditPage에서 저장한 내용 반영
+import { getSeatLayout } from '../../store/seatLayoutStore'
 
 function SeatPage() {
   const navigate = useNavigate()
@@ -39,18 +41,18 @@ function SeatPage() {
 
   /**
    * 좌석 목록 생성
-   * generateSeats(theater) — theater 객체를 통째로 전달
-   * 상영관 ID 기반으로 레이아웃(VIP / COUPLE / RECLINER / disabled) 결정
+   * seatLayoutStore.getSeatLayout(theaterId) 우선 — 어드민이 편집 후 저장한 배치 반영
+   * store에 없으면 generateSeats(theater) 기본 배치 자동 생성
    * TODO: GET /api/seats?scheduleId=schedule.scheduleId 로 교체
    */
-  const initialSeats = useMemo(
-    () => generateSeats(theater),
-    [theater]
+  // store에서 최신 좌석 배치 가져오기 — 읽기 전용 (상태 변경 없음)
+  const seats = useMemo(
+    () => getSeatLayout(theater.id),
+    [theater.id]
   )
-  const [seats, setSeats] = useState(initialSeats)
 
   // 내가 선택한 좌석 id 목록
-  const [selectedIds, setSelectedIds] = useState([])
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   /**
    * 좌석 클릭 처리 (개별 토글 방식)
@@ -159,7 +161,7 @@ function SeatPage() {
 
   // 선택된 좌석들의 타입 분류 (요금 표시용)
   const selectedSeatsSummary = useMemo(() => {
-    const byType = {}
+    const byType: Record<string, number> = {}
     selectedIds.forEach((id) => {
       const seat = seats.find((s) => s.id === id)
       const type = seat?.seatType ?? 'NORMAL'
@@ -196,10 +198,9 @@ function SeatPage() {
       {/* ── 좌석 타입 범례 ── */}
       <div style={legend}>
         {[
-          { label: '일반',       color: 'var(--color-seat-empty)',    border: 'var(--color-seat-empty-border)' },
-          { label: '선택',       color: 'var(--color-seat-selected)', border: 'var(--color-brand-hover)' },
+          { label: '일반석',     color: 'var(--color-seat-empty)',    border: 'var(--color-seat-empty-border)' },
+          { label: '선택됨',     color: 'var(--color-seat-selected)', border: 'var(--color-brand-hover)' },
           { label: '매진',       color: 'var(--color-seat-sold-out)', border: 'transparent' },
-          { label: 'VIP',        color: '#4040a0',                    border: '#6060c0' },
           { label: '리클라이너', color: '#1a5c3a',                    border: '#00ad74' },
           { label: '커플석',     color: '#5c1a2a',                    border: '#e03c3c' },
         ].map(({ label, color, border }) => (
@@ -305,7 +306,7 @@ function SeatPage() {
           <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
             {Object.entries(selectedSeatsSummary).map(([type, cnt]) => (
               <span key={type} style={{ marginRight: 12 }}>
-                {SEAT_TYPE_LABEL[type] ?? '일반'} {cnt}석 · {(getSeatPrice(type) * cnt).toLocaleString()}원
+                {SEAT_TYPE_LABEL[type as keyof typeof SEAT_TYPE_LABEL] ?? '일반'} {cnt as number}석 · {(getSeatPrice(type) * (cnt as number)).toLocaleString()}원
               </span>
             ))}
           </div>
@@ -345,7 +346,7 @@ function SeatPage() {
   )
 }
 
-/* ── 좌석 타입·상태별 색상 반환 ── */
+/* ── 좌석 타입·상태별 색상 반환 (VIP 없음 — 일반/리클라이너/커플만) ── */
 function getSeatStyle(seat, selectedIds) {
   if (selectedIds.includes(seat.id)) {
     return { background: 'var(--color-seat-selected)', border: '1px solid var(--color-brand-hover)', cursor: 'pointer' }
@@ -355,7 +356,6 @@ function getSeatStyle(seat, selectedIds) {
 
   // 빈 자리: 좌석 타입별 색상
   switch (seat.seatType) {
-    case 'VIP':      return { background: '#4040a0', border: '1px solid #6060c0', cursor: 'pointer' }
     case 'RECLINER': return { background: '#1a5c3a', border: '1px solid #00ad74', cursor: 'pointer' }
     case 'COUPLE':   return { background: '#5c1a2a', border: '1px solid #e03c3c', cursor: 'pointer' }
     default:         return { background: 'var(--color-seat-empty)', border: '1px solid var(--color-seat-empty-border)', cursor: 'pointer' }

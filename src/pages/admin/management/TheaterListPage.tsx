@@ -51,7 +51,7 @@ const card      = { background: 'var(--bg-surface)', borderRadius: 12, padding: 
 const dl        = { display: 'grid', gridTemplateColumns: '80px 1fr', gap: '8px 10px', marginBottom: 16 }
 const dt        = { fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }
 const dd        = { fontSize: 14, color: 'var(--text-primary)', margin: 0 }
-const editBtn   = { width: '100%', padding: '10px 0', background: 'var(--primitive-brand-50)', border: '1px solid var(--color-brand-default)',
-                    borderRadius: 8, color: 'var(--primitive-brand-700)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }
+const editBtn   = { width: '100%', padding: '10px 0', background: 'var(--color-info-bg)', border: '1px solid var(--color-brand-default)',
+                    borderRadius: 8, color: 'var(--color-brand-default)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }
 
 export default TheaterListPage
