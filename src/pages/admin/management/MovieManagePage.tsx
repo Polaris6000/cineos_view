@@ -12,7 +12,7 @@
  * TODO: GET/POST/DELETE /api/admin/schedules 연동
  */
 import { useState, useMemo, useEffect } from 'react'
-import { MOCK_MOVIES, MOCK_THEATERS } from '../../../api/mockData'
+import { MOCK_THEATERS } from '../../../api/mockData'
 import axios from "axios";
 
 /* ── 타입 정의 ── */
@@ -59,6 +59,14 @@ function getScheduleStatus(
   return 'ACTIVE'
 }
 
+interface Movie {
+  id: number
+  title: string
+  runtime: number
+  director: string
+  rating: string
+}
+
 function MovieManagePage() {
   // ── 선택된 영화 id ──
   const [selectedMovieId, setSelectedMovieId] = useState<number>(1)
@@ -69,7 +77,7 @@ function MovieManagePage() {
         .then(res => {
           console.log(res.data)
           const mapped = res.data.map((m: any) => ({
-            id: m.movieId,   // 🔥 핵심 수정
+            id: m.movieId,
             title: m.title,
             runtime: m.runtime ?? 120,
             director: m.director ?? '감독 미정',
