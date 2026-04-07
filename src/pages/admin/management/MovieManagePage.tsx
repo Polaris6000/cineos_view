@@ -61,7 +61,29 @@ function getScheduleStatus(
 
 function MovieManagePage() {
   // ── 선택된 영화 id ──
-  const [selectedMovieId, setSelectedMovieId] = useState<number>(MOCK_MOVIES[0]?.id ?? 1)
+  const [selectedMovieId, setSelectedMovieId] = useState<number>(1)
+  const [movies, setMovies] = useState<Movie[]>([])
+
+  useEffect(() => {
+    axios.get('http://localhost:8080/api/movie/readAll')
+        .then(res => {
+          console.log(res.data)
+          const mapped = res.data.map((m: any) => ({
+            id: m.movieId,   // 🔥 핵심 수정
+            title: m.title,
+            runtime: m.runtime ?? 120,
+            director: m.director ?? '감독 미정',
+            rating: m.rating ?? 'ALL',
+          }))
+
+          setMovies(mapped)
+
+          // 첫 영화 자동 선택
+          if (mapped.length > 0) {
+            setSelectedMovieId(mapped[0].id)
+          }
+        })
+  }, [])
 
   // ── 로컬 스케줄 상태 ──
   // const [schedules, setSchedules] = useState<Record<number, Schedule[]>>(
@@ -74,16 +96,43 @@ function MovieManagePage() {
   // )
 
   // 연결
-  const [schedules, setSchedules] = useState<Record<number, Schedule[]>>([])
+  const [schedules, setSchedules] = useState<Record<number, Schedule[]>>({})
 
   useEffect(() => {
     axios.get('http://localhost:8080/api/admin/schedule/list')
         .then(res => {
-          const filtered = res.data.filter((s: any) => {
-            const scheduleDate = s.startAt.slice(0, 10)
-            return s.movieId === movieId && scheduleDate === today
+          const data = res.data
+
+          const mapped: Record<number, Schedule[]> = {}
+
+          data.forEach((s: any) => {
+            const date = s.startAt.slice(0, 10)
+            const startTime = s.startAt.slice(11, 16)
+            const endTime = s.endAt.slice(11, 16)
+
+            const newSched: Schedule = {
+              scheduleId: s.id,
+              date,
+              startTime,
+              endTime,
+
+              // 핵심 수정
+              theaterId: s.no,
+              theaterName: `${s.no}관`,
+
+              // 좌석은 프론트에서 처리 현재 (100석)
+              availableSeats: s.activation ? 100 : 0,
+              totalSeats: 100, // TODO 수정하면 됨
+            }
+
+            if (!mapped[s.movieId]) {
+              mapped[s.movieId] = []
+            }
+
+            mapped[s.movieId].push(newSched)
           })
-          setSchedules(filtered)
+
+          setSchedules(mapped)
         })
   }, [])
 
@@ -98,7 +147,7 @@ function MovieManagePage() {
   const [newTime,    setNewTime]    = useState<string>('10:00')
   const [newTheater, setNewTheater] = useState<number>(MOCK_THEATERS[0]?.id ?? 1)
 
-  const selectedMovie   = MOCK_MOVIES.find((m) => m.id === selectedMovieId)
+  const selectedMovie = movies.find((m) => m.id === selectedMovieId)
   const selectedTheater = MOCK_THEATERS.find((t) => t.id === newTheater)
 
   /** 선택된 상영관+날짜의 통합 스케줄 (타임라인용) */
@@ -109,7 +158,7 @@ function MovieManagePage() {
           .filter((s) => s.theaterId === newTheater && s.date === newDate)
           .map((s) => ({
             ...s,
-            movieTitle: MOCK_MOVIES.find((m) => m.id === Number(movieId))?.title ?? '알 수 없음',
+            movieTitle: movies.find((m) => m.id === Number(movieId))?.title ?? '알 수 없음',
           })),
       )
       .sort((a, b) => a.startTime.localeCompare(b.startTime))
@@ -272,10 +321,10 @@ function MovieManagePage() {
           }}
           style={selectStyle}
         >
-          {MOCK_MOVIES.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.title} ({m.runtime}분)
-            </option>
+          {movies.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.title} ({m.runtime}분)
+              </option>
           ))}
         </select>
         {selectedMovie && (

@@ -14,7 +14,8 @@
  */
 import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Clock, Film, CalendarDays, Tag } from 'lucide-react'
-import { MOCK_MOVIES } from '../../api/mockData'
+import {useState, useEffect } from "react";
+import axios from "axios";
 
 /** 관람등급 → 표시 텍스트·색상 */
 const RATING_INFO = {
@@ -37,12 +38,31 @@ function MovieDetailPage() {
   const navigate = useNavigate()
 
   // TODO: useEffect 안에서 GET /api/movies/:id 호출로 교체
-  const movie = MOCK_MOVIES.find((m) => m.id === Number(id))
+  const [movie, setMovie] = useState<any>(null)
+  useEffect(() => {
+    axios.get('http://localhost:8080/api/movie/' + id)
+        .then(res => {
+          setMovie(res.data)
+        })
+  }, [id])
 
   // 오늘 상영 일정 및 잔여 좌석 합산
-  const schedules = MOCK_SCHEDULES[movie?.id] || []
+  const [todaySchedules, setTodaySchedules] = useState<any[]>([])
   const today = new Date().toISOString().slice(0, 10)
-  const todaySchedules = schedules.filter((s) => s.date === today)
+  // const todaySchedules = schedules.filter((s) => s.date === today)
+  // const totalAvailable = todaySchedules.reduce((acc, s) => acc + s.availableSeats, 0)
+
+  useEffect(() => {
+    if (!movie) return
+    axios.get('http://localhost:8080/api/admin/schedule/list')
+        .then(res => {
+          const filtered = res.data.filter((s: any) => {
+            return s.movieId === movie.movieId && s.startAt.slice(0, 10) === today
+          })
+          setTodaySchedules(filtered)
+        })
+  }, [movie?.movieId])
+
   const totalAvailable = todaySchedules.reduce((acc, s) => acc + s.availableSeats, 0)
 
   if (!movie) {
@@ -68,7 +88,7 @@ function MovieDetailPage() {
    */
   const handleBook = () => {
     navigate('/booking/schedule', {
-      state: { movieId: movie.id, movieTitle: movie.title },
+      state: { movieId: movie.movieId, movieTitle: movie.title },
     })
   }
 
@@ -79,7 +99,7 @@ function MovieDetailPage() {
   const handleBookWithSchedule = (schedule) => {
     navigate('/booking/schedule', {
       state: {
-        movieId:            movie.id,
+        movieId:            movie.movieId,
         movieTitle:         movie.title,
         preSelectedSchedule: schedule, // 상세 페이지에서 선택한 시간 전달
       },
@@ -101,7 +121,7 @@ function MovieDetailPage() {
         {/* 포스터 영역 — posterUrl 없으면 placeholder-poster.jpg 사용 */}
         <div style={posterWrap}>
           <img
-            src={movie.posterUrl || '/placeholder-poster.jpg'}
+            src={movie.posterPath || '/placeholder-poster.jpg'}
             alt={`${movie.title} 포스터`}
             style={posterImg}
             onError={(e) => { e.target.src = '/placeholder-poster.jpg' }}
@@ -116,12 +136,12 @@ function MovieDetailPage() {
 
           {/* 장르·런타임 태그 */}
           <div style={tagRow}>
-            {[movie.genre].map((t) => (
-              <span key={t} style={tag}>
-                <Tag size={12} style={{ marginRight: 4 }} />
-                {t}
-              </span>
-            ))}
+              {movie.genre && (
+                <span style={tag}>
+                    <Tag size={12} style={{ marginRight: 4 }} />
+                    {movie.genre}
+                </span>
+              )}
             <span style={tag}>
               <Clock size={12} style={{ marginRight: 4 }} />
               {formatRuntime(movie.runtime)}
@@ -133,7 +153,7 @@ function MovieDetailPage() {
             <dt style={dt}>감독</dt>
             <dd style={dd}>{movie.director}</dd>
             <dt style={dt}>출연</dt>
-            <dd style={dd}>{movie.cast}</dd>
+            <dd style={dd}>{movie.actors}</dd>
             <dt style={dt}>개봉</dt>
             <dd style={dd}>{movie.startAt}</dd>
             {movie.endAt && (
@@ -147,7 +167,7 @@ function MovieDetailPage() {
           {/* 줄거리 */}
           <div style={synopsisBox}>
             <p style={synopsisLabel}>줄거리</p>
-            <p style={synopsisText}>{movie.synopsis}</p>
+            <p style={synopsisText}>{movie.description}</p>
           </div>
 
           {/* 잔여 좌석 (상영 중인 영화만) */}
@@ -204,10 +224,10 @@ function MovieDetailPage() {
                 }}
               >
                 <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-brand-default)', margin: 0 }}>
-                  {s.startTime}
+                  {s.startAt.slice(11,16)}
                 </p>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
-                  ~ {s.endTime} · {s.theaterName}
+                  ~ {s.endAt.slice(11,16)} · {s.theaterName}
                 </p>
                 <p style={{
                   fontSize: 13,
