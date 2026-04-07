@@ -17,10 +17,11 @@
  *  - STEP 번호 재정렬 (1: 시간 선택, 2: 인원 선택)
  * TODO: GET /api/schedules?movieId=&date= 연동
  */
-import { useState, useMemo } from 'react'
+import React, {useState, useMemo, useEffect} from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Film, Clock, Users, ChevronDown, ChevronUp, Info } from 'lucide-react'
-import { MOCK_SCHEDULES, MOCK_MOVIES, PERSON_TYPES } from '../../api/mockData'
+import { MOCK_MOVIES, PERSON_TYPES } from '../../api/mockData'
+import axios from 'axios'
 
 /** 날짜 포맷: "03/29(토)" */
 function fmtDateLabel(dateStr: string) {
@@ -44,11 +45,22 @@ function SchedulePage() {
     return null
   }
 
-  const movie    = MOCK_MOVIES.find((m) => m.id === movieId)
-  const allSched = MOCK_SCHEDULES[movieId] ?? []
-
   // 오늘 날짜 고정 (당일 예매만 가능)
   const today = new Date().toISOString().slice(0, 10)
+
+  const movie    = MOCK_MOVIES.find((m) => m.id === movieId)
+  const [allSched, setScheduled] = useState<any[]>([])
+
+  useEffect(() => {
+    axios.get('http://localhost:8080/api/admin/schedule/list')
+        .then(res => {
+          const filtered = res.data.filter((s: any) => {
+            const scheduleDate = s.startAt.slice(0, 10)
+            return s.movieId === movieId && scheduleDate === today
+          })
+          setScheduled(filtered)
+        })
+  }, [])
 
   // ── 선택 상태 ──
   // preSelectedSchedule: 상세 페이지에서 시간 클릭 시 초기값으로 세팅
@@ -58,15 +70,15 @@ function SchedulePage() {
 
   // 오늘 날짜의 상영 목록만 표시
   const daySchedules = useMemo(
-    () => allSched.filter((s) => s.date === today),
+    () => allSched.filter((s) => s.startAt.slice(0, 10) === today),
     [allSched, today]
   )
 
   /** 인원 수 변경 (+/-) */
-  const changePerson = (type, delta) => {
+  const changePerson = (type: string, delta: number) => {
     setPersons((prev) => {
-      const next  = prev[type] + delta
-      const total = Object.values({ ...prev, [type]: next }).reduce((a, b) => a + b, 0)
+      const next  = prev[type as keyof typeof prev] + delta
+      const total = Object.values({ ...prev, [type]: next }).reduce((a: number, b:number) => a + b, 0)
       // 0명 미만 or 8명 초과 불가
       if (next < 0 || total > 8) return prev
       return { ...prev, [type]: next }
@@ -144,11 +156,12 @@ function SchedulePage() {
         ) : (
           <div style={timeGrid}>
             {daySchedules.map((s) => {
-              const soldOut    = s.availableSeats === 0
-              const isSelected = selectedSched?.scheduleId === s.scheduleId
+              // const soldOut    = s.availableSeats === 0 // TODO
+              const soldOut    = false
+              const isSelected = selectedSched?.id === s.id
               return (
                 <button
-                  key={s.scheduleId}
+                  key={s.id}
                   onClick={() => !soldOut && setSelectedSched(s)}
                   disabled={soldOut}
                   style={{
@@ -158,10 +171,10 @@ function SchedulePage() {
                   }}
                 >
                   <p style={{ fontSize: 26, fontWeight: 700, margin: '8px 0 4px' }}>
-                    {s.startTime}
+                    {s.startAt.slice(11, 16)}
                   </p>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
-                    {s.theaterName} · ~{s.endTime}
+                    {s.no}관 · ~{s.endAt.slice(11, 16)}
                   </p>
                   <p style={{
                     fontSize: 13,
@@ -169,7 +182,7 @@ function SchedulePage() {
                     margin: '6px 0 0',
                     fontWeight: 600,
                   }}>
-                    {soldOut ? '매진' : `${s.availableSeats}석 남음`}
+                    {/*{soldOut ? '매진' : `${s.availableSeats}석 남음`}*/} /* TODO 잔여석 뷰에서 구현 필요 */
                   </p>
                 </button>
               )
@@ -208,7 +221,7 @@ function SchedulePage() {
                 >
                   <ChevronDown size={20} />
                 </button>
-                <span style={counterNum}>{persons[type]}</span>
+                <span style={counterNum}>{persons[type as keyof typeof persons]}</span>
                 <button
                   onClick={() => changePerson(type, +1)}
                   style={counterBtn}
@@ -235,7 +248,7 @@ function SchedulePage() {
         {canProceed ? (
           <div style={summaryBox}>
             <Users size={16} style={{ marginRight: 6 }} />
-            {fmtDateLabel(today)} · {selectedSched.startTime} · {selectedSched.theaterName} · {totalPersons}명
+            {fmtDateLabel(today)} · {selectedSched.startAt.slice(11, 16)} · {selectedSched.no}관 · {totalPersons}명
           </div>
         ) : (
           <div style={hintBox}>
@@ -289,24 +302,24 @@ const stepNum   = {
   fontSize: 14, fontWeight: 800, flexShrink: 0,
 }
 
-const dateRow   = {
-  display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 8,
-}
-const dateBtn   = {
-  flexShrink: 0, padding: '12px 20px',
-  background: 'var(--bg-surface)',
-  border: '1px solid var(--border-default)', borderRadius: 12,
-  color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'center',
-  minWidth: 90, position: 'relative',
-  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-}
-const dateBtnActive = { borderColor: 'var(--color-brand-default)', background: 'rgba(255,184,0,0.1)' }
-const todayLabel    = {
-  fontSize: 11, color: 'var(--color-brand-default)', fontWeight: 700,
-}
+// const dateRow   = {
+//   display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 8,
+// }
+// const dateBtn   = {
+//   flexShrink: 0, padding: '12px 20px',
+//   background: 'var(--bg-surface)',
+//   border: '1px solid var(--border-default)', borderRadius: 12,
+//   color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'center',
+//   minWidth: 90, position: 'relative',
+//   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+// }
+// const dateBtnActive = { borderColor: 'var(--color-brand-default)', background: 'rgba(255,184,0,0.1)' }
+// const todayLabel    = {
+//   fontSize: 11, color: 'var(--color-brand-default)', fontWeight: 700,
+// }
 
-const timeGrid  = { display: 'flex', gap: 16, flexWrap: 'wrap' }
-const timeBtn   = {
+const timeGrid: React.CSSProperties  = { display: 'flex', gap: 16, flexWrap: 'wrap' }
+const timeBtn: React.CSSProperties   = {
   padding: '16px 20px', background: 'var(--bg-surface)',
   border: '1px solid var(--border-default)', borderRadius: 14,
   textAlign: 'center', minWidth: 150, cursor: 'pointer',
@@ -315,7 +328,7 @@ const timeBtn   = {
 const timeBtnActive  = { borderColor: 'var(--color-brand-default)', background: 'rgba(255,184,0,0.1)' }
 const timeBtnSoldOut = { opacity: 0.4, cursor: 'not-allowed' }
 
-const personList = {
+const personList: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', gap: 16,
   background: 'var(--bg-surface)', borderRadius: 16, padding: '20px 24px',
 }
@@ -330,7 +343,7 @@ const counterBtn = {
   cursor: 'pointer',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
 }
-const counterNum = {
+const counterNum: React.CSSProperties = {
   width: 36, textAlign: 'center',
   fontSize: 22, fontWeight: 700, color: 'var(--text-primary)',
 }

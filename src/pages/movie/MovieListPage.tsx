@@ -20,7 +20,7 @@ import { Search, X, Film } from 'lucide-react'
 import {
   NOW_PLAYING, UPCOMING,
   GENRE_OPTIONS, RATING_OPTIONS, THEATER_TYPE_OPTIONS,
-  MOCK_SCHEDULES, MOCK_THEATERS,
+  MOCK_THEATERS,
 } from '../../api/mockData'
 import styles from './MovieListPage.module.css'
 

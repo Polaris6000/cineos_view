@@ -12,7 +12,8 @@
  * TODO: GET/POST/DELETE /api/admin/schedules 연동
  */
 import { useState, useMemo, useEffect } from 'react'
-import { MOCK_MOVIES, MOCK_SCHEDULES, MOCK_THEATERS } from '../../../api/mockData'
+import { MOCK_MOVIES, MOCK_THEATERS } from '../../../api/mockData'
+import axios from "axios";
 
 /* ── 타입 정의 ── */
 interface Schedule {
@@ -63,14 +64,28 @@ function MovieManagePage() {
   const [selectedMovieId, setSelectedMovieId] = useState<number>(MOCK_MOVIES[0]?.id ?? 1)
 
   // ── 로컬 스케줄 상태 ──
-  const [schedules, setSchedules] = useState<Record<number, Schedule[]>>(
-    Object.fromEntries(
-      Object.entries(MOCK_SCHEDULES).map(([id, scheds]) => [
-        Number(id),
-        scheds.map((s) => ({ ...s })),
-      ]),
-    ),
-  )
+  // const [schedules, setSchedules] = useState<Record<number, Schedule[]>>(
+  //   Object.fromEntries(
+  //     Object.entries(MOCK_SCHEDULES).map(([id, scheds]) => [
+  //       Number(id),
+  //       scheds.map((s) => ({ ...s })),
+  //     ]),
+  //   ),
+  // )
+
+  // 연결
+  const [schedules, setSchedules] = useState<Record<number, Schedule[]>>([])
+
+  useEffect(() => {
+    axios.get('http://localhost:8080/api/admin/schedule/list')
+        .then(res => {
+          const filtered = res.data.filter((s: any) => {
+            const scheduleDate = s.startAt.slice(0, 10)
+            return s.movieId === movieId && scheduleDate === today
+          })
+          setSchedules(filtered)
+        })
+  }, [])
 
   // ── 만료처리된 scheduleId Set (undo 지원) ──
   const [cancelledIds, setCancelledIds] = useState<Set<number>>(new Set())

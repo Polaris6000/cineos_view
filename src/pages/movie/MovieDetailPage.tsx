@@ -14,7 +14,7 @@
  */
 import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Clock, Film, CalendarDays, Tag } from 'lucide-react'
-import { MOCK_MOVIES, MOCK_SCHEDULES } from '../../api/mockData'
+import { MOCK_MOVIES } from '../../api/mockData'
 
 /** 관람등급 → 표시 텍스트·색상 */
 const RATING_INFO = {
