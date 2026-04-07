@@ -17,16 +17,16 @@ import axios from 'axios'
 /* ── 타입 ──────────────────────────────────────────── */
 interface Member {
   id: number
-  name: string
-  email: string
+  name: string // TODO 필요없음
+  email: string // TODO 필요없음
   phone: string
   point: number
-  joinedAt: string       // 'YYYY-MM-DD'
-  bookingCount: number
-  isActive: boolean
+  createAt: string       // 'YYYY-MM-DD'
+  bookingCount: number // TODO 프론트에서 계산
+  isActive: boolean // TODO 필요없음
 }
 
-interface PointLog {
+interface PointHistory {
   pointId: number
   createAt: string           // 'YYYY-MM-DD HH:mm'
   type: 'EARN' | 'REFUND_EARN' | 'REFUND_USE' | 'USE'
@@ -43,6 +43,13 @@ interface ActivityLog {
   detail: string
 }
 
+const typeLabel = {
+  EARN: '적립',
+  USE: '사용',
+  REFUND_EARN: '적립 환불',
+  REFUND_USE: '사용 환불',
+}
+
 /* ── 더미 데이터 ────────────────────────────────────── */
 // const MOCK_MEMBERS: Member[] = [
   // { id: 1,  name: '김민준', email: 'minjun@example.com',  phone: '010-1234-5678', point: 4200,  joinedAt: '2024-01-15', bookingCount: 12, isActive: true },
@@ -57,9 +64,9 @@ interface ActivityLog {
 
 /**
  * 회원별 포인트 내역 더미 (TODO: 백엔드 연동 시 API로 교체)
- * memberId → PointLog[]
+ * memberId → PointHistory[]
  */
-// const MOCK_POINT_LOGS: Record<number, PointLog[]> = {
+// const MOCK_POINT_LOGS: Record<number, PointHistory[]> = {
 //   1: [
 //     { id: 1, date: '2026-04-01 19:30', type: 'EARN',   amount: 500,   description: '영화 예매 (BK20260401001)',  balance: 4200 },
 //     { id: 2, date: '2026-03-20 14:00', type: 'USE',    amount: -2000, description: '영화 결제 포인트 사용',       balance: 3700 },
@@ -101,9 +108,6 @@ function MemberListPage() {
   const [keyword,  setKeyword]  = useState('')
   const [loading,  setLoading]  = useState(false)
 
-  // 포인트 내역 모달: 선택된 회원 (null이면 닫힘)
-  const [pointMember, setPointMember] = useState<Member | null>(null)
-
   // 전체 활동 로그 모달
   const [showActivityLog, setShowActivityLog] = useState(false)
 
@@ -112,6 +116,10 @@ function MemberListPage() {
    * 이름, 이메일, 전화번호 중 하나라도 keyword를 포함하면 노출
    * TODO: 실제 API 연동 시 GET /api/admin/members?keyword=&page= 로 교체
    */
+
+  // 포인트 내역 모달: 선택된 회원 (null이면 닫힘)
+  const [pointMember, setPointMember] = useState<Member | null>(null)
+
   useEffect(() => {
     setLoading(true)
 
@@ -196,7 +204,7 @@ function MemberListPage() {
                     {m.bookingCount}회
                   </td>
                   <td style={{ ...td, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
-                    {m.joinedAt}
+                    {m.createAt}
                   </td>
                   <td style={{ ...td, textAlign: 'center' }}>
                     <span style={{
@@ -233,7 +241,6 @@ function MemberListPage() {
       {/* 전체 활동 로그 모달 */}
       {showActivityLog && (
         <ActivityLogModal
-          logs={[]}
           onClose={() => setShowActivityLog(false)}
         />
       )}
@@ -247,11 +254,11 @@ function PointHistoryModal({
   onClose,
 }: {
   member: Member
-  // logs: PointLog[]
+  // logs: PointHistory[]
   onClose: () => void
 }) {
 
-  const [pointLog, setPointLog] = useState<PointLog[]>([])
+  const [pointLog, setPointLog] = useState<PointHistory[]>([])
 
   useEffect(() => {
     axios.get(`http://localhost:8080/api/admin/member/${member.phone}/point-list`)
@@ -259,7 +266,7 @@ function PointHistoryModal({
   }, [member.phone]);
 
   // 타입별 색상/레이블
-  const typeStyle: Record<PointLog['type'], { color: string; label: string; sign: string }> = {
+  const typeStyle: Record<PointHistory['type'], { color: string; label: string; sign: string }> = {
     EARN:   { color: 'var(--color-success-main)',  label: '적립', sign: '+' },
     USE:    { color: 'var(--color-brand-default)', label: '사용', sign: ''  },
     REFUND_EARN: { color: 'var(--color-error-main)',    label: '적립 환불', sign: ''  },
@@ -326,12 +333,20 @@ function PointHistoryModal({
 
 /* ── 전체 활동 로그 모달 ──────────────────────────── */
 function ActivityLogModal({
-  logs,
   onClose,
 }: {
-  logs: ActivityLog[]
   onClose: () => void
 }) {
+  const [logs, setLogs] = useState<PointHistory[]>([])
+
+  useEffect(() => {
+    axios.get('http://localhost:8080/api/admin/member/point-list')
+        .then(res => {
+          console.log(res.data)
+          setLogs(res.data)
+        })
+  }, [])
+
   const actionColor: Record<string, string> = {
     '예매':       'var(--color-info-main)',
     '포인트 사용': 'var(--color-brand-default)',
@@ -349,27 +364,27 @@ function ActivityLogModal({
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: 400, overflowY: 'auto' }}>
           {logs.map((log) => (
-            <div key={log.id} style={logRow}>
+            <div key={log.pointId} style={logRow}>
               <div style={{ flex: 1 }}>
                 {/* 회원명 + 액션 배지 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {log.memberName}
+                    {log.phone}
                   </span>
                   <span style={{
                     fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4,
-                    color: actionColor[log.action] ?? 'var(--text-muted)',
+                    color: actionColor[log.type] ?? 'var(--text-muted)',
                     background: 'var(--bg-base)',
-                    border: `1px solid ${actionColor[log.action] ?? 'var(--border-default)'}`,
+                    border: `1px solid ${actionColor[log.type] ?? 'var(--border-default)'}`,
                   }}>
-                    {log.action}
+                    {log.type}
                   </span>
                 </div>
                 {/* 상세 내용 */}
-                <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{log.detail}</p>
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{log.amountPoint}</p>
               </div>
               {/* 날짜 */}
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{log.date}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{log.createAt}</span>
             </div>
           ))}
         </div>

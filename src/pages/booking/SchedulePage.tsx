@@ -20,7 +20,7 @@
 import React, {useState, useMemo, useEffect} from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Film, Clock, Users, ChevronDown, ChevronUp, Info } from 'lucide-react'
-import { MOCK_MOVIES, PERSON_TYPES } from '../../api/mockData'
+import { MOCK_MOVIES , PERSON_TYPES } from '../../api/mockData'
 import axios from 'axios'
 
 /** 날짜 포맷: "03/29(토)" */
@@ -49,7 +49,17 @@ function SchedulePage() {
   const today = new Date().toISOString().slice(0, 10)
 
   const movie    = MOCK_MOVIES.find((m) => m.id === movieId)
-  const [allSched, setScheduled] = useState<any[]>([])
+
+
+  interface Schedule {
+    id: number
+    activation: boolean
+    startAt: string
+    endAt: string | null
+    movieId: number
+    no: number
+  }
+  const [allSched, setScheduled] = useState<Schedule[]>([])
 
   useEffect(() => {
     axios.get('http://localhost:8080/api/admin/schedule/list')
@@ -174,7 +184,7 @@ function SchedulePage() {
                     {s.startAt.slice(11, 16)}
                   </p>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
-                    {s.no}관 · ~{s.endAt.slice(11, 16)}
+                    {s.no}관 · ~{s.endAt?.slice(11, 16)}
                   </p>
                   <p style={{
                     fontSize: 13,
