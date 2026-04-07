@@ -7,12 +7,14 @@
 import { useNavigate } from 'react-router-dom'
 import {
   Banknote, Ticket, TrendingUp, Film,
-  CalendarDays, Calendar, BarChart2, Clock, Trophy, LayoutDashboard,
+  CalendarDays, Calendar, BarChart2, Clock, Trophy,
 } from 'lucide-react'
 import { MOCK_DAILY_STATS, MOCK_MONTHLY_STATS, MOCK_MOVIE_STATS } from '../../../api/mockData'
 
+
+
 /** 숫자 포맷 (만 단위) */
-const fmtWon = (n) => {
+const fmtWon = (n: number) => {
   if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1)}억원`
   if (n >= 10_000) return `${Math.floor(n / 10_000).toLocaleString()}만원`
   return `${n.toLocaleString()}원`
