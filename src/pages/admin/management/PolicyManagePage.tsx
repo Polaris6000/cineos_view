@@ -6,28 +6,49 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { CheckCircle } from 'lucide-react'
-import { MOCK_POLICIES } from '../../../api/mockData'
+import axios from "axios";
 
-const TYPE_OPTIONS = ['ADULT', 'TEEN', 'SENIOR', 'DISABLED', 'MORNING', 'CULTURE', 'COUPLE', 'MEMBER']
+export interface DiscountPolicy {
+  id: number
+  policyName: string
+  conditionType: 'AGE' | 'TIME' | 'JOB' | 'COUPON'
+  discountType: 'WON' | 'RATIO'
+  discountValue: number
+  activation: number
+  startAt: string
+  endAt: string | null
+}
+
+const TYPE_OPTIONS = ['AGE', 'COUPON', 'JOB', 'TIME']
 
 function PolicyManagePage() {
   const navigate    = useNavigate()
   const location    = useLocation()
   // state 없으면 첫 번째 정책으로 기본값
-  const initPolicy  = location.state?.policy ?? MOCK_POLICIES[0]
+  // const initPolicy  = location.state?.policy ?? MOCK_POLICIES[0]
 
-  const [form, setForm]       = useState({ ...initPolicy })
+  const initPolicy = location.state?.policy
+
+  const [form, setForm] = useState<DiscountPolicy>(initPolicy ?? null)
   const [success, setSuccess] = useState(false)
 
   const change = (field, val) => setForm((p) => ({ ...p, [field]: val }))
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.name.trim()) { alert('정책명을 입력해 주세요.'); return }
+    if (!form.policyName.trim()) { alert('정책명을 입력해 주세요.'); return }
     // TODO: PUT /api/admin/policies/:id
-    console.log('[PolicyManage] 수정:', form)
-    setSuccess(true)
-    setTimeout(() => navigate('/admin/management/policy/list'), 1500)
+
+    try {
+      await axios.post('http://localhost:8080/api/admin/discount-policy', form)
+      console.log('[PolicyManage] 수정:', form)
+      setSuccess(true)
+      setTimeout(() => navigate('/admin/management/policy/list'), 1500)
+    } catch (error) {
+      console.log(error)
+      alert('등록 실패')
+    }
+
   }
 
   if (success) {
@@ -45,22 +66,22 @@ function PolicyManagePage() {
       <form onSubmit={handleSubmit} style={formStyle}>
         <div style={field}>
           <label style={label}>정책명 *</label>
-          <input value={form.name} onChange={(e) => change('name', e.target.value)} style={input} />
+          <input value={form.policyName} onChange={(e) => change('policyName', e.target.value)} style={input} />
         </div>
         <div style={field}>
           <label style={label}>유형</label>
-          <select value={form.type} onChange={(e) => change('type', e.target.value)} style={input}>
+          <select value={form.conditionType} onChange={(e) => change('conditionType', e.target.value)} style={input}>
             {TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
         <div style={field}>
           <label style={label}>할인금액 (원)</label>
-          <input type="number" value={form.discount} min={0} step={500}
-            onChange={(e) => change('discount', Number(e.target.value))} style={input} />
+          <input type="number" value={form.discountValue} min={0} step={500}
+            onChange={(e) => change('discountValue', Number(e.target.value))} style={input} />
         </div>
         <div style={field}>
           <label style={label}>설명</label>
-          <input value={form.description} onChange={(e) => change('description', e.target.value)} style={input} />
+          <input value={form.conditionType} onChange={(e) => change('conditionType', e.target.value)} style={input} />
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
           <button type="button" onClick={() => navigate(-1)} style={cancelBtn}>취소</button>

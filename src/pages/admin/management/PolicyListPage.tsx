@@ -112,7 +112,7 @@ function PolicyListPage() {
           )}
         </div>
 
-        {baseMsg && <div style={saveMsgBox}>✅ {baseMsg}</div>}
+        {baseMsg && <div style={saveMsgBox}> {baseMsg}</div>}
 
         <div style={priceGrid}>
           {MOCK_THEATERS.map((t) => (

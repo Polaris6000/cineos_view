@@ -16,18 +16,18 @@ import axios from 'axios'
 
 /* ── 타입 ──────────────────────────────────────────── */
 interface Member {
-  id: number
-  name: string // TODO 필요없음
-  email: string // TODO 필요없음
+  // name: string // TODO 필요없음
+  // email: string // TODO 필요없음
   phone: string
   point: number
   createAt: string       // 'YYYY-MM-DD'
   bookingCount: number // TODO 프론트에서 계산
-  isActive: boolean // TODO 필요없음
+  // isActive: boolean // TODO 필요없음
 }
 
 interface PointHistory {
   pointId: number
+  title: string // 영화 이름
   createAt: string           // 'YYYY-MM-DD HH:mm'
   type: 'EARN' | 'REFUND_EARN' | 'REFUND_USE' | 'USE'
   amountPoint: number         // 적립(+) or 사용(-)
@@ -35,20 +35,20 @@ interface PointHistory {
   phone: number        // 회원 전화번호
 }
 
-interface ActivityLog {
-  id: number
-  memberName: string
-  date: string
-  action: string         // 예: "예매", "포인트 사용", "회원가입"
-  detail: string
-}
+// interface ActivityLog {
+//   id: number
+//   memberName: string
+//   date: string
+//   action: string         // 예: "예매", "포인트 사용", "회원가입"
+//   detail: string
+// }
 
-const typeLabel = {
-  EARN: '적립',
-  USE: '사용',
-  REFUND_EARN: '적립 환불',
-  REFUND_USE: '사용 환불',
-}
+// const typeLabel = {
+//   EARN: '적립',
+//   USE: '사용',
+//   REFUND_EARN: '적립 환불',
+//   REFUND_USE: '사용 환불',
+// }
 
 /* ── 더미 데이터 ────────────────────────────────────── */
 // const MOCK_MEMBERS: Member[] = [
@@ -123,7 +123,7 @@ function MemberListPage() {
   useEffect(() => {
     setLoading(true)
 
-    axios.get('http://localhost:8080/api/admin/member/list', {
+    axios.get('/api/admin/member/list', {
       params: { keyword }
     })
         .then(res => {
@@ -167,35 +167,31 @@ function MemberListPage() {
         <table style={table}>
           <thead>
             <tr style={tHead}>
-              <th style={th}>이름</th>
-              <th style={th}>이메일</th>
               <th style={th}>전화번호</th>
               <th style={{ ...th, textAlign: 'right' }}>포인트</th>
               <th style={{ ...th, textAlign: 'right' }}>예매 횟수</th>
               <th style={{ ...th, textAlign: 'center' }}>가입일</th>
-              <th style={{ ...th, textAlign: 'center' }}>상태</th>
+              {/*<th style={{ ...th, textAlign: 'center' }}>상태</th>*/}
               {/* 상세 버튼 제거 — 테이블에서 이미 모든 정보 확인 가능 */}
               <th style={{ ...th, textAlign: 'center' }}>포인트 내역</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr>
+              <tr key={'loading-status'}>
                 <td colSpan={8} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)' }}>
                   검색 중...
                 </td>
               </tr>
             ) : members.length === 0 ? (
-              <tr>
+              <tr key={'not-found'}>
                 <td colSpan={8} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)' }}>
                   검색 결과가 없습니다.
                 </td>
               </tr>
             ) : (
               members.map((m) => (
-                <tr key={m.id} style={tRow}>
-                  <td style={{ ...td, fontWeight: 600 }}>{m.name}</td>
-                  <td style={{ ...td, color: 'var(--text-secondary)' }}>{m.email}</td>
+                <tr key={`member-row-${m.phone}`} style={tRow}>
                   <td style={{ ...td, fontFamily: 'monospace', fontSize: 13 }}>{m.phone}</td>
                   <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: 'var(--color-brand-default)' }}>
                     {m.point.toLocaleString()} P
@@ -206,16 +202,16 @@ function MemberListPage() {
                   <td style={{ ...td, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
                     {m.createAt}
                   </td>
-                  <td style={{ ...td, textAlign: 'center' }}>
-                    <span style={{
-                      display: 'inline-block', padding: '2px 8px', borderRadius: 10,
-                      fontSize: 11, fontWeight: 700,
-                      background: m.isActive ? 'var(--color-success-bg)' : 'var(--color-error-bg)',
-                      color: m.isActive ? 'var(--color-success-text)' : 'var(--color-error-text)',
-                    }}>
-                      {m.isActive ? '활성' : '비활성'}
-                    </span>
-                  </td>
+                  {/*<td style={{ ...td, textAlign: 'center' }}>*/}
+                  {/*  <span style={{*/}
+                  {/*    display: 'inline-block', padding: '2px 8px', borderRadius: 10,*/}
+                  {/*    fontSize: 11, fontWeight: 700,*/}
+                  {/*    background: m.isActive ? 'var(--color-success-bg)' : 'var(--color-error-bg)',*/}
+                  {/*    color: m.isActive ? 'var(--color-success-text)' : 'var(--color-error-text)',*/}
+                  {/*  }}>*/}
+                  {/*    {m.isActive ? '활성' : '비활성'}*/}
+                  {/*  </span>*/}
+                  {/*</td>*/}
                   {/* 포인트 내역 버튼 — 클릭 시 해당 회원의 포인트 전체 내역 모달 */}
                   <td style={{ ...td, textAlign: 'center' }}>
                     <button style={pointBtn} onClick={() => setPointMember(m)}>
@@ -248,86 +244,88 @@ function MemberListPage() {
   )
 }
 
-/* ── 포인트 내역 모달 ─────────────────────────────── */
+/* ── 포인트 내역 모달 수정본 ─────────────────────────────── */
 function PointHistoryModal({
-  member,
-  onClose,
-}: {
+                             member,
+                             onClose,
+                           }: {
   member: Member
-  // logs: PointHistory[]
   onClose: () => void
 }) {
-
   const [pointLog, setPointLog] = useState<PointHistory[]>([])
 
   useEffect(() => {
     axios.get(`http://localhost:8080/api/admin/member/${member.phone}/point-list`)
-        .then(res => setPointLog(res.data))
+        .then(res => {
+          setPointLog(res.data)
+        })
   }, [member.phone]);
 
-  // 타입별 색상/레이블
   const typeStyle: Record<PointHistory['type'], { color: string; label: string; sign: string }> = {
     EARN:   { color: 'var(--color-success-main)',  label: '적립', sign: '+' },
-    USE:    { color: 'var(--color-brand-default)', label: '사용', sign: ''  },
-    REFUND_EARN: { color: 'var(--color-error-main)',    label: '적립 환불', sign: ''  },
-    REFUND_USE: { color: 'var(--color-error-main)',    label: '사용 환불', sign: ''  },
+    USE:    { color: 'var(--color-brand-default)', label: '사용', sign: '-' },
+    REFUND_EARN: { color: 'var(--color-error-main)',    label: '적립 취소', sign: '-' },
+    REFUND_USE: { color: 'var(--color-error-main)',    label: '사용 취소', sign: '+' },
   }
 
   return (
-    <div style={modalOverlay} onClick={onClose}>
-      <div style={modalBox} onClick={(e) => e.stopPropagation()}>
-        {/* 모달 헤더 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-          <div>
-            <h3 style={modalTitle}>{member.name} 포인트 내역</h3>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>
-              현재 잔액: <strong style={{ color: 'var(--color-brand-default)' }}>{member.point.toLocaleString()} P</strong>
-            </p>
+      <div style={modalOverlay} onClick={onClose}>
+        <div style={modalBox} onClick={(e) => e.stopPropagation()}>
+          {/* 모달 헤더: 특정 회원의 내역임을 명시 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+            <div>
+              <h3 style={modalTitle}>{member.phone} 회원 내역</h3>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                전체 변동 내역: <strong>{pointLog.length}건</strong>
+              </p>
+            </div>
+            <button style={closeIconBtn} onClick={onClose}>✕</button>
           </div>
-          <button style={closeIconBtn} onClick={onClose}>✕</button>
-        </div>
 
-        {/* 포인트 로그 리스트 */}
-        {pointLog.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>
-            포인트 내역이 없습니다.
-          </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {pointLog.map((log) => {
-              const ts = typeStyle[log.type]
-              return (
-                <div key={log.pointId} style={logRow}>
-                  {/* 날짜 + 설명 */}
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: '0 0 2px' }}>
-                      {log.paymentId}
-                    </p>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>{log.createAt}</p>
-                  </div>
-                  {/* 금액 + 잔액 */}
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: ts.color, margin: '0 0 2px' }}>
+          {/* 포인트 로그 리스트: 모든 내역을 .map()으로 출력 */}
+          {pointLog.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>
+                내역을 불러오는 중이거나 내역이 없습니다.
+              </p>
+          ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {pointLog.map((log) => {
+                  const ts = typeStyle[log.type]
+                  return (
+                      <div key={log.pointId} style={logRow}>
+                        {/* 날짜 + 설명 */}
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: '0 0 2px' }}>
+                            {log.title || log.paymentId}
+                          </p>
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>{log.createAt}</p>
+                        </div>
+
+                        {/* 변동 포인트 수치 */}
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: ts.color, margin: '0 0 2px' }}>
                       <span style={{ fontSize: 10, marginRight: 4,
-                                     padding: '1px 5px', borderRadius: 4,
-                                     background: 'var(--bg-base)', color: ts.color, border: `1px solid ${ts.color}` }}>
+                        padding: '1px 5px', borderRadius: 4,
+                        background: 'var(--bg-base)', color: ts.color, border: `1px solid ${ts.color}` }}>
                         {ts.label}
                       </span>
-                      {ts.sign}{Math.abs(log.amountPoint).toLocaleString()}P
-                    </p>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
-                      잔액 {log.amountPoint.toLocaleString()}P // TODO 수정
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+                            {/* 변동된 포인트를 기호와 함께 표시 */}
+                            {ts.sign}{Math.abs(log.amountPoint).toLocaleString()}P
+                          </p>
+                          {/* 현재 누적된 잔액이 아닌 '변동분' 그 자체를 강조 */}
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+                            현재포인트: {member.point.toLocaleString()}P
+                          </p>
+                        </div>
+                      </div>
+                  )
+                })}
+              </div>
+          )}
 
-        <button style={closeModalBtn} onClick={onClose}>닫기</button>
+          <button style={closeModalBtn} onClick={onClose}>닫기</button>
+        </div>
       </div>
-    </div>
   )
 }
 
@@ -347,12 +345,12 @@ function ActivityLogModal({
         })
   }, [])
 
-  const actionColor: Record<string, string> = {
-    '예매':       'var(--color-info-main)',
-    '포인트 사용': 'var(--color-brand-default)',
-    '포인트 적립': 'var(--color-success-main)',
-    '환불':       'var(--color-error-main)',
-  }
+    const actionColor: Record<string, string> = {
+        EARN: 'var(--color-success-main)',
+        USE: 'var(--color-brand-default)',
+        REFUND_EARN: 'var(--color-error-main)',
+        REFUND_USE: 'var(--color-error-main)',
+    }
 
   return (
     <div style={modalOverlay} onClick={onClose}>
@@ -379,9 +377,15 @@ function ActivityLogModal({
                   }}>
                     {log.type}
                   </span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    변동 포인트 : {log.amountPoint}P
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    변동 포인트 : {}P
+                  </span>
                 </div>
                 {/* 상세 내용 */}
-                <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{log.amountPoint}</p>
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{log.title}</p>
               </div>
               {/* 날짜 */}
               <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{log.createAt}</span>
