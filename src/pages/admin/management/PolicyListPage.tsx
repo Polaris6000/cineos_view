@@ -2,155 +2,220 @@
  * PolicyListPage.tsx — 가격 정책 목록
  *
  * 구성:
- *  1. 상영관별 기본 요금 편집 카드 (상영관별 basePrice)
- *     - TODO: PATCH /api/admin/theaters/:id { basePrice } 연동
- *  2. 좌석 타입별 추가 요금 편집 (NORMAL / RECLINER / COUPLE)
+ *  1. 좌석 타입별 추가 요금 편집 (NORMAL / RECLINER)
  *     - TODO: PATCH /api/admin/seat-prices 연동
- *  3. 할인 정책 목록 테이블
+ *  2. 할인 정책 목록 테이블 (discount_policy 테이블 대응)
+ *     - condition_type: TIME/AGE/JOB/COUPON
+ *     - discount_type: RATIO(비율%) / WON(정액원)
+ *  3. 적립 정책 (bonus_policy 테이블 대응)
+ *     - id, policy_name, give_value(적립률 %), start_at, end_at, activation
+ *     - TODO: GET/POST/PATCH/DELETE /api/admin/bonus-policy 연동
  *
- * 사용 좌석: 일반석(NORMAL) / 리클라이너석(RECLINER) / 커플석(COUPLE)
- * VIP석 없음
+ * 사용 좌석: 일반석(NORMAL) / 리클라이너석(RECLINER)
+ * VIP석·커플석 없음
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MOCK_POLICIES, MOCK_THEATERS, SEAT_PRICES, SEAT_TYPE_LABEL } from '../../../api/mockData'
+import axios from 'axios'
+import { SEAT_PRICES, SEAT_TYPE_LABEL } from '../../../api/mockData'
 
 type SeatType = keyof typeof SEAT_PRICES
 
-/** 좌석 타입별 색상 (VIP 없음) */
+/** 좌석 타입별 색상 (NORMAL / RECLINER만) */
 const SEAT_TYPE_COLOR: Record<SeatType, string> = {
   NORMAL:   '#2563eb',
   RECLINER: '#7c3aed',
-  COUPLE:   '#db2777',
 }
+
+export interface DiscountPolicy {
+  id: number // 인덱스
+  policyName: string // 정책 이름
+  conditionType: 'TIME' | 'AGE' | 'JOB' | 'COUPON' // 할인대상
+  discountType: 'RATIO' | 'WON' // 할인유형
+  discountValue: number; // 할인값
+  startAt: string // 시작일 (YYYY-MM-DD)
+  endAt: string // 만료일 (YYYY-MM-DD)
+  activation: boolean // 만료여부
+}
+
+/* ── bonus_policy 타입 정의 ── */
+interface BonusPolicy {
+  id: number
+  /** 정책 이름 (예: '기본 적립', 'VIP 적립') */
+  policyName: string
+  /** 적립률 (%, 예: 5 → 결제금액의 5% 적립) — DB: BIGINT UNSIGNED COMMENT '적립 비율' */
+  giveValue: number
+  /** 정책 시작일 (YYYY-MM-DD) */
+  startAt: string
+  /** 정책 종료일 (YYYY-MM-DD), null = 기간 제한 없음 — DB: DATETIME NULL */
+  endAt: string | null
+  /** 활성화 여부 */
+  activation: boolean
+}
+
+/**
+ * bonus_policy 더미 데이터 (TODO: GET /api/admin/bonus-policy 연동)
+ * give_value = 적립률(%) — data.sql 기준 (기본 5%, VIP 20%)
+ */
+// const MOCK_BONUS_POLICIES: BonusPolicy[] = [
+//   { id: 1, policy_name: '기본 적립',    give_value: 5,  start_at: '2026-01-01', end_at: null,         activation: true  },
+//   { id: 2, policy_name: 'VIP 적립',     give_value: 20, start_at: '2026-01-01', end_at: null,         activation: true  },
+//   { id: 3, policy_name: '신규 가입 보너스', give_value: 10, start_at: '2026-01-01', end_at: '2026-12-31', activation: true  },
+//   { id: 4, policy_name: '생일 이벤트',  give_value: 15, start_at: '2026-03-01', end_at: '2026-05-31', activation: false },
+// ]
 
 function PolicyListPage() {
   const navigate = useNavigate()
 
-  /* ──────────────────────────────────────────
-     1. 상영관별 기본 요금
-  ────────────────────────────────────────── */
-  // Map<theaterId, basePrice>
-  const initBasePrices = Object.fromEntries(MOCK_THEATERS.map((t) => [t.id, t.basePrice]))
-  const [basePrices,     setBasePrices]     = useState<Record<number, number>>(initBasePrices)
-  const [editBasePrices, setEditBasePrices] = useState<Record<number, number>>(initBasePrices)
-  const [baseEditing,    setBaseEditing]    = useState(false)
-  const [baseSaving,     setBaseSaving]     = useState(false)
-  const [baseMsg,        setBaseMsg]        = useState('')
+  const [loading, setLoading] = useState(true)
 
-  const handleBaseEdit   = () => { setEditBasePrices({ ...basePrices }); setBaseEditing(true); setBaseMsg('') }
-  const handleBaseCancel = () => { setBaseEditing(false); setEditBasePrices({ ...basePrices }) }
+  const [discountPolicies, setDiscountPolicies] = useState<DiscountPolicy[]>([])
 
-  const handleBaseSave = async () => {
-    for (const [id, price] of Object.entries(editBasePrices)) {
-      if (price <= 0) {
-        const t = MOCK_THEATERS.find((x) => x.id === Number(id))
-        alert(`${t?.name ?? id} 기본 요금은 0원보다 커야 합니다.`)
-        return
+  // 데이터 한번에 가져옴 (좌석, 할인, 적립)
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        setLoading(true)
+        const [seatRes, discountRes, bonusRes] = await Promise.all([
+            axios.get('/api/admin/seat-policy/list'),
+            axios.get('/api/admin/discount-policy/list'),
+            axios.get('/api/admin/bonus-policy/list')
+        ]);
+        const seatMap: Record<string, number> = {};
+        seatRes.data.forEach((item: any) => {
+          if (item.name === '일반') seatMap['NORMAL'] = item.cost;
+          if (item.name === '리클라이너') seatMap['RECLINER'] = item.cost;
+        });
+
+        console.log('좌석', seatRes.data);
+        console.log('할인 ', discountRes.data);
+        console.log('적립 ', bonusRes.data);
+
+        setPrices(seatMap)
+        setEditPrices(seatMap)
+        setDiscountPolicies(discountRes.data)
+        setBonusPolicies(bonusRes.data)
+      } catch (e) {
+        console.log('데이터 로딩중 에러 발생:', e)
+      } finally {
+        setLoading(false)
       }
-    }
-    setBaseSaving(true)
-    await new Promise((r) => setTimeout(r, 500))
-    setBasePrices({ ...editBasePrices })
-    setBaseEditing(false)
-    setBaseSaving(false)
-    setBaseMsg('상영관 기본 요금이 저장되었습니다.')
-    setTimeout(() => setBaseMsg(''), 3000)
-    // TODO: Promise.all(MOCK_THEATERS.map(t => PATCH /api/admin/theaters/:id { basePrice }))
-  }
+    };
+    void fetchAllData()
+  }, []);
 
   /* ──────────────────────────────────────────
-     2. 좌석 타입별 추가 요금
+     1. 좌석 타입별 추가 요금 (NORMAL / RECLINER)
   ────────────────────────────────────────── */
-  const [prices,     setPrices]     = useState<Record<SeatType, number>>({ ...SEAT_PRICES })
-  const [editPrices, setEditPrices] = useState<Record<SeatType, number>>({ ...SEAT_PRICES })
+  const [prices,     setPrices]     = useState<Record<SeatType, number>>({ NORMAL: 0, RECLINER: 0 })
+  const [editPrices, setEditPrices] = useState<Record<SeatType, number>>({ NORMAL: 0, RECLINER: 0 })
+
   const [seatEditing,  setSeatEditing]  = useState(false)
   const [seatSaving,   setSeatSaving]   = useState(false)
   const [seatMsg,      setSeatMsg]      = useState('')
 
-  const handleSeatEdit   = () => { setEditPrices({ ...prices }); setSeatEditing(true); setSeatMsg('') }
+  // 좌석 정책 로직
+  const handleSeatEdit   = () => {
+    setEditPrices({ ...prices });
+    setSeatEditing(true);
+    setSeatMsg('')
+  }
+
+
   const handleSeatCancel = () => { setSeatEditing(false); setEditPrices({ ...prices }) }
 
   const handleSeatSave = async () => {
-    for (const key of Object.keys(editPrices) as SeatType[]) {
-      if (editPrices[key] < 0) {
-        alert(`${SEAT_TYPE_LABEL[key]} 추가 요금은 0원 이상이어야 합니다.`)
-        return
-      }
+    // 1. 실제로 변경된 항목만 필터링
+    const changedTargets = [];
+
+    if (prices.NORMAL !== editPrices.NORMAL) {
+      changedTargets.push({ name: '일반', cost: editPrices.NORMAL });
     }
-    setSeatSaving(true)
-    await new Promise((r) => setTimeout(r, 500))
-    setPrices({ ...editPrices })
-    setSeatEditing(false)
-    setSeatSaving(false)
-    setSeatMsg('좌석 추가 요금이 저장되었습니다.')
-    setTimeout(() => setSeatMsg(''), 3000)
+    if (prices.RECLINER !== editPrices.RECLINER) {
+      changedTargets.push({ name: '리클라이너', cost: editPrices.RECLINER });
+    }
+
+    // 2. 변경된 게 하나도 없다면 바로 종료 (서버 요청 안 함)
+    if (changedTargets.length === 0) {
+      setSeatEditing(false);
+      return;
+    }
+
+    setSeatSaving(true);
+    try {
+      // 3. 변경된 항목에 대해서만 요청 보냄
+      for (const data of changedTargets) {
+        await axios.patch('/api/admin/seat-policy', data);
+      }
+
+      setPrices({ ...editPrices })
+      setSeatEditing(false)
+      setSeatMsg('좌석 추가 요금이 저장되었습니다.')
+    } catch (e) {
+      console.error('저장 실패:', e)
+    } finally {
+      setSeatSaving(false)
+      setTimeout(() => setSeatMsg(''), 3000)
+    }
     // TODO: PATCH /api/admin/seat-prices
+  }
+
+  /* ──────────────────────────────────────────
+     2. 적립 정책 (bonus_policy)
+  ────────────────────────────────────────── */
+  const [bonusPolicies, setBonusPolicies] = useState<BonusPolicy[]>([])
+  // 새 정책 입력 폼 토글
+  const [showBonusForm, setShowBonusForm] = useState(false)
+  // 새 정책 입력 값 (end_at은 빈 문자열로 초기화, 제출 시 null 처리)
+  const [bonusForm, setBonusForm] = useState<Omit<BonusPolicy, 'id'>>({
+    policyName: '', giveValue: 0, startAt: '', endAt: null, activation: true,
+  })
+  const [bonusSaving, setBonusSaving] = useState(false)
+  const [bonusMsg,    setBonusMsg]    = useState('')
+
+  /** 적립 정책 활성화 토글 (TODO: PATCH /api/admin/bonus-policy/:id) */
+  const toggleBonusActivation = (id: number) => {
+    setBonusPolicies((prev) =>
+      prev.map((p) => p.id === id ? { ...p, activation: !p.activation } : p)
+    )
+  }
+
+  /** 적립 정책 삭제 (TODO: DELETE /api/admin/bonus-policy/:id) */
+  const deleteBonusPolicy = (id: number) => {
+    if (!window.confirm('이 정책을 삭제하시겠습니까?')) return
+    setBonusPolicies((prev) => prev.filter((p) => p.id !== id))
+  }
+
+  /** 적립 정책 등록 (TODO: POST /api/admin/bonus-policy) */
+  const handleBonusSave = async () => {
+    if (!bonusForm.policyName.trim())          { alert('정책 이름을 입력해주세요.'); return }
+    if (bonusForm.giveValue <= 0 || bonusForm.giveValue > 100) {
+      alert('적립률은 1~100 사이의 값이어야 합니다.'); return
+    }
+    if (!bonusForm.startAt)                    { alert('시작일을 입력해주세요.'); return }
+    // end_at은 선택사항 (null 허용)
+    if (bonusForm.endAt && bonusForm.startAt > bonusForm.endAt) {
+      alert('종료일은 시작일 이후여야 합니다.'); return
+    }
+
+    setBonusSaving(true)
+    await new Promise((r) => setTimeout(r, 400))
+
+    const res = await axios.post(`/api/admin/bonus-policy`)
+    // const newId = Math.max(...bonusPolicies.map((p) => p.id), 0) + 1
+    setBonusPolicies((prev) => [...prev, res.data])
+    setBonusForm({ policyName: '', giveValue: 0, startAt: '', endAt: null, activation: true })
+    setShowBonusForm(false)
+    setBonusSaving(false)
+    setBonusMsg('적립 정책이 등록되었습니다.')
+    setTimeout(() => setBonusMsg(''), 3000)
   }
 
   return (
     <div>
 
       {/* ══════════════════════════════
-          1. 상영관별 기본 요금
-      ══════════════════════════════ */}
-      <div style={sectionCard}>
-        <div style={sectionHeader}>
-          <div>
-            <h2 style={sectionTitle}>상영관 기본 요금</h2>
-            <p style={sectionDesc}>상영관마다 적용되는 기본 입장 요금입니다. 좌석 타입별 추가 요금은 아래에서 별도 설정합니다.</p>
-          </div>
-          {!baseEditing ? (
-            <button onClick={handleBaseEdit} style={editActionBtn}>수정</button>
-          ) : (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleBaseCancel} disabled={baseSaving} style={cancelBtn}>취소</button>
-              <button onClick={handleBaseSave}  disabled={baseSaving} style={saveBtn}>
-                {baseSaving ? '저장 중...' : '저장'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {baseMsg && <div style={saveMsgBox}> {baseMsg}</div>}
-
-        <div style={priceGrid}>
-          {MOCK_THEATERS.map((t) => (
-            <div key={t.id} style={priceCard}>
-              {/* 상영관 타입 바 */}
-              <div style={{ ...typeBar, background: t.hasRecliner ? '#7c3aed' : '#2563eb' }} />
-              <div style={priceCardInner}>
-                <p style={priceTypeLabel}>{t.name}</p>
-                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>
-                  {t.hasRecliner ? '리클라이너관' : '일반관'} · {t.totalSeats}석
-                </p>
-                {baseEditing ? (
-                  <div style={inputWrap}>
-                    <input
-                      type="number"
-                      min={0}
-                      step={1000}
-                      value={editBasePrices[t.id]}
-                      onChange={(e) =>
-                        setEditBasePrices((prev) => ({ ...prev, [t.id]: Number(e.target.value) }))
-                      }
-                      style={priceInput}
-                    />
-                    <span style={unitLabel}>원</span>
-                  </div>
-                ) : (
-                  <p style={{ ...priceValue, color: t.hasRecliner ? '#7c3aed' : '#2563eb' }}>
-                    {basePrices[t.id].toLocaleString()}원
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ══════════════════════════════
-          2. 좌석 타입별 추가 요금
+          1. 좌석 타입별 추가 요금 (NORMAL / RECLINER)
       ══════════════════════════════ */}
       <div style={sectionCard}>
         <div style={sectionHeader}>
@@ -176,18 +241,21 @@ function PolicyListPage() {
         {seatMsg && <div style={saveMsgBox}>✅ {seatMsg}</div>}
 
         <div style={priceGrid}>
-          {(Object.keys(SEAT_PRICES) as SeatType[]).map((type) => (
+          {(['NORMAL', 'RECLINER'] as SeatType[]).map((type) => (
             <div key={type} style={priceCard}>
               <div style={{ ...typeBar, background: SEAT_TYPE_COLOR[type] }} />
               <div style={priceCardInner}>
+
+                {/* TODO 여기에 지정? 아니면 mock데이터에서 지정? */}
                 <p style={priceTypeLabel}>{SEAT_TYPE_LABEL[type]}</p>
+
                 {seatEditing ? (
                   <div style={inputWrap}>
                     <input
                       type="number"
                       min={0}
                       step={500}
-                      value={editPrices[type]}
+                      value={editPrices[type] ?? 0}
                       onChange={(e) =>
                         setEditPrices((prev) => ({ ...prev, [type]: Number(e.target.value) }))
                       }
@@ -197,7 +265,7 @@ function PolicyListPage() {
                   </div>
                 ) : (
                   <p style={{ ...priceValue, color: SEAT_TYPE_COLOR[type] }}>
-                    +{prices[type].toLocaleString()}원
+                    +{(prices[type] ?? 0).toLocaleString()}원
                   </p>
                 )}
               </div>
@@ -207,13 +275,16 @@ function PolicyListPage() {
       </div>
 
       {/* ══════════════════════════════
-          3. 할인 정책 목록
+          2. 할인 정책 목록 (discount_policy)
       ══════════════════════════════ */}
       <div style={sectionCard}>
         <div style={sectionHeader}>
           <div>
             <h2 style={sectionTitle}>할인 정책</h2>
-            <p style={sectionDesc}>회원 등급, 연령대 등 조건별 할인 정책을 관리합니다.</p>
+            <p style={sectionDesc}>
+              시간대·연령·직업·쿠폰 등 조건별 할인 정책을 관리합니다.
+              (condition_type / discount_type 기준)
+            </p>
           </div>
           <button
             onClick={() => navigate('/admin/management/policy/form')}
@@ -229,23 +300,52 @@ function PolicyListPage() {
               <tr style={thead}>
                 <th style={th}>ID</th>
                 <th style={th}>정책명</th>
-                <th style={th}>유형</th>
-                <th style={th}>할인금액</th>
-                <th style={th}>설명</th>
-                <th style={th}>관리</th>
+                <th style={{ ...th, textAlign: 'center' }}>조건</th>
+                <th style={{ ...th, textAlign: 'center' }}>할인 방식</th>
+                <th style={{ ...th, textAlign: 'right' }}>할인 값</th>
+                <th style={{ ...th, textAlign: 'center' }}>활성화</th>
+                <th style={{ ...th, textAlign: 'center' }}>관리</th>
               </tr>
             </thead>
             <tbody>
-              {MOCK_POLICIES.map((p) => (
+              {loading ? (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 20 }}>로딩 중...</td></tr>
+              ) : discountPolicies.length === 0 ? (
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 20 }}>등록된 정책이 없습니다.</td></tr>
+              ) : (
+              discountPolicies.map((p: DiscountPolicy) => (
                 <tr key={p.id} style={tr}>
                   <td style={td}>{p.id}</td>
-                  <td style={{ ...td, fontWeight: 600 }}>{p.name}</td>
-                  <td style={td}><span style={typeBadge}>{p.type}</span></td>
-                  <td style={{ ...td, color: p.discount > 0 ? 'var(--color-success-main)' : 'var(--text-primary)' }}>
-                    {p.discount > 0 ? `-${p.discount.toLocaleString()}원` : '기본요금'}
+                  <td style={{ ...td, fontWeight: 600 }}>{p.policyName}</td>
+                  {/* 조건 유형 배지 */}
+                  <td style={{ ...td, textAlign: 'center' }}>
+                    <span style={{ ...typeBadge, ...conditionBadgeStyle(p.conditionType ) }}>
+                      {CONDITION_TYPE_LABEL[p.conditionType]}
+                    </span>
                   </td>
-                  <td style={{ ...td, color: 'var(--text-secondary)' }}>{p.description}</td>
-                  <td style={td}>
+                  {/* 할인 방식 배지 */}
+                  <td style={{ ...td, textAlign: 'center' }}>
+                    <span style={typeBadge}>
+                      {p.discountType === 'RATIO' ? '비율 (%)' : '정액 (원)'}
+                    </span>
+                  </td>
+                  {/* 할인 값 */}
+                  <td style={{ ...td, textAlign: 'right', color: 'var(--color-success-main)', fontWeight: 700 }}>
+                    {p.discountType === 'RATIO'
+                      ? `${p.discountValue} %`
+                       : `-${p.discountValue?.toLocaleString() || 0} 원`}
+                  </td>
+                  {/* 활성화 상태 */}
+                  <td style={{ ...td, textAlign: 'center' }}>
+                    <span style={{
+                      padding: '2px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700,
+                      background: p.activation ? 'var(--color-success-bg)' : 'var(--color-error-bg)',
+                      color: p.activation ? 'var(--color-success-text)' : 'var(--color-error-text)',
+                    }}>
+                      {p.activation ? '활성' : '비활성'}
+                    </span>
+                  </td>
+                  <td style={{ ...td, textAlign: 'center' }}>
                     <button
                       onClick={() => navigate('/admin/management/policy/manage', { state: { policy: p } })}
                       style={rowEditBtn}
@@ -254,13 +354,198 @@ function PolicyListPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════
+          3. 적립 정책 (bonus_policy)
+      ══════════════════════════════ */}
+      <div style={sectionCard}>
+        <div style={sectionHeader}>
+          <div>
+            <h2 style={sectionTitle}>적립 정책</h2>
+            <p style={sectionDesc}>
+              결제 금액 대비 자동 적립되는 포인트 비율(%)을 관리합니다.
+              (기본 적립, VIP 적립, 이벤트 기간 추가 적립 등)
+            </p>
+          </div>
+          {/* 등록 폼 토글 버튼 */}
+          <button
+            onClick={() => setShowBonusForm((v) => !v)}
+            style={showBonusForm ? cancelBtn : addBtn}
+          >
+            {showBonusForm ? '취소' : '+ 정책 등록'}
+          </button>
+        </div>
+
+        {bonusMsg && <div style={saveMsgBox}>✅ {bonusMsg}</div>}
+
+        {/* ── 새 적립 정책 등록 폼 ── */}
+        {showBonusForm && (
+          <div style={bonusFormWrap}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12 }}>
+              새 적립 정책 등록
+            </p>
+            <div style={bonusFormGrid}>
+              {/* 정책 이름 */}
+              <div style={bonusFieldWrap}>
+                <label style={bonusFieldLabel}>정책 이름</label>
+                <input
+                  type="text"
+                  placeholder="예: 기본 적립"
+                  value={bonusForm.policyName}
+                  onChange={(e) => setBonusForm((p) => ({ ...p, policyName: e.target.value }))}
+                  style={{ ...priceInput, width: '100%', textAlign: 'left' }}
+                />
+              </div>
+              {/* 적립률 */}
+              <div style={bonusFieldWrap}>
+                <label style={bonusFieldLabel}>적립률 (%)</label>
+                <div style={inputWrap}>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    step={1}
+                    value={bonusForm.giveValue}
+                    onChange={(e) => setBonusForm((p) => ({ ...p, giveValue: Number(e.target.value) }))}
+                    style={priceInput}
+                  />
+                  <span style={unitLabel}>%</span>
+                </div>
+              </div>
+              {/* 시작일 */}
+              <div style={bonusFieldWrap}>
+                <label style={bonusFieldLabel}>시작일</label>
+                <input
+                  type="date"
+                  value={bonusForm.startAt}
+                  onChange={(e) => setBonusForm((p) => ({ ...p, startAt: e.target.value }))}
+                  style={{ ...priceInput, width: '130px', textAlign: 'left' }}
+                />
+              </div>
+              {/* 종료일 (선택) */}
+              <div style={bonusFieldWrap}>
+                <label style={bonusFieldLabel}>종료일 (선택)</label>
+                <input
+                  type="date"
+                  value={bonusForm.endAt ?? ''}
+                  min={bonusForm.startAt}
+                  onChange={(e) => setBonusForm((p) => ({ ...p, endAt: e.target.value || null }))}
+                  style={{ ...priceInput, width: '130px', textAlign: 'left' }}
+                />
+              </div>
+              {/* 활성화 */}
+              <div style={{ ...bonusFieldWrap, justifyContent: 'flex-end' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 20 }}>
+                  <input
+                    type="checkbox"
+                    checked={bonusForm.activation}
+                    onChange={(e) => setBonusForm((p) => ({ ...p, activation: e.target.checked }))}
+                    style={{ width: 16, height: 16 }}
+                  />
+                  <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>즉시 활성화</span>
+                </label>
+              </div>
+            </div>
+            <button
+              onClick={handleBonusSave}
+              disabled={bonusSaving}
+              style={{ ...saveBtn, marginTop: 12 }}
+            >
+              {bonusSaving ? '저장 중...' : '등록'}
+            </button>
+          </div>
+        )}
+
+        {/* ── 적립 정책 테이블 ── */}
+        <div style={tableWrap}>
+          <table style={table}>
+            <thead>
+              <tr style={thead}>
+                <th style={th}>ID</th>
+                <th style={th}>정책명</th>
+                <th style={{ ...th, textAlign: 'right' }}>적립률</th>
+                <th style={{ ...th, textAlign: 'center' }}>시작일</th>
+                <th style={{ ...th, textAlign: 'center' }}>종료일</th>
+                <th style={{ ...th, textAlign: 'center' }}>활성화</th>
+                <th style={{ ...th, textAlign: 'center' }}>관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bonusPolicies.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)' }}>
+                    등록된 적립 정책이 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                bonusPolicies.map((p) => (
+                  <tr key={p.id} style={tr}>
+                    <td style={td}>{p.id}</td>
+                    <td style={{ ...td, fontWeight: 600 }}>{p.policyName}</td>
+                    {/* 적립률: X % 표시 */}
+                    <td style={{ ...td, textAlign: 'right', color: 'var(--color-success-main)', fontWeight: 700 }}>
+                      {p.giveValue} %
+                    </td>
+                    <td style={{ ...td, textAlign: 'center', fontSize: 13, color: 'var(--text-secondary)' }}>{p.startAt}</td>
+                    {/* end_at null이면 '기간 제한 없음' 표시 */}
+                    <td style={{ ...td, textAlign: 'center', fontSize: 13, color: p.endAt ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                      {p.endAt ?? '—'}
+                    </td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      {/* 활성화 토글 버튼 */}
+                      <button
+                        onClick={() => toggleBonusActivation(p.id)}
+                        style={{
+                          padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700,
+                          border: 'none', cursor: 'pointer',
+                          background: p.activation ? 'var(--color-success-bg)' : 'var(--color-error-bg)',
+                          color: p.activation ? 'var(--color-success-text)' : 'var(--color-error-text)',
+                        }}
+                      >
+                        {p.activation ? '활성' : '비활성'}
+                      </button>
+                    </td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      <button
+                        onClick={() => deleteBonusPolicy(p.id)}
+                        style={deleteBtn}
+                      >
+                        삭제
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
     </div>
   )
+}
+
+/* ── 할인 조건 유형 레이블 매핑 ── */
+const CONDITION_TYPE_LABEL: Record<'TIME' | 'AGE' | 'JOB' | 'COUPON', string> = {
+  TIME:   '시간대',
+  AGE:    '연령',
+  JOB:    '직업',
+  COUPON: '쿠폰',
+}
+
+/** 조건 유형별 배지 색상 (가독성 향상) */
+function conditionBadgeStyle(type: 'TIME' | 'AGE' | 'JOB' | 'COUPON'): React.CSSProperties {
+  const colorMap: Record<string, { bg: string; color: string }> = {
+    TIME:   { bg: '#eff6ff', color: '#1d4ed8' }, // 파랑
+    AGE:    { bg: '#f0fdf4', color: '#15803d' }, // 초록
+    JOB:    { bg: '#fdf4ff', color: '#7e22ce' }, // 보라
+    COUPON: { bg: '#fff7ed', color: '#c2410c' }, // 주황
+  }
+  return { background: colorMap[type]?.bg, color: colorMap[type]?.color }
 }
 
 /* ── 스타일 ── */
@@ -335,6 +620,25 @@ const typeBadge: React.CSSProperties = {
 const rowEditBtn: React.CSSProperties = {
   padding: '6px 14px', background: 'var(--color-info-bg)', color: 'var(--color-info-dark)',
   border: '1px solid var(--color-info-text)', borderRadius: 6, fontSize: 13, cursor: 'pointer',
+}
+const deleteBtn: React.CSSProperties = {
+  padding: '6px 14px', background: 'var(--color-error-bg)', color: 'var(--color-error-text)',
+  border: '1px solid var(--color-error-main)', borderRadius: 6, fontSize: 13, cursor: 'pointer',
+}
+
+/** 보너스 정책 등록 폼 레이아웃 */
+const bonusFormWrap: React.CSSProperties = {
+  background: 'var(--bg-base)', borderRadius: 10, padding: '16px 18px',
+  marginBottom: 16, border: '1px solid var(--border-default)',
+}
+const bonusFormGrid: React.CSSProperties = {
+  display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start',
+}
+const bonusFieldWrap: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: 4, minWidth: 140,
+}
+const bonusFieldLabel = {
+  fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 2,
 }
 
 export default PolicyListPage

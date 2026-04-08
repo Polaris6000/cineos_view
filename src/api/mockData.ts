@@ -208,14 +208,12 @@ export const RATING_OPTIONS = [
 export const SEAT_PRICES = {
   NORMAL:   5000,
   RECLINER: 10000,
-  COUPLE:   15000,
 }
 
 /** 좌석 타입 → 표시 레이블 */
 export const SEAT_TYPE_LABEL = {
   NORMAL:   '일반석',
   RECLINER: '리클라이너석',
-  COUPLE:   '커플석',
 }
 
 /* ───────────────────────────────────────────────────
@@ -399,14 +397,14 @@ export function generateSeats(theater: Theater): Seat[] {
 /* ───────────────────────────────────────────────────
    6. 가격 정책 (PricingPolicyDTO)
    ─────────────────────────────────────────────────── */
-export const MOCK_POLICIES = [
-  { id: 1, name: '일반 성인',  type: 'ADULT',    discount: 0,    description: '기본 성인 요금' },
-  { id: 2, name: '청소년 할인', type: 'TEEN',     discount: 2000, description: '만 13~18세, 학생증 지참' },
-  { id: 3, name: '경로 우대',  type: 'SENIOR',   discount: 3000, description: '만 65세 이상, 신분증 지참' },
-  { id: 4, name: '장애인 할인', type: 'DISABLED', discount: 4000, description: '장애인복지카드 지참' },
-  { id: 5, name: '조조 할인',  type: 'MORNING',  discount: 3000, description: '오전 11시 이전 첫 회차' },
-  { id: 6, name: '문화의 날',  type: 'CULTURE',  discount: 2000, description: '매월 마지막 수요일' },
-]
+// export const MOCK_POLICIES = [
+//   { id: 1, name: '일반 성인',  type: 'ADULT',    discount: 0,    description: '기본 성인 요금' },
+//   { id: 2, name: '청소년 할인', type: 'TEEN',     discount: 2000, description: '만 13~18세, 학생증 지참' },
+//   { id: 3, name: '경로 우대',  type: 'SENIOR',   discount: 3000, description: '만 65세 이상, 신분증 지참' },
+//   { id: 4, name: '장애인 할인', type: 'DISABLED', discount: 4000, description: '장애인복지카드 지참' },
+//   { id: 5, name: '조조 할인',  type: 'MORNING',  discount: 3000, description: '오전 11시 이전 첫 회차' },
+//   { id: 6, name: '문화의 날',  type: 'CULTURE',  discount: 2000, description: '매월 마지막 수요일' },
+// ]
 
 /* ───────────────────────────────────────────────────
    7. 통계 데이터

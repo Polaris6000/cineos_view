@@ -8,14 +8,17 @@ import { CheckCircle } from 'lucide-react'
 import axios from "axios";
 
 // 타입 정의 (필요에 따라 PolicyManagePage에서 가져온 타입을 확장하세요)
-export interface DiscountPolicy {
-  policyName: string;
-  conditionType: string;
-  discountType: string;
-  discountValue: number;
-  description: string;
-  startAt: string;
-  endAt: string | null;
+interface DiscountPolicy {
+  // id: number // 인덱스
+  policyName: string // 정책 이름
+  conditionType: string // 할인대상
+  discountType: string // 할인유형
+  discountValue: number // 할인값
+  startAt: string // 시작일 (YYYY-MM-DD)
+  endAt: null // 만료일 (YYYY-MM-DD)
+  // activation: boolean // 만료여부 (생성이라 필요없음)
+
+  description: string // TODO 설명이 DB에 존재하지않음
 }
 
 const TYPE_CONDITION = ['AGE', 'COUPON', 'JOB', 'TIME']
@@ -72,9 +75,9 @@ function PolicyFormPage() {
       conditionType: conditionRef.current?.value || 'AGE',
       discountType: typeRef.current?.value || 'RATIO',
       discountValue: Number(amountRef.current?.value) || 0,
-      description: descriptionRef.current?.value || '',
       startAt: new Date().toISOString(), // 예시 데이터
-      endAt: null
+      endAt: null,
+      description: descriptionRef.current?.value || '' // TODO 설명이 DB에 존재하지않음
     }
 
     try {
@@ -83,7 +86,7 @@ function PolicyFormPage() {
 
       if (res.status === 200 || res.status === 201) {
         setSuccess(true)
-        // setTimeout(() => navigate('/admin/management/policy/list'), 1500)
+        setTimeout(() => navigate('/admin/management/policy/list'), 1500)
       }
     } catch (error) {
       console.error("정책 등록 실패:", error);
@@ -183,15 +186,15 @@ function Field({ label, required, error, children }) {
   )
 }
 
-const pageTitle  = { fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 24 }
-const formStyle  = { background: 'var(--bg-surface)', borderRadius: 12, padding: '24px',
+const pageTitle: React.CSSProperties  = { fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 24 }
+const formStyle: React.CSSProperties  = { background: 'var(--bg-surface)', borderRadius: 12, padding: '24px',
                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: 16 }
-const input      = { padding: '10px 12px', border: '1px solid var(--border-default)', borderRadius: 8,
+const input: React.CSSProperties     = { padding: '10px 12px', border: '1px solid var(--border-default)', borderRadius: 8,
                      fontSize: 14, color: 'var(--text-primary)', background: 'var(--input-bg)',
                      width: '100%', boxSizing: 'border-box' }
-const cancelBtn  = { padding: '12px 24px', background: 'var(--bg-base)', border: '1px solid var(--border-default)',
+const cancelBtn: React.CSSProperties = { padding: '12px 24px', background: 'var(--bg-base)', border: '1px solid var(--border-default)',
                      borderRadius: 8, fontSize: 14, cursor: 'pointer', color: 'var(--text-secondary)' }
-const submitBtn  = { flex: 1, padding: '12px 24px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
+const submitBtn: React.CSSProperties  = { flex: 1, padding: '12px 24px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
                      border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer' }
 
 export default PolicyFormPage
