@@ -237,6 +237,7 @@ function MemberListPage() {
       {/* 전체 활동 로그 모달 */}
       {showActivityLog && (
         <ActivityLogModal
+            members={members}
           onClose={() => setShowActivityLog(false)}
         />
       )}
@@ -332,7 +333,9 @@ function PointHistoryModal({
 /* ── 전체 활동 로그 모달 ──────────────────────────── */
 function ActivityLogModal({
   onClose,
+  members,
 }: {
+  members: Member[],
   onClose: () => void
 }) {
   const [logs, setLogs] = useState<PointHistory[]>([])
@@ -361,36 +364,43 @@ function ActivityLogModal({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: 400, overflowY: 'auto' }}>
-          {logs.map((log) => (
-            <div key={log.pointId} style={logRow}>
-              <div style={{ flex: 1 }}>
-                {/* 회원명 + 액션 배지 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {log.phone}
-                  </span>
-                  <span style={{
-                    fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4,
-                    color: actionColor[log.type] ?? 'var(--text-muted)',
-                    background: 'var(--bg-base)',
-                    border: `1px solid ${actionColor[log.type] ?? 'var(--border-default)'}`,
-                  }}>
-                    {log.type}
-                  </span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    변동 포인트 : {log.amountPoint}P
-                  </span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    변동 포인트 : {}P
-                  </span>
+          {/* ActivityLogModal의 logs.map 내부 수정 */}
+          {logs.map((log) => {
+            // 1. 현재 로그의 phone과 일치하는 회원을 members에서 찾습니다.
+            const currentMember = members.find(m => m.phone === String(log.phone));
+
+            return (
+                <div key={log.pointId} style={logRow}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+            {log.phone}
+          </span>
+                      {/* ... 배지 부분 동일 ... */}
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4,
+                        color: actionColor[log.type] ?? 'var(--text-muted)',
+                        background: 'var(--bg-base)',
+                        border: `1px solid ${actionColor[log.type] ?? 'var(--border-default)'}`,
+                      }}>
+            {log.type}
+          </span>
+
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+            변동 포인트 : {log.amountPoint.toLocaleString()}P
+          </span>
+
+                      {/* 2. 잔여 포인트 자리에 찾은 회원의 포인트를 출력합니다. */}
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+            잔여 포인트 : {currentMember ? currentMember.point.toLocaleString() : '0'}P
+          </span>
+                    </div>
+                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{log.title}</p>
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{log.createAt}</span>
                 </div>
-                {/* 상세 내용 */}
-                <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{log.title}</p>
-              </div>
-              {/* 날짜 */}
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{log.createAt}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <button style={closeModalBtn} onClick={onClose}>닫기</button>
