@@ -28,7 +28,6 @@ import { AnimatePresence } from 'framer-motion'
 
 // 전역 Context
 import { AuthProvider } from './context/AuthContext'
-import { KeyboardProvider } from './context/KeyboardContext'
 import { IdleTimerProvider } from './context/IdleTimerContext'
 
 // 레이아웃 컴포넌트
@@ -63,7 +62,6 @@ import MovieManagePage from './pages/admin/management/MovieManagePage'
 import TheaterListPage from './pages/admin/management/TheaterListPage'
 import TheaterEditPage from './pages/admin/management/TheaterEditPage'
 import SeatListPage from './pages/admin/management/SeatListPage'
-import SeatEditPage from './pages/admin/management/SeatEditPage'
 import PolicyListPage from './pages/admin/management/PolicyListPage'
 import PolicyFormPage from './pages/admin/management/PolicyFormPage'
 import PolicyManagePage from './pages/admin/management/PolicyManagePage'
@@ -114,7 +112,6 @@ function AnimatedRoutes() {
               <Route path="management/theater/list" element={<TheaterListPage />} />
               <Route path="management/theater/edit" element={<TheaterEditPage />} />
               <Route path="management/seat/list"    element={<SeatListPage />} />
-              <Route path="management/seat/edit"    element={<SeatEditPage />} />
             </Route>
 
             {/* 정책 — policy.view 권한 필요 (SUPER_ADMIN 전용) */}
@@ -163,15 +160,12 @@ function App() {
     <BrowserRouter>
       {/* AuthProvider: 관리자 로그인 상태 전역 관리 */}
       <AuthProvider>
-        {/* KeyboardProvider: 터치 키보드 전역 상태 */}
-        <KeyboardProvider>
           {/* IdleTimerProvider: 고객 화면 유휴 감지 → 홈으로 이동 */}
           <IdleTimerProvider>
             <AnimatedRoutes />
             {/* DevNav: 개발 환경에서만 렌더링되는 빠른 이동 패널 */}
             <DevNav />
           </IdleTimerProvider>
-        </KeyboardProvider>
       </AuthProvider>
     </BrowserRouter>
   )

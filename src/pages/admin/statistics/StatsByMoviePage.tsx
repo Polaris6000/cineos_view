@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { Ticket, Banknote } from 'lucide-react'
 import { MOCK_MOVIE_STATS } from '../../../api/mockData'
+import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
 const today        = new Date().toISOString().slice(0, 10)
 const thirtyAgo    = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
@@ -26,6 +27,7 @@ function StatsByMoviePage() {
 
   return (
     <div>
+      <StatsTabNav />
       <h2 style={pageTitle}>영화별 통계</h2>
 
       {/* 날짜 범위 */}

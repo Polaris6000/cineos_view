@@ -8,6 +8,7 @@
  */
 import { useState, useMemo } from 'react'
 import { MOCK_DAILY_STATS } from '../../../api/mockData'
+import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
 const today = new Date().toISOString().slice(0, 10)
 
@@ -43,6 +44,7 @@ function StatsDailyPage() {
 
   return (
     <div>
+      <StatsTabNav />
       <h2 style={pageTitle}>일일 통계</h2>
 
       {/* 날짜 범위 */}

@@ -3,6 +3,7 @@
  * TODO: GET /api/admin/stats/by-day 연동
  */
 import { MOCK_DAY_STATS } from '../../../api/mockData'
+import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
 // 일=빨, 월~금=파, 토=보라, 금=골드
 const COLORS = [
@@ -20,6 +21,7 @@ function StatsByDayPage() {
 
   return (
     <div>
+      <StatsTabNav />
       <h2 style={pageTitle}>요일별 통계</h2>
       <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
         최근 30일 데이터 기반 요일별 평균

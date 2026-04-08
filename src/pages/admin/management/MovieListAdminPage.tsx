@@ -1,45 +1,68 @@
 /**
  * MovieListAdminPage.tsx — 관리자 영화 목록
  *
- * 변경사항:
- *  - 삭제 시 목록에서 즉시 제거되지 않고 '삭제예정' 상태로 변경
- *  - 개봉일(startAt) / 종영일(endAt) 컬럼 추가
- *  - 상영종료 영화는 기본 뷰에서 숨김 → "전체 로그" 토글로 볼 수 있음
- *  - 상태 배지: 상영중 / 상영예정 / 상영종료 / 삭제예정
- *
- * TODO: GET /api/admin/movies 연동
- * TODO: DELETE /api/admin/movies/:id (→ 서버에서도 deletePending 처리)
+ * API 연동:
+ *  - GET  /api/movie/realAll       → 전체 영화 목록
+ *  - DELETE /api/movie/remove?movieId={id} → 영화 삭제 (TODO: 낙관적 처리)
  */
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MOCK_MOVIES } from '../../../api/mockData'
+import apiClient, { type MovieDTO, resolvePosterUrl } from '../../../api/apiClient'
 
 /* ── 타입 ──────────────────────────────────────────── */
 type MovieStatus = 'NOW_PLAYING' | 'UPCOMING' | 'ENDED' | 'DELETE_PENDING'
 
+/** MovieDTO를 페이지 내부에서 쓰기 편한 형태로 변환 */
+interface AdminMovie {
+  id:        number
+  title:     string
+  genre:     string
+  rating:    string
+  director:  string
+  cast:      string   // MovieDTO.actors
+  runtime:   number
+  synopsis:  string   // MovieDTO.description
+  startAt:   string   // 'YYYY-MM-DD'
+  endAt:     string | null
+  posterUrl: string
+  movieId:   number   // MovieFormPage isEdit 판단용
+}
+
+function toAdminMovie(dto: MovieDTO): AdminMovie {
+  return {
+    id:        dto.movieId,
+    movieId:   dto.movieId,
+    title:     dto.title,
+    genre:     dto.genre    ?? '',
+    rating:    dto.rating,
+    director:  dto.director ?? '',
+    cast:      dto.actors   ?? '',
+    runtime:   dto.runtime,
+    synopsis:  dto.description ?? '',
+    startAt:   dto.startAt?.slice(0, 10) ?? '',
+    endAt:     dto.endAt ? dto.endAt.slice(0, 10) : null,
+    posterUrl: resolvePosterUrl(dto.posterPath),
+  }
+}
+
 /* ── 등급 배지 색상 ────────────────────────────────── */
 const RATING_COLOR: Record<string, string> = {
-  ALL: 'var(--badge-all)',
+  ALL:  'var(--badge-all)',
   '12': 'var(--color-info-main)',
   '15': 'var(--color-brand-default)',
   '19': 'var(--color-error-main)',
 }
 
-/* ── 오늘 날짜 (비교용) ────────────────────────────── */
-const TODAY = new Date().toISOString().slice(0, 10)
+const TODAY = new Date().toLocaleDateString('en-CA')
 
-/**
- * 영화의 현재 상태를 계산하는 헬퍼
- * pendingDeletes: 삭제예정으로 표시된 영화 id Set
- */
-function getMovieStatus(movie: typeof MOCK_MOVIES[0], pendingDeletes: Set<number>): MovieStatus {
+/** 영화 상태 계산 */
+function getMovieStatus(movie: AdminMovie, pendingDeletes: Set<number>): MovieStatus {
   if (pendingDeletes.has(movie.id)) return 'DELETE_PENDING'
+  if (movie.startAt > TODAY)        return 'UPCOMING'
   if (movie.endAt && movie.endAt < TODAY) return 'ENDED'
-  if (movie.endAt) return 'NOW_PLAYING'
-  return 'UPCOMING'
+  return 'NOW_PLAYING'
 }
 
-/** 상태별 배지 스타일 */
 function StatusBadge({ status }: { status: MovieStatus }) {
   const styles: Record<MovieStatus, React.CSSProperties> = {
     NOW_PLAYING:    { background: 'var(--color-success-bg)',   color: 'var(--color-success-main)' },
@@ -63,77 +86,72 @@ function StatusBadge({ status }: { status: MovieStatus }) {
 function MovieListAdminPage() {
   const navigate = useNavigate()
 
-  // 로컬 상태: 삭제예정으로 표시된 영화 id 집합
+  const [movies,         setMovies]         = useState<AdminMovie[]>([])
+  const [loading,        setLoading]        = useState(true)
   const [pendingDeletes, setPendingDeletes] = useState<Set<number>>(new Set())
+  const [search,         setSearch]         = useState('')
+  const [showLog,        setShowLog]        = useState(false)
 
-  // 검색어
-  const [search, setSearch] = useState('')
+  /** GET /api/movie/realAll — 전체 영화 목록 */
+  useEffect(() => {
+    apiClient.get<MovieDTO[]>('/movie/realAll')
+      .then((res) => setMovies(res.data.map(toAdminMovie)))
+      .catch((err) => console.error('[MovieListAdminPage] 영화 목록 로드 실패', err))
+      .finally(() => setLoading(false))
+  }, [])
 
-  // 전체 로그 모드: true이면 상영종료·삭제예정 포함, false면 활성 영화만 표시
-  const [showLog, setShowLog] = useState(false)
-
-  /**
-   * 필터링 로직
-   * - 기본 뷰: 상영중 + 상영예정만 (종료/삭제예정 숨김)
-   * - 전체 로그: 모든 영화 포함
-   * - 검색어: 제목 or 장르 포함
-   */
+  /** 필터링 */
   const filtered = useMemo(() => {
-    return MOCK_MOVIES.filter((m) => {
+    return movies.filter((m) => {
       const status = getMovieStatus(m, pendingDeletes)
-      const matchesSearch = m.title.includes(search) || m.genre.includes(search)
-
-      // 전체 로그 모드가 아니면 종료/삭제예정 영화 숨김
       if (!showLog && (status === 'ENDED' || status === 'DELETE_PENDING')) return false
-
-      return matchesSearch
+      return m.title.includes(search) || m.genre.includes(search)
     })
-  }, [search, showLog, pendingDeletes])
+  }, [movies, search, showLog, pendingDeletes])
 
-  /**
-   * 삭제 처리 — 즉시 목록에서 제거하지 않고 '삭제예정' 상태로 변경
-   * 실제 반영은 익일 00:00, 잔여 예매는 자동 환불됨
-   */
-  const handleDelete = (movie: typeof MOCK_MOVIES[0]) => {
+  /** 상태별 카운터 */
+  const counts = useMemo(() => {
+    const result = { NOW_PLAYING: 0, UPCOMING: 0, ENDED: 0, DELETE_PENDING: 0 }
+    movies.forEach((m) => { result[getMovieStatus(m, pendingDeletes)]++ })
+    return result
+  }, [movies, pendingDeletes])
+
+  /** 삭제 처리 — 낙관적으로 DELETE_PENDING 표시, API 호출 */
+  const handleDelete = (movie: AdminMovie) => {
     const status = getMovieStatus(movie, pendingDeletes)
 
-    // 이미 삭제예정인 경우 → 취소 가능
     if (status === 'DELETE_PENDING') {
-      const ok = window.confirm(`"${movie.title}" 삭제 예정을 취소하시겠습니까?`)
-      if (ok) {
-        setPendingDeletes((prev) => {
-          const next = new Set(prev)
-          next.delete(movie.id)
-          return next
-        })
+      if (window.confirm(`"${movie.title}" 삭제 예정을 취소하시겠습니까?`)) {
+        setPendingDeletes((prev) => { const n = new Set(prev); n.delete(movie.id); return n })
       }
       return
     }
 
     const ok = window.confirm(
-      `"${movie.title}" 을 삭제 예정으로 변경하시겠습니까?\n\n` +
-      `⚠️ 삭제는 익일 00:00 부터 반영됩니다.\n` +
-      `잔여 예매는 자동으로 환불 처리됩니다.\n\n계속 진행하시겠습니까?`
+      `"${movie.title}" 을 삭제하시겠습니까?\n\n⚠️ 삭제 후 복구할 수 없습니다.`
     )
-    if (ok) {
-      // 목록에서 즉시 제거하지 않고 삭제예정 Set에 추가
-      setPendingDeletes((prev) => new Set(prev).add(movie.id))
-      // TODO: DELETE /api/admin/movies/:id
-    }
-  }
+    if (!ok) return
 
-  // 카운터: 상태별 영화 수 (상단 요약용)
-  const counts = useMemo(() => {
-    const result = { NOW_PLAYING: 0, UPCOMING: 0, ENDED: 0, DELETE_PENDING: 0 }
-    MOCK_MOVIES.forEach((m) => {
-      result[getMovieStatus(m, pendingDeletes)]++
-    })
-    return result
-  }, [pendingDeletes])
+    // 낙관적 UI — 즉시 삭제예정 표시
+    setPendingDeletes((prev) => new Set(prev).add(movie.id))
+
+    // DELETE /api/movie/remove?movieId={id}
+    apiClient.delete('/movie/remove', { params: { movieId: movie.id } })
+      .then(() => {
+        // 성공 시 목록에서 제거
+        setMovies((prev) => prev.filter((m) => m.id !== movie.id))
+        setPendingDeletes((prev) => { const n = new Set(prev); n.delete(movie.id); return n })
+      })
+      .catch((err) => {
+        console.error('[MovieListAdminPage] 삭제 실패', err)
+        // 롤백
+        setPendingDeletes((prev) => { const n = new Set(prev); n.delete(movie.id); return n })
+        alert('삭제에 실패했습니다.')
+      })
+  }
 
   return (
     <div>
-      {/* 헤더 */}
       <div style={headerRow}>
         <h2 style={pageTitle}>영화 목록</h2>
         <button onClick={() => navigate('/admin/management/movie/form')} style={addBtn}>
@@ -141,7 +159,7 @@ function MovieListAdminPage() {
         </button>
       </div>
 
-      {/* 상태별 요약 카운터 */}
+      {/* 상태 요약 */}
       <div style={countRow}>
         <span style={countChip}>상영 중 {counts.NOW_PLAYING}편</span>
         <span style={countChip}>상영 예정 {counts.UPCOMING}편</span>
@@ -166,7 +184,6 @@ function MovieListAdminPage() {
           placeholder="제목 또는 장르 검색"
           style={{ ...searchInput, flex: 1, marginBottom: 0 }}
         />
-        {/* 전체 로그 토글 — 상영종료/삭제예정 영화 포함 여부 */}
         <button
           onClick={() => setShowLog((v) => !v)}
           style={{
@@ -180,7 +197,7 @@ function MovieListAdminPage() {
         </button>
       </div>
 
-      {/* 영화 목록 테이블 */}
+      {/* 테이블 */}
       <div style={tableWrap}>
         <table style={table}>
           <thead>
@@ -189,7 +206,6 @@ function MovieListAdminPage() {
               <th style={th}>제목</th>
               <th style={th}>장르</th>
               <th style={th}>등급</th>
-              {/* 관리자가 개봉일·종영일을 바로 확인할 수 있도록 컬럼 추가 */}
               <th style={th}>개봉일</th>
               <th style={th}>종영일</th>
               <th style={th}>상태</th>
@@ -197,18 +213,19 @@ function MovieListAdminPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {loading ? (
+              <tr><td colSpan={8} style={noData}>불러오는 중...</td></tr>
+            ) : filtered.length === 0 ? (
               <tr><td colSpan={8} style={noData}>검색 결과 없음</td></tr>
             ) : (
               filtered.map((m) => {
                 const status = getMovieStatus(m, pendingDeletes)
-                // 상영종료·삭제예정 행은 흐리게 처리
                 const rowOpacity = (status === 'ENDED' || status === 'DELETE_PENDING') ? 0.6 : 1
                 return (
                   <tr key={m.id} style={{ ...tr, opacity: rowOpacity }}>
                     <td style={td}>{m.id}</td>
                     <td style={{ ...td, fontWeight: 600 }}>{m.title}</td>
-                    <td style={td}>{m.genre}</td>
+                    <td style={td}>{m.genre || '-'}</td>
                     <td style={td}>
                       <span style={{
                         padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700,
@@ -218,41 +235,21 @@ function MovieListAdminPage() {
                         {m.rating === 'ALL' ? '전체' : `${m.rating}세`}
                       </span>
                     </td>
-                    {/* 개봉일 */}
                     <td style={{ ...td, fontSize: 13, color: 'var(--text-secondary)' }}>
-                      {m.startAt ?? '-'}
+                      {m.startAt || '-'}
                     </td>
-                    {/* 종영일: 삭제예정이면 "삭제 예정" 문구 병기 */}
                     <td style={{ ...td, fontSize: 13, color: 'var(--text-secondary)' }}>
-                      {m.endAt
-                        ? (
-                          <>
-                            {m.endAt}
-                            {status === 'DELETE_PENDING' && (
-                              <span style={{ display: 'block', fontSize: 11, color: 'var(--color-warning-text)', marginTop: 2 }}>
-                                ※ 익일 삭제 처리 예정
-                              </span>
-                            )}
-                          </>
-                        )
-                        : <span style={{ color: 'var(--text-muted)' }}>미정</span>
-                      }
+                      {m.endAt ?? <span style={{ color: 'var(--text-muted)' }}>미정</span>}
                     </td>
-                    {/* 상태 */}
-                    <td style={td}>
-                      <StatusBadge status={status} />
-                    </td>
-                    {/* 관리 버튼 */}
+                    <td style={td}><StatusBadge status={status} /></td>
                     <td style={td}>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        {/* 상영종료 영화는 수정 불가 */}
                         {status !== 'ENDED' && (
                           <button
                             onClick={() => navigate('/admin/management/movie/form', { state: { movie: m } })}
                             style={editBtn}
                           >수정</button>
                         )}
-                        {/* 삭제예정이면 버튼 텍스트를 "취소"로 바꿔서 되돌릴 수 있게 함 */}
                         {status !== 'ENDED' && (
                           <button
                             onClick={() => handleDelete(m)}
@@ -274,35 +271,35 @@ function MovieListAdminPage() {
   )
 }
 
-/* ── 스타일 ──────────────────────────────────────── */
-const headerRow      = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }
-const pageTitle      = { fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }
-const addBtn         = { padding: '10px 20px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
-                         border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer' }
-const countRow       = { display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' as const }
-const countChip      = { padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                         background: 'var(--bg-surface)', color: 'var(--text-secondary)',
-                         border: '1px solid var(--border-subtle)' }
-const searchInput    = { width: '100%', padding: '10px 14px', border: '1px solid var(--border-default)', borderRadius: 8,
-                         fontSize: 14, color: 'var(--text-primary)', background: 'var(--input-bg)',
-                         boxSizing: 'border-box' as const, outline: 'none' }
-const logBtn         = { padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                         cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }
-const tableWrap      = { background: 'var(--bg-surface)', borderRadius: 12, overflow: 'auto',
-                         boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }
-const table          = { width: '100%', borderCollapse: 'collapse' as const, minWidth: 800 }
-const thead          = { background: 'var(--bg-base)' }
-const th             = { padding: '12px 16px', textAlign: 'left' as const, fontSize: 13,
-                         fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-default)',
-                         whiteSpace: 'nowrap' as const }
-const tr             = { borderBottom: '1px solid var(--border-subtle)', transition: 'opacity 0.2s' }
-const td             = { padding: '12px 16px', fontSize: 14, color: 'var(--text-primary)' }
-const noData         = { padding: 24, textAlign: 'center' as const, color: 'var(--text-muted)', fontSize: 14 }
-const editBtn        = { padding: '6px 14px', background: 'var(--color-info-bg)', color: 'var(--color-info-dark)',
-                         border: '1px solid var(--color-info-text)', borderRadius: 6, fontSize: 13, cursor: 'pointer' }
-const deleteBtn      = { padding: '6px 14px', background: 'var(--color-error-bg)', color: 'var(--color-error-text)',
-                         border: '1px solid var(--color-error-text)', borderRadius: 6, fontSize: 13, cursor: 'pointer' }
-const cancelDeleteBtn= { padding: '6px 14px', background: 'var(--color-warning-bg)', color: 'var(--color-warning-text)',
-                         border: '1px solid var(--color-warning-text)', borderRadius: 6, fontSize: 13, cursor: 'pointer' }
+/* ── 스타일 ── */
+const headerRow       = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }
+const pageTitle       = { fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }
+const addBtn          = { padding: '10px 20px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
+                          border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer' }
+const countRow        = { display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' as const }
+const countChip       = { padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                          background: 'var(--bg-surface)', color: 'var(--text-secondary)',
+                          border: '1px solid var(--border-subtle)' }
+const searchInput     = { width: '100%', padding: '10px 14px', border: '1px solid var(--border-default)', borderRadius: 8,
+                          fontSize: 14, color: 'var(--text-primary)', background: 'var(--input-bg)',
+                          boxSizing: 'border-box' as const, outline: 'none' }
+const logBtn          = { padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                          cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 }
+const tableWrap       = { background: 'var(--bg-surface)', borderRadius: 12, overflow: 'auto',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }
+const table           = { width: '100%', borderCollapse: 'collapse' as const, minWidth: 800 }
+const thead           = { background: 'var(--bg-base)' }
+const th              = { padding: '12px 16px', textAlign: 'left' as const, fontSize: 13,
+                          fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-default)',
+                          whiteSpace: 'nowrap' as const }
+const tr              = { borderBottom: '1px solid var(--border-subtle)', transition: 'opacity 0.2s' }
+const td              = { padding: '12px 16px', fontSize: 14, color: 'var(--text-primary)' }
+const noData          = { padding: 24, textAlign: 'center' as const, color: 'var(--text-muted)', fontSize: 14 }
+const editBtn         = { padding: '6px 14px', background: 'var(--color-info-bg)', color: 'var(--color-info-dark)',
+                          border: '1px solid var(--color-info-text)', borderRadius: 6, fontSize: 13, cursor: 'pointer' }
+const deleteBtn       = { padding: '6px 14px', background: 'var(--color-error-bg)', color: 'var(--color-error-text)',
+                          border: '1px solid var(--color-error-text)', borderRadius: 6, fontSize: 13, cursor: 'pointer' }
+const cancelDeleteBtn = { padding: '6px 14px', background: 'var(--color-warning-bg)', color: 'var(--color-warning-text)',
+                          border: '1px solid var(--color-warning-text)', borderRadius: 6, fontSize: 13, cursor: 'pointer' }
 
 export default MovieListAdminPage

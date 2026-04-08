@@ -201,21 +201,19 @@ export const RATING_OPTIONS = [
 
 /* ───────────────────────────────────────────────────
    2. 요금 정책 (좌석 타입별 단가)
-   사용 좌석: 일반(NORMAL) / 리클라이너(RECLINER) / 커플석(COUPLE)
-   VIP석 운용하지 않음
+   사용 좌석: 일반(NORMAL) / 리클라이너(RECLINER)
+   VIP석·커플석 운용하지 않음
    청소년 할인: 2000원
    ─────────────────────────────────────────────────── */
 export const SEAT_PRICES = {
   NORMAL:   5000,
   RECLINER: 10000,
-  COUPLE:   15000,
 }
 
 /** 좌석 타입 → 표시 레이블 */
 export const SEAT_TYPE_LABEL = {
-  NORMAL:   '일반석',
-  RECLINER: '리클라이너석',
-  COUPLE:   '커플석',
+  NORMAL:   '일반',
+  RECLINER: '리클라이너',
 }
 
 /* ───────────────────────────────────────────────────
@@ -273,7 +271,7 @@ export const MOCK_THEATERS = [
    ─────────────────────────────────────────────────── */
 
 /** 오늘 기준 날짜 포맷 유틸 */
-const fmt = (d) => d.toISOString().slice(0, 10)
+const fmt = (d:any) => d.toISOString().slice(0, 10)
 
 /** 오늘~6일 후 날짜 배열 */
 const _today = new Date()
@@ -320,24 +318,24 @@ export const MOCK_SCHEDULES = {
    generateSeats(rows, cols, options) → SeatItem[]
    SeatItem: { id, row, col, status, seatType }
    status: 'empty' | 'sold_out' | 'disabled'
-   seatType: 'NORMAL' | 'RECLINER' | 'COUPLE' | 'VIP'
+   seatType: 'NORMAL' | 'RECLINER'
    ─────────────────────────────────────────────────── */
-/** 사용 좌석 타입: 일반 / 리클라이너 / 커플 (VIP 없음) */
+/** 사용 좌석 타입: 일반 / 리클라이너 */
 export interface Seat {
   id: string;
   row: string;
   col: number;
   status: 'empty' | 'sold_out' | 'disabled';
-  seatType: 'NORMAL' | 'RECLINER' | 'COUPLE';
+  seatType: 'NORMAL' | 'RECLINER';
 }
 
 /**
  * generateSeats(theater) — 상영관별 기본 좌석 배치 생성
  *
  * 상영관별 레이아웃 규칙:
- *   1관 (10×15): 마지막행(J) = COUPLE / 나머지 = NORMAL
- *   2관 (10×12): 마지막행(J) = COUPLE / B~F행 좌우 끝 disabled / 나머지 = NORMAL
- *   3관 (8×10) : 마지막행(H) = COUPLE / C·D행 1번 disabled(휠체어) / 나머지 = NORMAL
+ *   1관 (10×15): 전 좌석 NORMAL
+ *   2관 (10×12): B~F행 좌우 끝 disabled / 나머지 NORMAL
+ *   3관 (8×10) : C·D행 1번 disabled(휠체어) / 나머지 NORMAL
  *   4관 (10×10): 전 좌석 RECLINER (hasRecliner=true)
  *
  * ※ 커스텀 배치가 seatLayoutStore에 저장된 경우 generateSeats 대신 그 값이 사용됨
@@ -361,9 +359,6 @@ export function generateSeats(theater: Theater): Seat[] {
       if (hasRecliner) {
         // 리클라이너관(4관): 전 좌석 RECLINER
         seatType = 'RECLINER';
-      } else if (isLastRow) {
-        // 일반관 마지막 행: 전 좌석 COUPLE
-        seatType = 'COUPLE';
       }
 
       /* ── 좌석 상태 결정 ── */
@@ -385,7 +380,7 @@ export function generateSeats(theater: Theater): Seat[] {
       // 결정론적 sold_out (같은 입력 → 항상 같은 결과)
       if (status === 'empty') {
         const hash = (r * 7 + c * 3 + id * 13) % 17;
-        const threshold = seatType === 'COUPLE' ? 2 : 5;
+        const threshold = 5;
         if (hash < threshold) status = 'sold_out';
       }
 
@@ -399,14 +394,14 @@ export function generateSeats(theater: Theater): Seat[] {
 /* ───────────────────────────────────────────────────
    6. 가격 정책 (PricingPolicyDTO)
    ─────────────────────────────────────────────────── */
-export const MOCK_POLICIES = [
-  { id: 1, name: '일반 성인',  type: 'ADULT',    discount: 0,    description: '기본 성인 요금' },
-  { id: 2, name: '청소년 할인', type: 'TEEN',     discount: 2000, description: '만 13~18세, 학생증 지참' },
-  { id: 3, name: '경로 우대',  type: 'SENIOR',   discount: 3000, description: '만 65세 이상, 신분증 지참' },
-  { id: 4, name: '장애인 할인', type: 'DISABLED', discount: 4000, description: '장애인복지카드 지참' },
-  { id: 5, name: '조조 할인',  type: 'MORNING',  discount: 3000, description: '오전 11시 이전 첫 회차' },
-  { id: 6, name: '문화의 날',  type: 'CULTURE',  discount: 2000, description: '매월 마지막 수요일' },
-]
+// export const MOCK_POLICIES = [
+//   { id: 1, name: '일반 성인',  type: 'ADULT',    discount: 0,    description: '기본 성인 요금' },
+//   { id: 2, name: '청소년 할인', type: 'TEEN',     discount: 2000, description: '만 13~18세, 학생증 지참' },
+//   { id: 3, name: '경로 우대',  type: 'SENIOR',   discount: 3000, description: '만 65세 이상, 신분증 지참' },
+//   { id: 4, name: '장애인 할인', type: 'DISABLED', discount: 4000, description: '장애인복지카드 지참' },
+//   { id: 5, name: '조조 할인',  type: 'MORNING',  discount: 3000, description: '오전 11시 이전 첫 회차' },
+//   { id: 6, name: '문화의 날',  type: 'CULTURE',  discount: 2000, description: '매월 마지막 수요일' },
+// ]
 
 /* ───────────────────────────────────────────────────
    7. 통계 데이터
@@ -544,4 +539,4 @@ export const PAYMENT_METHODS = [
   { id: 'CARD',   label: '신용/체크카드' },
   { id: 'KAKAO',  label: '카카오페이' },
   { id: 'TOSS',   label: '토스' },
-] as const; // 값을 읽기 전용 상수로 고정
+];

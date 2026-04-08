@@ -88,7 +88,6 @@
   /* ── Special: 모드 불변 전용 색상 ───────────────── */
   --primitive-badge-green:      #4caf50;  /* 전체관람가 배지 */
   --primitive-seat-disabled-bg: #005248;  /* 장애인석 */
-  --primitive-seat-couple-bg:   #402e32;  /* 커플석 */
 }
 
 
@@ -153,7 +152,6 @@
   --color-seat-booked:       var(--primitive-success-500);  /* #00ad74 예매됨  */
   --color-seat-sold-out:     var(--primitive-neutral-400);  /* #4f4537 매진    */
   --color-seat-disabled:     var(--primitive-seat-disabled-bg); /* 장애인석   */
-  --color-seat-couple:       var(--primitive-seat-couple-bg);   /* 커플석     */
 }
 
 

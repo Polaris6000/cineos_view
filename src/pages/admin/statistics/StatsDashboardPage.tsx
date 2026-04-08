@@ -7,12 +7,15 @@
 import { useNavigate } from 'react-router-dom'
 import {
   Banknote, Ticket, TrendingUp, Film,
-  CalendarDays, Calendar, BarChart2, Clock, Trophy, LayoutDashboard,
+  CalendarDays, Calendar, BarChart2, Clock, Trophy,
 } from 'lucide-react'
 import { MOCK_DAILY_STATS, MOCK_MONTHLY_STATS, MOCK_MOVIE_STATS } from '../../../api/mockData'
+import StatsTabNav from '../../../components/Stats/StatsTabNav'
+
+
 
 /** 숫자 포맷 (만 단위) */
-const fmtWon = (n) => {
+const fmtWon = (n: number) => {
   if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1)}억원`
   if (n >= 10_000) return `${Math.floor(n / 10_000).toLocaleString()}만원`
   return `${n.toLocaleString()}원`
@@ -45,6 +48,9 @@ function StatsDashboardPage() {
 
   return (
     <div>
+      {/* 통계 탭 내비게이션 — 모든 통계 페이지에서 상단에 표시 */}
+      <StatsTabNav />
+
       <h2 style={pageTitle}>통계 대시보드</h2>
 
       {/* 요약 카드 */}

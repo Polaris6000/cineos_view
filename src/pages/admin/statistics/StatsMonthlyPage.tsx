@@ -4,6 +4,7 @@
  */
 import { useState, useMemo } from 'react'
 import { MOCK_MONTHLY_STATS } from '../../../api/mockData'
+import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
 const currentYear = new Date().getFullYear()
 
@@ -21,6 +22,7 @@ function StatsMonthlyPage() {
 
   return (
     <div>
+      <StatsTabNav />
       <h2 style={pageTitle}>월별 통계</h2>
 
       {/* 연도 선택 */}

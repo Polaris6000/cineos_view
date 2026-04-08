@@ -15,7 +15,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Film, PlaySquare, Armchair, ScrollText, RotateCcw,
-  LayoutDashboard, CalendarDays, Calendar, BarChart2, Clock, TrendingUp,
+  LayoutDashboard,
   Sun, Moon, Users, ShieldCheck,
 } from 'lucide-react'
 import { adminPageVariants, adminPageTransition } from '../../styles/transitions'
@@ -55,7 +55,6 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: '/admin/management/theater/list', label: '상영관 목록',    Icon: Armchair, permission: 'theater.view' },
       { path: '/admin/management/seat/list',    label: '좌석 목록',      Icon: Armchair, permission: 'theater.view' },
-      { path: '/admin/management/seat/edit',    label: '좌석 정책 수정', Icon: Armchair, permission: 'theater.edit' },
     ],
   },
   {
@@ -66,15 +65,10 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    // 통계 섹션 — SUPER_ADMIN 전용
+    // 통계 섹션 — SUPER_ADMIN 전용 (나머지 통계는 대시보드 내 탭 내비로 이동)
     section: '통계',
     items: [
-      { path: '/admin/statistics/dashboard',      label: '대시보드',      Icon: LayoutDashboard, permission: 'statistics' },
-      { path: '/admin/statistics/stats/daily',    label: '일일 통계',     Icon: CalendarDays,    permission: 'statistics' },
-      { path: '/admin/statistics/stats/monthly',  label: '월별 통계',     Icon: Calendar,        permission: 'statistics' },
-      { path: '/admin/statistics/stats/by-day',   label: '요일별 통계',   Icon: BarChart2,       permission: 'statistics' },
-      { path: '/admin/statistics/stats/by-hour',  label: '시간대별 통계', Icon: Clock,           permission: 'statistics' },
-      { path: '/admin/statistics/stats/by-movie', label: '영화별 통계',   Icon: TrendingUp,      permission: 'statistics' },
+      { path: '/admin/statistics/dashboard', label: '대시보드', Icon: LayoutDashboard, permission: 'statistics' },
     ],
   },
   {
