@@ -51,35 +51,11 @@
     pointer-events: auto;
 }
 
-/* 슬라이드 배경 */
+/* 슬라이드 배경 — 단일 다크 컬러 */
 .slideBg {
     position: absolute;
     inset: 0;
-}
-
-/* 슬라이드별 그라디언트 팔레트 (포스터 없을 때 표시) */
-.slideBg1 {
-    background: linear-gradient(135deg, #1a1410 0%, #4f4537 100%);
-}
-
-.slideBg2 {
-    background: linear-gradient(135deg, #001c38 0%, #155f90 100%);
-}
-
-.slideBg3 {
-    background: linear-gradient(135deg, #003828 0%, #006b60 100%);
-}
-
-.slideBg4 {
-    background: linear-gradient(135deg, #380808 0%, #8a2020 100%);
-}
-
-.slideBg5 {
-    background: linear-gradient(135deg, #2e1800 0%, #9d6600 100%);
-}
-
-.slideBg6 {
-    background: linear-gradient(135deg, #1c001c 0%, #5a1060 100%);
+    background: #0e0b08;
 }
 
 /* 포스터 이미지 */
@@ -98,7 +74,7 @@
     /* 여전히 cover가 필요하다면 사용 (지정한 width/height 안에서 cover) */
     object-fit: cover;
     opacity: 0.55;
-    z-index: 1; /* 다른 배경 요소보다 위에 뜨게 하려면 필요할 수 있음 */
+    z-index: 1;
 }
 
 /* 하단 딤 오버레이 */
@@ -125,6 +101,36 @@
     text-align: center;
 }
 
+/* 배지 행 — inline-flex로 중앙 정렬 (text-align:center 안에서 동작) */
+.badgeRow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+/* 상태 배지 (상영중 / 상영예정) */
+.statusBadge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+/* 상영 중 — 초록 계열 */
+.statusNow {
+    background: #1a7a3a;
+    color: #fff;
+}
+
+/* 상영 예정 — 파랑 계열 */
+.statusUpcoming {
+    background: #1a4fa0;
+    color: #fff;
+}
+
 /* 관람 등급 배지 */
 .ratingBadge {
     display: inline-block;
@@ -133,7 +139,8 @@
     font-size: 0.7rem;
     font-weight: 800;
     letter-spacing: 0.08em;
-    margin-bottom: 18px;
+    /* margin-bottom은 badgeRow가 없을 때를 위한 fallback */
+    margin-bottom: 0;
 }
 
 .ratingALL {
@@ -165,11 +172,16 @@
 .slideTitle {
     font-size: clamp(2rem, 6vw, 4rem);
     font-weight: 800;
-    color: var(--text-primary); /* 웜 화이트 (구 color-neutral-warm-white) */
-    margin: 0 0 14px;
+    color: var(--text-primary);
+    margin: 18px 0 14px;
     line-height: 1.15;
     text-shadow: 0 3px 16px rgba(0, 0, 0, 0.6);
     word-break: keep-all;
+    /* 2줄 초과 시 말줄임표 처리 */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 /* 장르 */

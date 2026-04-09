@@ -64,7 +64,8 @@ function SeatPage() {
    *     → 아니면 선택 목록에 추가
    */
   const handleSeatClick = (seat) => {
-    if (seat.status === 'sold_out' || seat.status === 'disabled') return
+    // 매진 좌석은 클릭 무시 (disabled 없음)
+    if (seat.status === 'sold_out') return
 
     if (selectedIds.includes(seat.id)) {
       // 이미 선택된 좌석 → 선택 해제
@@ -81,7 +82,7 @@ function SeatPage() {
 
   /**
    * 좌석 타입별 단가 계산
-   * @param {string} seatType - 'NORMAL' | 'VIP' | 'RECLINER' | 'COUPLE'
+   * @param {string} seatType - 'NORMAL' | 'RECLINER'
    */
   const getSeatPrice = (seatType) => SEAT_PRICES[seatType] ?? SEAT_PRICES.NORMAL
 
@@ -195,14 +196,13 @@ function SeatPage() {
         <div style={screen}>SCREEN</div>
       </div>
 
-      {/* ── 좌석 타입 범례 ── */}
+      {/* ── 좌석 타입 범례 (NORMAL / RECLINER / 선택됨 / 매진) ── */}
       <div style={legend}>
         {[
-          { label: '일반석',     color: 'var(--color-seat-empty)',    border: 'var(--color-seat-empty-border)' },
+          { label: '일반',       color: 'var(--color-seat-empty)',    border: 'var(--color-seat-empty-border)' },
+          { label: '리클라이너', color: '#1a5c3a',                    border: '#00ad74' },
           { label: '선택됨',     color: 'var(--color-seat-selected)', border: 'var(--color-brand-hover)' },
           { label: '매진',       color: 'var(--color-seat-sold-out)', border: 'transparent' },
-          { label: '리클라이너', color: '#1a5c3a',                    border: '#00ad74' },
-          { label: '커플석',     color: '#5c1a2a',                    border: '#e03c3c' },
         ].map(({ label, color, border }) => (
           <div key={label} style={legendItem}>
             <div style={{ ...seatBase, background: color, border: `1px solid ${border}`, width: 22, height: 22 }} />
@@ -250,9 +250,18 @@ function SeatPage() {
                 key={seat.id}
                 onClick={() => handleSeatClick(seat)}
                 title={`${seat.id} (${SEAT_TYPE_LABEL[seat.seatType] ?? '일반'} · ${getSeatPrice(seat.seatType).toLocaleString()}원)`}
-                style={{ ...seatBase, ...getSeatStyle(seat, selectedIds) }}
-                disabled={seat.status === 'sold_out' || seat.status === 'disabled'}
-              />
+                style={{ ...seatBase, ...getSeatStyle(seat, selectedIds), position: 'relative', overflow: 'hidden' }}
+                disabled={seat.status === 'sold_out'}
+              >
+                {seat.status === 'sold_out' && (
+                  <span style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, fontWeight: 900, color: 'rgba(255,255,255,0.7)',
+                    pointerEvents: 'none',
+                  }}>✕</span>
+                )}
+              </button>
             )
 
             return (
@@ -346,18 +355,19 @@ function SeatPage() {
   )
 }
 
-/* ── 좌석 타입·상태별 색상 반환 (VIP 없음 — 일반/리클라이너/커플만) ── */
+/* ── 좌석 타입·상태별 색상 반환 (NORMAL / RECLINER) ── */
 function getSeatStyle(seat, selectedIds) {
   if (selectedIds.includes(seat.id)) {
     return { background: 'var(--color-seat-selected)', border: '1px solid var(--color-brand-hover)', cursor: 'pointer' }
   }
-  if (seat.status === 'sold_out')  return { background: 'var(--color-seat-sold-out)',  border: '1px solid transparent', cursor: 'not-allowed' }
-  if (seat.status === 'disabled')  return { background: 'var(--color-seat-disabled)',  border: '1px solid transparent', cursor: 'not-allowed', opacity: 0.5 }
+  // 매진 좌석: 클릭 불가
+  if (seat.status === 'sold_out') {
+    return { background: 'var(--color-seat-sold-out)', border: '1px solid transparent', cursor: 'not-allowed' }
+  }
 
-  // 빈 자리: 좌석 타입별 색상
+  // 빈 자리: 좌석 타입별 색상 (NORMAL / RECLINER)
   switch (seat.seatType) {
     case 'RECLINER': return { background: '#1a5c3a', border: '1px solid #00ad74', cursor: 'pointer' }
-    case 'COUPLE':   return { background: '#5c1a2a', border: '1px solid #e03c3c', cursor: 'pointer' }
     default:         return { background: 'var(--color-seat-empty)', border: '1px solid var(--color-seat-empty-border)', cursor: 'pointer' }
   }
 }

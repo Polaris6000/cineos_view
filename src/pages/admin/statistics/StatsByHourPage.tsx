@@ -3,6 +3,7 @@
  * TODO: GET /api/admin/stats/by-hour 연동
  */
 import { MOCK_HOUR_STATS } from '../../../api/mockData'
+import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
 function StatsByHourPage() {
   const maxTickets = Math.max(...MOCK_HOUR_STATS.map((h) => h.tickets), 1)
@@ -10,6 +11,7 @@ function StatsByHourPage() {
 
   return (
     <div>
+      <StatsTabNav />
       <h2 style={pageTitle}>시간대별 통계</h2>
       <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
         피크 시간: <strong style={{ color: 'var(--color-brand-default)' }}>{peakHour.hour}</strong>

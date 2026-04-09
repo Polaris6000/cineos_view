@@ -21,7 +21,6 @@ import {motion} from 'framer-motion'
 import {Clock} from 'lucide-react'
 import {pageVariants, pageTransition} from '../../styles/transitions'
 import {IdleTimerProvider, useIdleTimer} from '../../context/IdleTimerContext'
-import {KeyboardProvider} from '../../context/KeyboardContext'
 import styles from './CustomerLayout.module.css'
 
 /**
@@ -96,11 +95,9 @@ function InnerLayout() {
  */
 function CustomerLayout() {
     return (
-        <KeyboardProvider>
             <IdleTimerProvider>
                 <InnerLayout/>
             </IdleTimerProvider>
-        </KeyboardProvider>
     )
 }
 

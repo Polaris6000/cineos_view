@@ -6,9 +6,8 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { CheckCircle } from 'lucide-react'
-import { MOCK_POLICIES } from '../../../api/mockData'
 
-const TYPE_OPTIONS = ['ADULT', 'TEEN', 'SENIOR', 'DISABLED', 'MORNING', 'CULTURE', 'COUPLE', 'MEMBER']
+const TYPE_OPTIONS = ['AGE', 'COUPON', 'JOB', 'TIME']
 
 function PolicyManagePage() {
   const navigate    = useNavigate()
@@ -19,9 +18,9 @@ function PolicyManagePage() {
   const [form, setForm]       = useState({ ...initPolicy })
   const [success, setSuccess] = useState(false)
 
-  const change = (field, val) => setForm((p) => ({ ...p, [field]: val }))
+  const change = (field: any, val: any) => setForm((p: any) => ({ ...p, [field]: val }))
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: any) => {
     e.preventDefault()
     if (!form.name.trim()) { alert('정책명을 입력해 주세요.'); return }
     // TODO: PUT /api/admin/policies/:id
@@ -71,17 +70,17 @@ function PolicyManagePage() {
   )
 }
 
-const pageTitle = { fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 24 }
-const formStyle = { background: 'var(--bg-surface)', borderRadius: 12, padding: 24,
+const pageTitle: React.CSSProperties = { fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 24 }
+const formStyle: React.CSSProperties = { background: 'var(--bg-surface)', borderRadius: 12, padding: 24,
                     boxShadow: '0 1px 3px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: 16 }
-const field     = { display: 'flex', flexDirection: 'column', gap: 5 }
-const label     = { fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }
-const input     = { padding: '10px 12px', border: '1px solid var(--border-default)', borderRadius: 8,
+const field: React.CSSProperties     = { display: 'flex', flexDirection: 'column', gap: 5 }
+const label: React.CSSProperties     = { fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }
+const input: React.CSSProperties     = { padding: '10px 12px', border: '1px solid var(--border-default)', borderRadius: 8,
                     fontSize: 14, color: 'var(--text-primary)', background: 'var(--input-bg)',
                     width: '100%', boxSizing: 'border-box' }
-const cancelBtn = { padding: '12px 24px', background: 'var(--bg-base)', border: '1px solid var(--border-default)',
+const cancelBtn: React.CSSProperties = { padding: '12px 24px', background: 'var(--bg-base)', border: '1px solid var(--border-default)',
                     borderRadius: 8, fontSize: 14, cursor: 'pointer', color: 'var(--text-secondary)' }
-const submitBtn = { flex: 1, padding: '12px 24px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
+const submitBtn: React.CSSProperties = { flex: 1, padding: '12px 24px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
                     border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer' }
 
 export default PolicyManagePage

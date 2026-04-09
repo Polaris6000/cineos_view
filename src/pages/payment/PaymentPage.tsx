@@ -336,7 +336,7 @@ function PaymentPage() {
         </div>
         {discountTotal > 0 && (
           <div style={{ ...priceRow, color: '#00ad74' }}>
-            <span>인원 할인</span>
+            <span>할인</span>
             <span>−{discountTotal.toLocaleString()}원</span>
           </div>
         )}

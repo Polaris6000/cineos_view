@@ -36,6 +36,7 @@ import {
   getTmdbMovieDetail,
   type TmdbMovieItem,
 } from '../../../api/tmdbApi'
+import apiClient from '../../../api/apiClient'
 
 /* ─────────────────────────────────────────
    관람등급 옵션
@@ -189,6 +190,8 @@ function MovieFormPage() {
         runtime:    detail.runtime     || prev.runtime,
         synopsis:   detail.description || prev.synopsis,
         posterPath: detail.posterPath  ?? null,
+        // TMDB release_dates KR certification 기반 등급 자동 입력
+        rating:     detail.rating      || prev.rating,
       }))
 
       // 포스터 미리보기: detail > list 순으로 시도
@@ -281,7 +284,8 @@ function MovieFormPage() {
       fd.append('actors',      form.cast)         // cast → actors
       fd.append('description', form.synopsis)     // synopsis → description
       if (form.startAt) fd.append('startAt', form.startAt)
-      if (form.endAt)   fd.append('endAt',   form.endAt)
+      // endAt은 백엔드 DTO가 LocalDateTime이므로 날짜만 있으면 T00:00:00 붙여서 전송
+      if (form.endAt)   fd.append('endAt', `${form.endAt}T00:00:00`)
 
       // 수정 모드: movieId 포함
       if (isEdit) {
@@ -299,20 +303,37 @@ function MovieFormPage() {
         fd.append('posterPath', form.posterPath)
       }
 
-      const endpoint = isEdit ? '/api/movie/modify' : '/api/movie/upload'
-      const res = await fetch(endpoint, { method: 'POST', body: fd })
-
-      if (!res.ok) {
-        const msg = await res.text().catch(() => `HTTP ${res.status}`)
-        throw new Error(msg || `서버 오류: ${res.status}`)
-      }
+      /**
+       * multipart/form-data 전송 시 Content-Type 헤더를 직접 지정하지 않음
+       * → axios가 FormData를 감지해 자동으로 multipart/form-data; boundary=... 설정
+       * 명시하면 boundary가 빠져서 파싱 실패할 수 있음
+       */
+      const endpoint = isEdit ? '/movie/modify' : '/movie/upload'
+      // Content-Type을 undefined로 지정 → apiClient 기본값(application/json) 제거
+      // → axios가 FormData를 감지해 multipart/form-data; boundary=... 자동 설정
+      await apiClient.post(endpoint, fd, {
+        headers: { 'Content-Type': undefined },
+      })
 
       setSuccess(true)
       setTimeout(() => navigate('/admin/management/movie/list'), 1500)
 
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.'
-      setSubmitError(`${isEdit ? '수정' : '등록'}에 실패했습니다: ${message}`)
+      // axios 에러인 경우 서버 응답 메시지 추출
+      let message = '알 수 없는 오류가 발생했습니다.'
+      if (err && typeof err === 'object' && 'response' in err) {
+        const res = (err as { response?: { status?: number; data?: unknown } }).response
+        const status = res?.status ?? ''
+        const data   = res?.data
+        const detail = typeof data === 'string' ? data
+          : data && typeof data === 'object' && 'message' in data
+            ? String((data as { message: unknown }).message)
+            : JSON.stringify(data)
+        message = `서버 오류 ${status}: ${detail}`
+      } else if (err instanceof Error) {
+        message = err.message
+      }
+      setSubmitError(`${isEdit ? '수정' : '등록'}에 실패했습니다. ${message}`)
     } finally {
       setSubmitting(false)
     }
@@ -476,7 +497,7 @@ function MovieFormPage() {
                     style={input}
                   />
                 </Field>
-                <Field label="종영일 (미입력 시 상영예정)">
+                <Field label="종영일">
                   <input
                     type="date"
                     value={form.endAt ?? ''}

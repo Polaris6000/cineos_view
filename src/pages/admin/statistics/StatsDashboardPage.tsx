@@ -10,6 +10,9 @@ import {
   CalendarDays, Calendar, BarChart2, Clock, Trophy,
 } from 'lucide-react'
 import { MOCK_DAILY_STATS, MOCK_MONTHLY_STATS, MOCK_MOVIE_STATS } from '../../../api/mockData'
+import StatsTabNav from '../../../components/Stats/StatsTabNav'
+
+
 
 
 
@@ -47,6 +50,9 @@ function StatsDashboardPage() {
 
   return (
     <div>
+      {/* 통계 탭 내비게이션 — 모든 통계 페이지에서 상단에 표시 */}
+      <StatsTabNav />
+
       <h2 style={pageTitle}>통계 대시보드</h2>
 
       {/* 요약 카드 */}

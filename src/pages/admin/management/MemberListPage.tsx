@@ -6,102 +6,107 @@
  *  - '포인트 내역' 버튼 추가 → 클릭 시 해당 회원의 포인트 적립/사용 전체 내역 모달
  *  - '전체 활동 로그' 버튼 추가 (상단) → 전체 회원의 최근 활동 로그 모달
  *
- * TODO: GET /api/admin/members?keyword=&page= 연동
- * TODO: GET /api/admin/members/:id/point-history 연동
+ * TODO: GET /api/admin/member?keyword=&page= 연동
+ * TODO: GET /api/admin/member/:id/point-history 연동
  * TODO: GET /api/admin/activity-log 연동
  */
 import { useState, useEffect } from 'react'
 import { Search, Star, Activity } from 'lucide-react'
+import axios from 'axios'
 
 /* ── 타입 ──────────────────────────────────────────── */
 interface Member {
-  id: number
-  name: string
-  email: string
+  // name: string // TODO 필요없음
+  // email: string // TODO 필요없음
   phone: string
   point: number
-  joinedAt: string       // 'YYYY-MM-DD'
-  bookingCount: number
-  isActive: boolean
+  createAt: string       // 'YYYY-MM-DD'
+  bookingCount: number // TODO 프론트에서 계산
+  // isActive: boolean // TODO 필요없음
 }
 
-interface PointLog {
-  id: number
-  date: string           // 'YYYY-MM-DD HH:mm'
-  type: 'EARN' | 'USE' | 'EXPIRE'
-  amount: number         // 적립(+) or 사용(-)
-  description: string    // 예: "영화 예매 (BK20260401001)"
-  balance: number        // 처리 후 잔액
+interface PointHistory {
+  pointId: number
+  title: string // 영화 이름
+  createAt: string           // 'YYYY-MM-DD HH:mm'
+  type: 'EARN' | 'REFUND_EARN' | 'REFUND_USE' | 'USE'
+  amountPoint: number         // 적립(+) or 사용(-)
+  paymentId: string    // 예: "영화 예매 (BK20260401001)"
+  phone: number        // 회원 전화번호
 }
 
-interface ActivityLog {
-  id: number
-  memberName: string
-  date: string
-  action: string         // 예: "예매", "포인트 사용", "회원가입"
-  detail: string
-}
+// interface ActivityLog {
+//   id: number
+//   memberName: string
+//   date: string
+//   action: string         // 예: "예매", "포인트 사용", "회원가입"
+//   detail: string
+// }
+
+// const typeLabel = {
+//   EARN: '적립',
+//   USE: '사용',
+//   REFUND_EARN: '적립 환불',
+//   REFUND_USE: '사용 환불',
+// }
 
 /* ── 더미 데이터 ────────────────────────────────────── */
-const MOCK_MEMBERS: Member[] = [
-  { id: 1,  name: '김민준', email: 'minjun@example.com',  phone: '010-1234-5678', point: 4200,  joinedAt: '2024-01-15', bookingCount: 12, isActive: true },
-  { id: 2,  name: '이서연', email: 'seoyeon@example.com', phone: '010-2345-6789', point: 1800,  joinedAt: '2024-03-22', bookingCount: 5,  isActive: true },
-  { id: 3,  name: '박지호', email: 'jiho@example.com',    phone: '010-3456-7890', point: 350,   joinedAt: '2024-05-08', bookingCount: 2,  isActive: true },
-  { id: 4,  name: '최유나', email: 'yuna@example.com',    phone: '010-4567-8901', point: 9600,  joinedAt: '2023-11-30', bookingCount: 28, isActive: true },
-  { id: 5,  name: '정다은', email: 'daeun@example.com',   phone: '010-5678-9012', point: 0,     joinedAt: '2025-01-03', bookingCount: 0,  isActive: false },
-  { id: 6,  name: '한승우', email: 'seungwoo@example.com',phone: '010-6789-0123', point: 2700,  joinedAt: '2023-08-17', bookingCount: 9,  isActive: true },
-  { id: 7,  name: '윤미래', email: 'mirae@example.com',   phone: '010-7890-1234', point: 550,   joinedAt: '2024-09-25', bookingCount: 3,  isActive: true },
-  { id: 8,  name: '임재원', email: 'jaewon@example.com',  phone: '010-8901-2345', point: 12000, joinedAt: '2023-04-11', bookingCount: 41, isActive: true },
-]
+// const MOCK_MEMBERS: Member[] = [
+  // { id: 1,  name: '김민준', email: 'minjun@example.com',  phone: '010-1234-5678', point: 4200,  joinedAt: '2024-01-15', bookingCount: 12, isActive: true },
+  // { id: 2,  name: '이서연', email: 'seoyeon@example.com', phone: '010-2345-6789', point: 1800,  joinedAt: '2024-03-22', bookingCount: 5,  isActive: true },
+  // { id: 3,  name: '박지호', email: 'jiho@example.com',    phone: '010-3456-7890', point: 350,   joinedAt: '2024-05-08', bookingCount: 2,  isActive: true },
+  // { id: 4,  name: '최유나', email: 'yuna@example.com',    phone: '010-4567-8901', point: 9600,  joinedAt: '2023-11-30', bookingCount: 28, isActive: true },
+  // { id: 5,  name: '정다은', email: 'daeun@example.com',   phone: '010-5678-9012', point: 0,     joinedAt: '2025-01-03', bookingCount: 0,  isActive: false },
+  // { id: 6,  name: '한승우', email: 'seungwoo@example.com',phone: '010-6789-0123', point: 2700,  joinedAt: '2023-08-17', bookingCount: 9,  isActive: true },
+  // { id: 7,  name: '윤미래', email: 'mirae@example.com',   phone: '010-7890-1234', point: 550,   joinedAt: '2024-09-25', bookingCount: 3,  isActive: true },
+  // { id: 8,  name: '임재원', email: 'jaewon@example.com',  phone: '010-8901-2345', point: 12000, joinedAt: '2023-04-11', bookingCount: 41, isActive: true },
+// ]
 
 /**
  * 회원별 포인트 내역 더미 (TODO: 백엔드 연동 시 API로 교체)
- * memberId → PointLog[]
+ * memberId → PointHistory[]
  */
-const MOCK_POINT_LOGS: Record<number, PointLog[]> = {
-  1: [
-    { id: 1, date: '2026-04-01 19:30', type: 'EARN',   amount: 500,   description: '영화 예매 (BK20260401001)',  balance: 4200 },
-    { id: 2, date: '2026-03-20 14:00', type: 'USE',    amount: -2000, description: '영화 결제 포인트 사용',       balance: 3700 },
-    { id: 3, date: '2026-03-15 11:00', type: 'EARN',   amount: 500,   description: '영화 예매 (BK20260315003)',  balance: 5700 },
-    { id: 4, date: '2026-02-10 20:00', type: 'EARN',   amount: 1000,  description: '이벤트 포인트 지급',          balance: 5200 },
-    { id: 5, date: '2026-01-05 15:30', type: 'EXPIRE', amount: -500,  description: '포인트 유효기간 만료',         balance: 4200 },
-  ],
-  4: [
-    { id: 1, date: '2026-04-02 17:00', type: 'EARN',   amount: 700,   description: '영화 예매 (BK20260402007)',  balance: 9600 },
-    { id: 2, date: '2026-03-28 12:30', type: 'USE',    amount: -3000, description: '영화 결제 포인트 사용',       balance: 8900 },
-    { id: 3, date: '2026-03-15 09:00', type: 'EARN',   amount: 500,   description: '영화 예매 (BK20260315011)',  balance: 11900 },
-  ],
-  8: [
-    { id: 1, date: '2026-04-01 21:00', type: 'EARN',   amount: 1400,  description: '영화 예매 (BK20260401020)',  balance: 12000 },
-    { id: 2, date: '2026-03-25 14:00', type: 'USE',    amount: -5000, description: '영화 결제 포인트 사용',       balance: 10600 },
-    { id: 3, date: '2026-03-10 18:30', type: 'EARN',   amount: 700,   description: '영화 예매 (BK20260310009)',  balance: 15600 },
-    { id: 4, date: '2026-02-20 11:00', type: 'EXPIRE', amount: -2000, description: '포인트 유효기간 만료',         balance: 14900 },
-  ],
-}
+// const MOCK_POINT_LOGS: Record<number, PointHistory[]> = {
+//   1: [
+//     { id: 1, date: '2026-04-01 19:30', type: 'EARN',   amount: 500,   description: '영화 예매 (BK20260401001)',  balance: 4200 },
+//     { id: 2, date: '2026-03-20 14:00', type: 'USE',    amount: -2000, description: '영화 결제 포인트 사용',       balance: 3700 },
+//     { id: 3, date: '2026-03-15 11:00', type: 'EARN',   amount: 500,   description: '영화 예매 (BK20260315003)',  balance: 5700 },
+//     { id: 4, date: '2026-02-10 20:00', type: 'EARN',   amount: 1000,  description: '이벤트 포인트 지급',          balance: 5200 },
+//     { id: 5, date: '2026-01-05 15:30', type: 'EXPIRE', amount: -500,  description: '포인트 유효기간 만료',         balance: 4200 },
+//   ],
+//   4: [
+//     { id: 1, date: '2026-04-02 17:00', type: 'EARN',   amount: 700,   description: '영화 예매 (BK20260402007)',  balance: 9600 },
+//     { id: 2, date: '2026-03-28 12:30', type: 'USE',    amount: -3000, description: '영화 결제 포인트 사용',       balance: 8900 },
+//     { id: 3, date: '2026-03-15 09:00', type: 'EARN',   amount: 500,   description: '영화 예매 (BK20260315011)',  balance: 11900 },
+//   ],
+//   8: [
+//     { id: 1, date: '2026-04-01 21:00', type: 'EARN',   amount: 1400,  description: '영화 예매 (BK20260401020)',  balance: 12000 },
+//     { id: 2, date: '2026-03-25 14:00', type: 'USE',    amount: -5000, description: '영화 결제 포인트 사용',       balance: 10600 },
+//     { id: 3, date: '2026-03-10 18:30', type: 'EARN',   amount: 700,   description: '영화 예매 (BK20260310009)',  balance: 15600 },
+//     { id: 4, date: '2026-02-20 11:00', type: 'EXPIRE', amount: -2000, description: '포인트 유효기간 만료',         balance: 14900 },
+//   ],
+// }
 
 /**
  * 전체 활동 로그 더미 (TODO: GET /api/admin/activity-log 연동)
  */
-const MOCK_ACTIVITY_LOGS: ActivityLog[] = [
-  { id: 1,  memberName: '임재원', date: '2026-04-01 21:00', action: '예매',       detail: '듄: 파트 2 / 1관 21:00 / A3, A4 (2석)' },
-  { id: 2,  memberName: '김민준', date: '2026-04-01 19:30', action: '예매',       detail: '범죄도시 5 / 2관 19:30 / B5 (1석)' },
-  { id: 3,  memberName: '최유나', date: '2026-04-02 17:00', action: '예매',       detail: '쿵푸팬더 4 / 2관 15:00 / D2, D3 (2석)' },
-  { id: 4,  memberName: '이서연', date: '2026-03-28 12:30', action: '포인트 사용', detail: '영화 결제 시 2,000P 사용' },
-  { id: 5,  memberName: '임재원', date: '2026-03-25 14:00', action: '포인트 사용', detail: '영화 결제 시 5,000P 사용' },
-  { id: 6,  memberName: '박지호', date: '2026-03-20 11:00', action: '예매',       detail: '인사이드 아웃 3 / 4관 11:00 / F7 (1석)' },
-  { id: 7,  memberName: '한승우', date: '2026-03-18 09:00', action: '환불',       detail: '예매 BK20260318005 환불 처리' },
-  { id: 8,  memberName: '윤미래', date: '2026-03-15 15:00', action: '예매',       detail: '공조3 / 3관 15:00 / G9 (1석)' },
-  { id: 9,  memberName: '김민준', date: '2026-03-10 14:00', action: '포인트 적립', detail: '영화 예매 완료 (+500P)' },
-  { id: 10, memberName: '최유나', date: '2026-03-10 09:00', action: '예매',       detail: '가디언즈 오브 갤럭시 / 1관 19:00 / C1, C2 (2석)' },
-]
+// const MOCK_ACTIVITY_LOGS: ActivityLog[] = [
+//   { id: 1,  memberName: '임재원', date: '2026-04-01 21:00', action: '예매',       detail: '듄: 파트 2 / 1관 21:00 / A3, A4 (2석)' },
+//   { id: 2,  memberName: '김민준', date: '2026-04-01 19:30', action: '예매',       detail: '범죄도시 5 / 2관 19:30 / B5 (1석)' },
+//   { id: 3,  memberName: '최유나', date: '2026-04-02 17:00', action: '예매',       detail: '쿵푸팬더 4 / 2관 15:00 / D2, D3 (2석)' },
+//   { id: 4,  memberName: '이서연', date: '2026-03-28 12:30', action: '포인트 사용', detail: '영화 결제 시 2,000P 사용' },
+//   { id: 5,  memberName: '임재원', date: '2026-03-25 14:00', action: '포인트 사용', detail: '영화 결제 시 5,000P 사용' },
+//   { id: 6,  memberName: '박지호', date: '2026-03-20 11:00', action: '예매',       detail: '인사이드 아웃 3 / 4관 11:00 / F7 (1석)' },
+//   { id: 7,  memberName: '한승우', date: '2026-03-18 09:00', action: '환불',       detail: '예매 BK20260318005 환불 처리' },
+//   { id: 8,  memberName: '윤미래', date: '2026-03-15 15:00', action: '예매',       detail: '공조3 / 3관 15:00 / G9 (1석)' },
+//   { id: 9,  memberName: '김민준', date: '2026-03-10 14:00', action: '포인트 적립', detail: '영화 예매 완료 (+500P)' },
+//   { id: 10, memberName: '최유나', date: '2026-03-10 09:00', action: '예매',       detail: '가디언즈 오브 갤럭시 / 1관 19:00 / C1, C2 (2석)' },
+// ]
 
 function MemberListPage() {
-  const [members,  setMembers]  = useState<Member[]>(MOCK_MEMBERS)
+  const [members,  setMembers]  = useState<Member[]>([])
   const [keyword,  setKeyword]  = useState('')
   const [loading,  setLoading]  = useState(false)
-
-  // 포인트 내역 모달: 선택된 회원 (null이면 닫힘)
-  const [pointMember, setPointMember] = useState<Member | null>(null)
 
   // 전체 활동 로그 모달
   const [showActivityLog, setShowActivityLog] = useState(false)
@@ -111,23 +116,21 @@ function MemberListPage() {
    * 이름, 이메일, 전화번호 중 하나라도 keyword를 포함하면 노출
    * TODO: 실제 API 연동 시 GET /api/admin/members?keyword=&page= 로 교체
    */
+
+  // 포인트 내역 모달: 선택된 회원 (null이면 닫힘)
+  const [pointMember, setPointMember] = useState<Member | null>(null)
+
   useEffect(() => {
     setLoading(true)
-    const timer = setTimeout(() => {
-      const kw = keyword.toLowerCase()
-      setMembers(
-        kw
-          ? MOCK_MEMBERS.filter(
-              (m) =>
-                m.name.includes(kw) ||
-                m.email.toLowerCase().includes(kw) ||
-                m.phone.includes(kw)
-            )
-          : MOCK_MEMBERS
-      )
-      setLoading(false)
-    }, 200)
-    return () => clearTimeout(timer)
+
+    axios.get('/api/admin/member/list', {
+      params: { keyword }
+    })
+        .then(res => {
+          setMembers(res.data)
+          setLoading(false)
+        })
+
   }, [keyword])
 
   return (
@@ -137,7 +140,7 @@ function MemberListPage() {
         <div>
           <h2 style={pageTitle}>회원 정보 관리</h2>
           <p style={pageDesc}>
-            전체 회원 {MOCK_MEMBERS.length}명 · 현재 표시 {members.length}명
+            전체 회원 {members.length}명 · 현재 표시 {members.length}명
           </p>
         </div>
         {/* 전체 활동 로그 버튼 */}
@@ -164,35 +167,31 @@ function MemberListPage() {
         <table style={table}>
           <thead>
             <tr style={tHead}>
-              <th style={th}>이름</th>
-              <th style={th}>이메일</th>
               <th style={th}>전화번호</th>
               <th style={{ ...th, textAlign: 'right' }}>포인트</th>
               <th style={{ ...th, textAlign: 'right' }}>예매 횟수</th>
               <th style={{ ...th, textAlign: 'center' }}>가입일</th>
-              <th style={{ ...th, textAlign: 'center' }}>상태</th>
+              {/*<th style={{ ...th, textAlign: 'center' }}>상태</th>*/}
               {/* 상세 버튼 제거 — 테이블에서 이미 모든 정보 확인 가능 */}
               <th style={{ ...th, textAlign: 'center' }}>포인트 내역</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr>
+              <tr key={'loading-status'}>
                 <td colSpan={8} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)' }}>
                   검색 중...
                 </td>
               </tr>
             ) : members.length === 0 ? (
-              <tr>
+              <tr key={'not-found'}>
                 <td colSpan={8} style={{ ...td, textAlign: 'center', color: 'var(--text-muted)' }}>
                   검색 결과가 없습니다.
                 </td>
               </tr>
             ) : (
               members.map((m) => (
-                <tr key={m.id} style={tRow}>
-                  <td style={{ ...td, fontWeight: 600 }}>{m.name}</td>
-                  <td style={{ ...td, color: 'var(--text-secondary)' }}>{m.email}</td>
+                <tr key={`member-row-${m.phone}`} style={tRow}>
                   <td style={{ ...td, fontFamily: 'monospace', fontSize: 13 }}>{m.phone}</td>
                   <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: 'var(--color-brand-default)' }}>
                     {m.point.toLocaleString()} P
@@ -201,18 +200,18 @@ function MemberListPage() {
                     {m.bookingCount}회
                   </td>
                   <td style={{ ...td, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
-                    {m.joinedAt}
+                    {m.createAt}
                   </td>
-                  <td style={{ ...td, textAlign: 'center' }}>
-                    <span style={{
-                      display: 'inline-block', padding: '2px 8px', borderRadius: 10,
-                      fontSize: 11, fontWeight: 700,
-                      background: m.isActive ? 'var(--color-success-bg)' : 'var(--color-error-bg)',
-                      color: m.isActive ? 'var(--color-success-text)' : 'var(--color-error-text)',
-                    }}>
-                      {m.isActive ? '활성' : '비활성'}
-                    </span>
-                  </td>
+                  {/*<td style={{ ...td, textAlign: 'center' }}>*/}
+                  {/*  <span style={{*/}
+                  {/*    display: 'inline-block', padding: '2px 8px', borderRadius: 10,*/}
+                  {/*    fontSize: 11, fontWeight: 700,*/}
+                  {/*    background: m.isActive ? 'var(--color-success-bg)' : 'var(--color-error-bg)',*/}
+                  {/*    color: m.isActive ? 'var(--color-success-text)' : 'var(--color-error-text)',*/}
+                  {/*  }}>*/}
+                  {/*    {m.isActive ? '활성' : '비활성'}*/}
+                  {/*  </span>*/}
+                  {/*</td>*/}
                   {/* 포인트 내역 버튼 — 클릭 시 해당 회원의 포인트 전체 내역 모달 */}
                   <td style={{ ...td, textAlign: 'center' }}>
                     <button style={pointBtn} onClick={() => setPointMember(m)}>
@@ -231,7 +230,6 @@ function MemberListPage() {
       {pointMember && (
         <PointHistoryModal
           member={pointMember}
-          logs={MOCK_POINT_LOGS[pointMember.id] ?? []}
           onClose={() => setPointMember(null)}
         />
       )}
@@ -239,7 +237,7 @@ function MemberListPage() {
       {/* 전체 활동 로그 모달 */}
       {showActivityLog && (
         <ActivityLogModal
-          logs={MOCK_ACTIVITY_LOGS}
+            members={members}
           onClose={() => setShowActivityLog(false)}
         />
       )}
@@ -247,95 +245,115 @@ function MemberListPage() {
   )
 }
 
-/* ── 포인트 내역 모달 ─────────────────────────────── */
+/* ── 포인트 내역 모달 수정본 ─────────────────────────────── */
 function PointHistoryModal({
-  member,
-  logs,
-  onClose,
-}: {
+                             member,
+                             onClose,
+                           }: {
   member: Member
-  logs: PointLog[]
   onClose: () => void
 }) {
-  // 타입별 색상/레이블
-  const typeStyle: Record<PointLog['type'], { color: string; label: string; sign: string }> = {
+  const [pointLog, setPointLog] = useState<PointHistory[]>([])
+
+  useEffect(() => {
+    axios.get(`http://localhost:8080/api/admin/member/${member.phone}/point-list`)
+        .then(res => {
+          setPointLog(res.data)
+        })
+  }, [member.phone]);
+
+  const typeStyle: Record<PointHistory['type'], { color: string; label: string; sign: string }> = {
     EARN:   { color: 'var(--color-success-main)',  label: '적립', sign: '+' },
-    USE:    { color: 'var(--color-brand-default)', label: '사용', sign: ''  },
-    EXPIRE: { color: 'var(--color-error-main)',    label: '만료', sign: ''  },
+    USE:    { color: 'var(--color-brand-default)', label: '사용', sign: '-' },
+    REFUND_EARN: { color: 'var(--color-error-main)',    label: '적립 취소', sign: '-' },
+    REFUND_USE: { color: 'var(--color-error-main)',    label: '사용 취소', sign: '+' },
   }
 
   return (
-    <div style={modalOverlay} onClick={onClose}>
-      <div style={modalBox} onClick={(e) => e.stopPropagation()}>
-        {/* 모달 헤더 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-          <div>
-            <h3 style={modalTitle}>{member.name} 포인트 내역</h3>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>
-              현재 잔액: <strong style={{ color: 'var(--color-brand-default)' }}>{member.point.toLocaleString()} P</strong>
-            </p>
+      <div style={modalOverlay} onClick={onClose}>
+        <div style={modalBox} onClick={(e) => e.stopPropagation()}>
+          {/* 모달 헤더: 특정 회원의 내역임을 명시 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+            <div>
+              <h3 style={modalTitle}>{member.phone} 회원 내역</h3>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                전체 변동 내역: <strong>{pointLog.length}건</strong>
+              </p>
+            </div>
+            <button style={closeIconBtn} onClick={onClose}>✕</button>
           </div>
-          <button style={closeIconBtn} onClick={onClose}>✕</button>
-        </div>
 
-        {/* 포인트 로그 리스트 */}
-        {logs.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>
-            포인트 내역이 없습니다.
-          </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {logs.map((log) => {
-              const ts = typeStyle[log.type]
-              return (
-                <div key={log.id} style={logRow}>
-                  {/* 날짜 + 설명 */}
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: '0 0 2px' }}>
-                      {log.description}
-                    </p>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>{log.date}</p>
-                  </div>
-                  {/* 금액 + 잔액 */}
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: ts.color, margin: '0 0 2px' }}>
+          {/* 포인트 로그 리스트: 모든 내역을 .map()으로 출력 */}
+          {pointLog.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>
+                내역을 불러오는 중이거나 내역이 없습니다.
+              </p>
+          ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {pointLog.map((log) => {
+                  const ts = typeStyle[log.type]
+                  return (
+                      <div key={log.pointId} style={logRow}>
+                        {/* 날짜 + 설명 */}
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: '0 0 2px' }}>
+                            {log.title || log.paymentId}
+                          </p>
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>{log.createAt}</p>
+                        </div>
+
+                        {/* 변동 포인트 수치 */}
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: ts.color, margin: '0 0 2px' }}>
                       <span style={{ fontSize: 10, marginRight: 4,
-                                     padding: '1px 5px', borderRadius: 4,
-                                     background: 'var(--bg-base)', color: ts.color, border: `1px solid ${ts.color}` }}>
+                        padding: '1px 5px', borderRadius: 4,
+                        background: 'var(--bg-base)', color: ts.color, border: `1px solid ${ts.color}` }}>
                         {ts.label}
                       </span>
-                      {ts.sign}{Math.abs(log.amount).toLocaleString()}P
-                    </p>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
-                      잔액 {log.balance.toLocaleString()}P
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+                            {/* 변동된 포인트를 기호와 함께 표시 */}
+                            {ts.sign}{Math.abs(log.amountPoint).toLocaleString()}P
+                          </p>
+                          {/* 현재 누적된 잔액이 아닌 '변동분' 그 자체를 강조 */}
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+                            현재포인트: {member.point.toLocaleString()}P
+                          </p>
+                        </div>
+                      </div>
+                  )
+                })}
+              </div>
+          )}
 
-        <button style={closeModalBtn} onClick={onClose}>닫기</button>
+          <button style={closeModalBtn} onClick={onClose}>닫기</button>
+        </div>
       </div>
-    </div>
   )
 }
 
 /* ── 전체 활동 로그 모달 ──────────────────────────── */
 function ActivityLogModal({
-  logs,
   onClose,
+  members,
 }: {
-  logs: ActivityLog[]
+  members: Member[],
   onClose: () => void
 }) {
-  const actionColor: Record<string, string> = {
-    '예매':       'var(--color-info-main)',
-    '포인트 사용': 'var(--color-brand-default)',
-    '포인트 적립': 'var(--color-success-main)',
-    '환불':       'var(--color-error-main)',
-  }
+  const [logs, setLogs] = useState<PointHistory[]>([])
+
+  useEffect(() => {
+    axios.get('http://localhost:8080/api/admin/member/point-list')
+        .then(res => {
+          console.log(res.data)
+          setLogs(res.data)
+        })
+  }, [])
+
+    const actionColor: Record<string, string> = {
+        EARN: 'var(--color-success-main)',
+        USE: 'var(--color-brand-default)',
+        REFUND_EARN: 'var(--color-error-main)',
+        REFUND_USE: 'var(--color-error-main)',
+    }
 
   return (
     <div style={modalOverlay} onClick={onClose}>
@@ -346,30 +364,43 @@ function ActivityLogModal({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: 400, overflowY: 'auto' }}>
-          {logs.map((log) => (
-            <div key={log.id} style={logRow}>
-              <div style={{ flex: 1 }}>
-                {/* 회원명 + 액션 배지 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {log.memberName}
-                  </span>
-                  <span style={{
-                    fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4,
-                    color: actionColor[log.action] ?? 'var(--text-muted)',
-                    background: 'var(--bg-base)',
-                    border: `1px solid ${actionColor[log.action] ?? 'var(--border-default)'}`,
-                  }}>
-                    {log.action}
-                  </span>
+          {/* ActivityLogModal의 logs.map 내부 수정 */}
+          {logs.map((log) => {
+            // 1. 현재 로그의 phone과 일치하는 회원을 members에서 찾습니다.
+            const currentMember = members.find(m => m.phone === String(log.phone));
+
+            return (
+                <div key={log.pointId} style={logRow}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+            {log.phone}
+          </span>
+                      {/* ... 배지 부분 동일 ... */}
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4,
+                        color: actionColor[log.type] ?? 'var(--text-muted)',
+                        background: 'var(--bg-base)',
+                        border: `1px solid ${actionColor[log.type] ?? 'var(--border-default)'}`,
+                      }}>
+            {log.type}
+          </span>
+
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+            변동 포인트 : {log.amountPoint.toLocaleString()}P
+          </span>
+
+                      {/* 2. 잔여 포인트 자리에 찾은 회원의 포인트를 출력합니다. */}
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+            잔여 포인트 : {currentMember ? currentMember.point.toLocaleString() : '0'}P
+          </span>
+                    </div>
+                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{log.title}</p>
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{log.createAt}</span>
                 </div>
-                {/* 상세 내용 */}
-                <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{log.detail}</p>
-              </div>
-              {/* 날짜 */}
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{log.date}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <button style={closeModalBtn} onClick={onClose}>닫기</button>

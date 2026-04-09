@@ -12,7 +12,14 @@
  * TODO: GET/POST/DELETE /api/admin/schedules 연동
  */
 import { useState, useMemo, useEffect } from 'react'
-import { MOCK_MOVIES, MOCK_SCHEDULES, MOCK_THEATERS } from '../../../api/mockData'
+import apiClient, { type TheaterDTO, theaterName } from '../../../api/apiClient'
+
+/** 상영관 선택 드롭다운용 간소화 타입 */
+interface TheaterOption {
+  no:          number  // 상영관 번호 (= theaterId)
+  name:        string  // "X관"
+  cleanupTime: number  // 정리시간(분)
+}
 
 /* ── 타입 정의 ── */
 interface Schedule {
@@ -29,7 +36,7 @@ interface Schedule {
 }
 
 /** 오늘 날짜 문자열 (YYYY-MM-DD) */
-const TODAY = new Date().toISOString().slice(0, 10)
+const TODAY = new Date().toLocaleDateString('en-CA')
 
 /** 'HH:MM' → 분 변환 */
 function timeToMin(time: string): number {
@@ -58,33 +65,154 @@ function getScheduleStatus(
   return 'ACTIVE'
 }
 
+interface Movie {
+  id: number
+  title: string
+  runtime: number
+  director: string
+  rating: string
+}
+
+/** axios 에러에서 서버 응답 메시지 추출 */
+function extractErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const data = (err as { response?: { data?: unknown } }).response?.data
+    if (typeof data === 'string' && data.trim()) return data.trim()
+  }
+  return fallback
+}
+
+/** 스케줄 API 응답 배열 → Record<movieId, Schedule[]> 변환 (공통) */
+function parseSchedules(data: any[]): Record<number, Schedule[]> {
+  const mapped: Record<number, Schedule[]> = {}
+  data.forEach((s: any) => {
+    const newSched: Schedule = {
+      scheduleId:     s.id,
+      date:           s.startAt.slice(0, 10),
+      startTime:      s.startAt.slice(11, 16),
+      endTime:        s.endAt.slice(11, 16),
+      theaterId:      s.no,
+      theaterName:    `${s.no}관`,
+      availableSeats: s.activation ? 100 : 0,
+      totalSeats:     100,
+    }
+    if (!mapped[s.movieId]) mapped[s.movieId] = []
+    mapped[s.movieId].push(newSched)
+  })
+  return mapped
+}
+
 function MovieManagePage() {
   // ── 선택된 영화 id ──
-  const [selectedMovieId, setSelectedMovieId] = useState<number>(MOCK_MOVIES[0]?.id ?? 1)
+  const [selectedMovieId, setSelectedMovieId] = useState<number>(1)
+  const [movies, setMovies] = useState<Movie[]>([])
+  // ── 영화 검색 ──
+  const [movieSearch, setMovieSearch] = useState('')
+
+  useEffect(() => {
+    /** GET /api/movie/realAll — 관리자용 전체 영화 목록 */
+    apiClient.get('/movie/realAll')
+      .then((res) => {
+        const mapped = res.data
+          // 종료된 영화(endAt이 오늘보다 과거) 제외
+          .filter((m: any) => !m.endAt || m.endAt.slice(0, 10) >= TODAY)
+          .map((m: any) => ({
+            id:       m.movieId,
+            title:    m.title,
+            runtime:  m.runtime ?? 120,
+            director: m.director ?? '감독 미정',
+            rating:   m.rating ?? 'ALL',
+          }))
+        setMovies(mapped)
+        // 첫 영화 자동 선택
+        if (mapped.length > 0) setSelectedMovieId(mapped[0].id)
+      })
+      .catch((err) => console.error('[MovieManagePage] 영화 목록 로드 실패', err))
+  }, [])
 
   // ── 로컬 스케줄 상태 ──
-  const [schedules, setSchedules] = useState<Record<number, Schedule[]>>(
-    Object.fromEntries(
-      Object.entries(MOCK_SCHEDULES).map(([id, scheds]) => [
-        Number(id),
-        scheds.map((s) => ({ ...s })),
-      ]),
-    ),
-  )
+  // const [schedules, setSchedules] = useState<Record<number, Schedule[]>>(
+  //   Object.fromEntries(
+  //     Object.entries(MOCK_SCHEDULES).map(([id, scheds]) => [
+  //       Number(id),
+  //       scheds.map((s) => ({ ...s })),
+  //     ]),
+  //   ),
+  // )
+
+  // 연결
+  const [schedules, setSchedules] = useState<Record<number, Schedule[]>>({})
+
+  useEffect(() => {
+    /** GET /api/admin/schedule/list — 전체 스케줄 목록 */
+    apiClient.get('/admin/schedule/list')
+      .then((res) => {
+        const mapped = parseSchedules(res.data)
+        setSchedules(mapped)
+        // 비활성(activation=false) 스케줄 ID를 cancelledIds에 초기 반영
+        const cancelled = new Set<number>()
+        res.data.forEach((s: any) => { if (!s.activation) cancelled.add(s.id) })
+        setCancelledIds(cancelled)
+      })
+      .catch((err) => {
+        // 상영관 삭제 등으로 schedule API가 실패해도 페이지 크래시 방지
+        console.error('[MovieManagePage] 스케줄 목록 로드 실패', err)
+        setSchedules({})
+      })
+  }, [])
+
+  // ── 스케줄 목록 새로고침 트리거 ──
+  const reloadSchedules = () => {
+    apiClient.get('/admin/schedule/list')
+      .then((res) => {
+        setSchedules(parseSchedules(res.data))
+        const cancelled = new Set<number>()
+        res.data.forEach((s: any) => { if (!s.activation) cancelled.add(s.id) })
+        setCancelledIds(cancelled)
+      })
+      .catch((err) => console.error('[MovieManagePage] 스케줄 새로고침 실패', err))
+  }
 
   // ── 만료처리된 scheduleId Set (undo 지원) ──
   const [cancelledIds, setCancelledIds] = useState<Set<number>>(new Set())
 
+  // ── 스케줄 등록 진행 중 플래그 ──
+  const [adding, setAdding] = useState(false)
+
   // ── 체크된 scheduleId Set (다중 선택) ──
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set())
+
+  // ── 상영관 목록 (API) ──
+  const [theaters, setTheaters] = useState<TheaterOption[]>([])
+
+  useEffect(() => {
+    /**
+     * GET /api/admin/theater/list — 상영관 목록
+     * TheaterDTO: { no, policyId, cleanupTime }
+     */
+    apiClient.get<TheaterDTO[]>('/admin/theater/list')
+      .then((res) => {
+        const mapped: TheaterOption[] = res.data
+          .sort((a, b) => a.no - b.no)
+          .map((t) => ({
+            no:          t.no,
+            name:        theaterName(t.no),  // "X관"
+            cleanupTime: t.cleanupTime,
+          }))
+        setTheaters(mapped)
+        /* 첫 번째 상영관 자동 선택 */
+        if (mapped.length > 0) setNewTheater(mapped[0].no)
+      })
+      .catch((err) => console.error('[MovieManagePage] 상영관 목록 로드 실패', err))
+  }, [])
 
   // ── 새 스케줄 입력 ──
   const [newDate,    setNewDate]    = useState<string>(TODAY)
   const [newTime,    setNewTime]    = useState<string>('10:00')
-  const [newTheater, setNewTheater] = useState<number>(MOCK_THEATERS[0]?.id ?? 1)
+  const [newTheater, setNewTheater] = useState<number>(1) // 초기값; 상영관 로드 후 자동갱신
 
-  const selectedMovie   = MOCK_MOVIES.find((m) => m.id === selectedMovieId)
-  const selectedTheater = MOCK_THEATERS.find((t) => t.id === newTheater)
+  const selectedMovie   = movies.find((m) => m.id === selectedMovieId)
+  const selectedTheater = theaters.find((t) => t.no === newTheater)
 
   /** 선택된 상영관+날짜의 통합 스케줄 (타임라인용) */
   const theaterDaySchedules = useMemo((): (Schedule & { movieTitle: string })[] => {
@@ -94,7 +222,7 @@ function MovieManagePage() {
           .filter((s) => s.theaterId === newTheater && s.date === newDate)
           .map((s) => ({
             ...s,
-            movieTitle: MOCK_MOVIES.find((m) => m.id === Number(movieId))?.title ?? '알 수 없음',
+            movieTitle: movies.find((m) => m.id === Number(movieId))?.title ?? '알 수 없음',
           })),
       )
       .sort((a, b) => a.startTime.localeCompare(b.startTime))
@@ -119,10 +247,11 @@ function MovieManagePage() {
   }, [newTime, selectedMovie, selectedTheater])
 
   /* ── 스케줄 등록 ── */
-  const handleAddSchedule = () => {
+  const handleAddSchedule = async () => {
     if (!newDate || !newTime) { alert('날짜와 시간을 선택해 주세요.'); return }
     if (newDate < TODAY) { alert('과거 날짜는 선택할 수 없습니다.'); return }
 
+    /* 로컬 충돌 체크 */
     const newStart = timeToMin(newTime)
     const newEnd   = timeToMin(previewEndTime)
     const overlap  = theaterDaySchedules
@@ -138,39 +267,87 @@ function MovieManagePage() {
       return
     }
 
-    const newSched: Schedule = {
-      scheduleId:     Date.now(),
+    /* ① 낙관적 UI 업데이트 — 임시 ID로 즉시 화면에 표시 */
+    const tempId = -Date.now() // 음수로 서버 ID와 구분
+    const optimisticSched: Schedule = {
+      scheduleId:     tempId,
       date:           newDate,
       startTime:      newTime,
       endTime:        previewEndTime,
       theaterId:      newTheater,
       theaterName:    selectedTheater?.name ?? '-',
-      availableSeats: selectedTheater?.totalSeats ?? 100,
-      totalSeats:     selectedTheater?.totalSeats ?? 100,
+      availableSeats: 100,
+      totalSeats:     100,
     }
     setSchedules((prev) => ({
       ...prev,
-      [selectedMovieId]: [...(prev[selectedMovieId] ?? []), newSched],
+      [selectedMovieId]: [...(prev[selectedMovieId] ?? []), optimisticSched],
     }))
+
+    /* ② POST /api/admin/schedule */
+    setAdding(true)
+    try {
+      /**
+       * ScheduleDTO 필드:
+       *   no      — 상영관 번호
+       *   movieId — 영화 ID
+       *   startAt — "YYYY-MM-DDTHH:MM:00" (ISO 형식)
+       *   endAt   — "YYYY-MM-DDTHH:MM:00"
+       *   activation — true (기본 활성)
+       */
+      await apiClient.post('/admin/schedule', {
+        no:         newTheater,
+        movieId:    selectedMovieId,
+        startAt:    `${newDate}T${newTime}:00`,
+        endAt:      `${newDate}T${previewEndTime}:00`,
+        activation: true,
+      })
+
+      /* ③ 성공 시 서버에서 전체 새로고침 (실제 ID로 교체) */
+      reloadSchedules()
+    } catch (err) {
+      console.error('[MovieManagePage] 스케줄 등록 실패', err)
+      /* ④ 실패 시 낙관적 업데이트 롤백 */
+      setSchedules((prev) => ({
+        ...prev,
+        [selectedMovieId]: (prev[selectedMovieId] ?? []).filter(
+          (s) => s.scheduleId !== tempId
+        ),
+      }))
+      alert('스케줄 등록에 실패했습니다. 다시 시도해 주세요.')
+    } finally {
+      setAdding(false)
+    }
   }
 
   /* ── 단건 만료처리 ── */
   const handleExpire = (scheduleId: number) => {
     const ok = window.confirm('이 상영 일정을 만료처리하시겠습니까?\n(만료 상태로 변경되며 되돌릴 수 있습니다.)')
-    if (ok) {
-      setCancelledIds((prev) => new Set(prev).add(scheduleId))
-      // TODO: PATCH /api/admin/schedules/:scheduleId { status: 'CANCELLED' }
-    }
+    if (!ok) return
+    // 낙관적 업데이트
+    setCancelledIds((prev) => new Set(prev).add(scheduleId))
+    apiClient.patch('/admin/schedule/activation', { ids: [scheduleId], activation: false })
+      .then(() => reloadSchedules()) // 성공 시 서버 상태로 재동기화
+      .catch((err) => {
+        console.error('[MovieManagePage] 만료처리 실패', err)
+        // 실패해도 서버 실제 상태로 재동기화 (UI 불일치 방지)
+        reloadSchedules()
+        alert(`만료 처리 실패: ${extractErrorMessage(err, '서버 오류가 발생했습니다.')}`)
+      })
   }
 
   /* ── 단건 되돌리기 (undo 만료처리) ── */
   const handleUndo = (scheduleId: number) => {
-    setCancelledIds((prev) => {
-      const next = new Set(prev)
-      next.delete(scheduleId) // cancelledIds에서 제거 → ACTIVE로 복원
-      return next
-    })
-    // TODO: PATCH /api/admin/schedules/:scheduleId { status: 'ACTIVE' }
+    // 낙관적 업데이트
+    setCancelledIds((prev) => { const n = new Set(prev); n.delete(scheduleId); return n })
+    apiClient.patch('/admin/schedule/activation', { ids: [scheduleId], activation: true })
+      .then(() => reloadSchedules()) // 성공 시 서버 상태로 재동기화
+      .catch((err) => {
+        console.error('[MovieManagePage] 되돌리기 실패', err)
+        // 실패해도 서버 실제 상태로 재동기화 (UI 불일치 방지)
+        reloadSchedules()
+        alert(`되돌리기 실패: ${extractErrorMessage(err, '서버 오류가 발생했습니다.')}`)
+      })
   }
 
   /* ── 체크박스 단건 토글 ── */
@@ -192,37 +369,56 @@ function MovieManagePage() {
   }
 
   /* ── 일괄 만료처리 — 체크된 ACTIVE 항목만 ── */
-  const handleBulkExpire = () => {
+  const handleBulkExpire = async () => {
     const targets = [...checkedIds].filter((id) => {
       const sched = movieSchedules.find((s) => s.scheduleId === id)
       return sched && getScheduleStatus(sched.date, id, cancelledIds) === 'ACTIVE'
     })
     if (targets.length === 0) { alert('만료처리할 "정상" 상태 항목이 없습니다.'); return }
-    const ok = window.confirm(`선택된 ${targets.length}건을 만료처리하시겠습니까?`)
-    if (ok) {
-      setCancelledIds((prev) => {
-        const next = new Set(prev)
-        targets.forEach((id) => next.add(id))
-        return next
-      })
-      setCheckedIds(new Set()) // 체크 초기화
+    if (!window.confirm(`선택된 ${targets.length}건을 만료처리하시겠습니까?`)) return
+
+    // 낙관적 업데이트
+    setCancelledIds((prev) => {
+      const next = new Set(prev)
+      targets.forEach((id) => next.add(id))
+      return next
+    })
+    setCheckedIds(new Set())
+
+    try {
+      await apiClient.patch('/admin/schedule/activation', { ids: targets, activation: false })
+      reloadSchedules() // 성공 시 서버 상태로 재동기화
+    } catch (err) {
+      console.error('[MovieManagePage] 일괄 만료처리 실패', err)
+      // 실패해도 서버 실제 상태로 재동기화 (UI 불일치 방지)
+      reloadSchedules()
+      alert(`일괄 만료 처리 실패: ${extractErrorMessage(err, '서버 오류가 발생했습니다.')}`)
     }
   }
 
   /* ── 일괄 되돌리기 — 체크된 CANCELLED 항목만 ── */
-  const handleBulkUndo = () => {
+  const handleBulkUndo = async () => {
     const targets = [...checkedIds].filter((id) =>
       getScheduleStatus('9999-12-31', id, cancelledIds) === 'CANCELLED',
     )
     if (targets.length === 0) { alert('되돌릴 수 있는 "만료처리됨" 항목이 없습니다.'); return }
-    const ok = window.confirm(`선택된 ${targets.length}건을 되돌리시겠습니까?`)
-    if (ok) {
-      setCancelledIds((prev) => {
-        const next = new Set(prev)
-        targets.forEach((id) => next.delete(id))
-        return next
-      })
-      setCheckedIds(new Set())
+    if (!window.confirm(`선택된 ${targets.length}건을 되돌리시겠습니까?`)) return
+
+    setCancelledIds((prev) => {
+      const next = new Set(prev)
+      targets.forEach((id) => next.delete(id))
+      return next
+    })
+    setCheckedIds(new Set())
+
+    try {
+      await apiClient.patch('/admin/schedule/activation', { ids: targets, activation: true })
+      reloadSchedules() // 성공 시 서버 상태로 재동기화
+    } catch (err) {
+      console.error('[MovieManagePage] 일괄 되돌리기 실패', err)
+      // 실패해도 서버 실제 상태로 재동기화 (UI 불일치 방지)
+      reloadSchedules()
+      alert(`일괄 되돌리기 실패: ${extractErrorMessage(err, '서버 오류가 발생했습니다.')}`)
     }
   }
 
@@ -249,19 +445,31 @@ function MovieManagePage() {
       {/* ── 영화 선택 ── */}
       <div style={card}>
         <label style={sLabel}>영화 선택</label>
+        {/* 검색 */}
+        <input
+          type="text"
+          placeholder="제목 검색..."
+          value={movieSearch}
+          onChange={(e) => setMovieSearch(e.target.value)}
+          style={{ ...inputS, width: '100%', marginBottom: 6, boxSizing: 'border-box' as const }}
+        />
+        {/* 검색 결과 리스트박스 */}
         <select
           value={selectedMovieId}
           onChange={(e) => {
             setSelectedMovieId(Number(e.target.value))
-            setCheckedIds(new Set()) // 영화 전환 시 체크 초기화
+            setCheckedIds(new Set())
           }}
-          style={selectStyle}
+          style={{ ...selectStyle, height: 148 }}
+          size={5}
         >
-          {MOCK_MOVIES.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.title} ({m.runtime}분)
-            </option>
-          ))}
+          {movies
+            .filter((m) => m.title.toLowerCase().includes(movieSearch.toLowerCase()))
+            .map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.title} ({m.runtime}분)
+              </option>
+            ))}
         </select>
         {selectedMovie && (
           <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
@@ -292,11 +500,16 @@ function MovieManagePage() {
               onChange={(e) => setNewTheater(Number(e.target.value))}
               style={inputS}
             >
-              {MOCK_THEATERS.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.totalSeats}석, 정리 {t.cleanupTime}분)
-                </option>
-              ))}
+              {theaters.length === 0 ? (
+                /* 로드 전 placeholder */
+                <option value={newTheater}>불러오는 중...</option>
+              ) : (
+                theaters.map((t) => (
+                  <option key={t.no} value={t.no}>
+                    {t.name} (정리 {t.cleanupTime}분)
+                  </option>
+                ))
+              )}
             </select>
           </div>
           <div style={fieldGroup}>
@@ -315,7 +528,13 @@ function MovieManagePage() {
               style={inputS}
             />
           </div>
-          <button onClick={handleAddSchedule} style={addBtn}>+ 등록</button>
+          <button
+            onClick={handleAddSchedule}
+            disabled={adding}
+            style={{ ...addBtn, opacity: adding ? 0.6 : 1, cursor: adding ? 'wait' : 'pointer' }}
+          >
+            {adding ? '등록 중...' : '+ 등록'}
+          </button>
         </div>
         <div style={endTimePreview}>
           <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>종료 예상:</span>
