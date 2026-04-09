@@ -65,6 +65,8 @@ import SeatListPage from './pages/admin/management/SeatListPage'
 import PolicyListPage from './pages/admin/management/PolicyListPage'
 import PolicyFormPage from './pages/admin/management/PolicyFormPage'
 import PolicyManagePage from './pages/admin/management/PolicyManagePage'
+import BonusPolicyFormPage from './pages/admin/management/BonusPolicyFormPage'
+import CouponListPage from './pages/admin/management/CouponListPage'
 import RefundPage from './pages/admin/management/RefundPage'
 import MemberListPage from './pages/admin/management/MemberListPage'
 import AdminAccountPage from './pages/admin/management/AdminAccountPage'
@@ -116,9 +118,13 @@ function AnimatedRoutes() {
 
             {/* 정책 — policy.view 권한 필요 (SUPER_ADMIN 전용) */}
             <Route element={<PrivateRoute permission="policy.view" />}>
-              <Route path="management/policy/list"   element={<PolicyListPage />} />
-              <Route path="management/policy/form"   element={<PolicyFormPage />} />
-              <Route path="management/policy/manage" element={<PolicyManagePage />} />
+              <Route path="management/policy/list"       element={<PolicyListPage />} />
+              <Route path="management/policy/form"       element={<PolicyFormPage />} />
+              <Route path="management/policy/manage"     element={<PolicyManagePage />} />
+              {/* 적립 정책 전용 등록 페이지 (할인 정책 form과 동일 패턴) */}
+              <Route path="management/policy/bonus-form" element={<BonusPolicyFormPage />} />
+              {/* 쿠폰 관리 — 쿠폰 목록 조회 + 발행 */}
+              <Route path="management/coupon/list"       element={<CouponListPage />} />
             </Route>
 
             {/* 통계 — statistics 권한 필요 (SUPER_ADMIN 전용) */}

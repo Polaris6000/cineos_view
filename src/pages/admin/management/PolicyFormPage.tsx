@@ -40,6 +40,13 @@ function PolicyFormPage() {
   const [success, setSuccess] = useState(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
 
+  /**
+   * discountType 상태: 할인 방식 select 값을 추적
+   * → RATIO(%)면 step=1, WON(원)이면 step=500
+   * useRef만으로는 select 변경 시 리렌더가 안 되므로 useState로 관리
+   */
+  const [discountType, setDiscountType] = useState<'RATIO' | 'WON'>('RATIO')
+
   // 1. 각 입력 필드에 대한 Ref 생성
   const nameRef = useRef<HTMLInputElement>(null);
   const conditionRef = useRef<HTMLSelectElement>(null);
@@ -53,8 +60,17 @@ function PolicyFormPage() {
     const e: { [key: string]: string } = {}
     if (!nameRef.current?.value.trim()) e.name = '정책명을 입력해 주세요.'
 
-    const amount = Number(amountRef.current?.value);
+    const amount = Number(amountRef.current?.value)
     if (isNaN(amount) || amount < 0) e.discount = '할인금액은 0 이상이어야 합니다.'
+
+    if (!startRef.current?.value) e.startAt = '시작일을 입력해 주세요.'
+
+    // 종료일이 입력됐는데 시작일보다 이전이면 오류
+    if (endRef.current?.value && startRef.current?.value) {
+      if (endRef.current.value < startRef.current.value) {
+        e.endAt = '종료일은 시작일 이후여야 합니다.'
+      }
+    }
 
     return e
   }
@@ -62,22 +78,22 @@ function PolicyFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // 유효성 검사
     const errs = validate()
     if (Object.keys(errs).length > 0) {
       setErrors(errs)
       return
     }
 
-    // 2. Ref를 통해 데이터 객체 생성
+    // startRef/endRef 값을 DATETIME 형식으로 변환하여 payload 구성
+    // 이전 코드는 new Date().toISOString() 하드코딩으로 사용자 입력이 무시됐었음
     const formData: DiscountPolicy = {
-      policyName: nameRef.current?.value || '',
+      policyName:    nameRef.current?.value || '',
       conditionType: conditionRef.current?.value || 'AGE',
-      discountType: typeRef.current?.value || 'RATIO',
+      discountType:  typeRef.current?.value || 'RATIO',
       discountValue: Number(amountRef.current?.value) || 0,
-      startAt: new Date().toISOString(), // 예시 데이터
-      endAt: null,
-      description: descriptionRef.current?.value || '' // TODO 설명이 DB에 존재하지않음
+      startAt: `${startRef.current!.value}T00:00:00`,
+      endAt:   endRef.current?.value ? `${endRef.current.value}T23:59:59` : null,
+      description: descriptionRef.current?.value || '',
     }
 
     try {
@@ -123,18 +139,34 @@ function PolicyFormPage() {
           </Field>
 
           <Field label="할인유형">
-            <select ref={typeRef} style={input}>
+            {/*
+              onChange로 discountType 상태 업데이트
+              → 아래 할인 값 input의 step이 자동으로 바뀜
+            */}
+            <select
+                ref={typeRef}
+                style={input}
+                onChange={(e) => setDiscountType(e.target.value as 'RATIO' | 'WON')}
+            >
               {TYPE_DISCOUNT.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </Field>
 
-          <Field label="할인금액 (원/%)" error={errors.discount}>
+          {/*
+            할인 값 입력:
+            - RATIO(%) → step=1, max=100  (1%씩 조절, 100% 초과 불가)
+            - WON(원)  → step=500         (500원씩 조절)
+            step이 맞지 않으면 브라우저가 submit을 막으므로 반드시 타입에 맞게 설정해야 함
+          */}
+          <Field label={discountType === 'RATIO' ? '할인율 (%)' : '할인금액 (원)'} error={errors.discount}>
             <input
                 ref={amountRef}
                 type="number"
                 defaultValue={0}
                 min={0}
-                step={500}
+                max={discountType === 'RATIO' ? 100 : undefined}
+                step={discountType === 'RATIO' ? 1 : 500}
+                placeholder={discountType === 'RATIO' ? '예: 10' : '예: 3000'}
                 style={input}
             />
           </Field>
@@ -147,7 +179,7 @@ function PolicyFormPage() {
                   style={input}
               />
             </Field>
-            <Field label="종료일">
+            <Field label="종료일 (미입력 시 무기한)" error={errors.endAt}>
               <input
                   ref={endRef}
                   type="date"

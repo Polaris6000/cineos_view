@@ -314,7 +314,9 @@ function MovieManagePage() {
           (s) => s.scheduleId !== tempId
         ),
       }))
-      alert('스케줄 등록에 실패했습니다. 다시 시도해 주세요.')
+      // extractErrorMessage로 서버가 보낸 상세 이유 추출
+      // (다른 실패 케이스들과 동일한 패턴 적용)
+      alert(`스케줄 등록 실패: ${extractErrorMessage(err, '서버 오류가 발생했습니다.')}`);
     } finally {
       setAdding(false)
     }
