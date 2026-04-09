@@ -2,12 +2,30 @@
  * TheaterListPage.jsx — 상영관 목록
  * TODO: GET /api/admin/theaters 연동
  */
+import { useState, useEffect} from "react";
 import { useNavigate } from 'react-router-dom'
 import { Check } from 'lucide-react'
 import { MOCK_THEATERS } from '../../../api/mockData'
+import axios from "axios";
+
+interface Theaters {
+    no: number // 상영관 PK
+    cleanupTime: number // 정리시간 (분)
+    policyId: number // 좌석 정책 FK
+}
 
 function TheaterListPage() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+  const [theaters, setTheaters] = useState<Theaters[]>([]);
+
+    useEffect(() => {
+        const theaterList = async () => {
+            try {
+                await axios.get()
+            }
+        }
+    }, []);
+
   return (
     <div>
       <h2 style={pageTitle}>상영관 목록</h2>
