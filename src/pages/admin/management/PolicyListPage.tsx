@@ -174,21 +174,43 @@ function PolicyListPage() {
   const [bonusMsg,    setBonusMsg]    = useState('')
 
   /** 적립 정책 활성화 토글 (TODO: PATCH /api/admin/bonus-policy/:id) */
-  const toggleBonusActivation = (id: number) => {
-    setBonusPolicies((prev) =>
-      prev.map((p) => p.id === id ? { ...p, activation: !p.activation } : p)
-    )
-  }
+  const toggleBonusActivation = async (id: number) => {
+    // 1. 현재 리스트에서 해당 정책을 찾아 다음 상태(반전)를 결정합니다.
+    const target = bonusPolicies.find((p) => p.id === id);
+    if (!target) return;
 
-  /** 적립 정책 삭제 (TODO: DELETE /api/admin/bonus-policy/:id) */
+    const nextActivation = !target.activation;
+
+    try {
+      await axios.patch('/api/admin/bonus-policy/finish-btn', {
+        ids: [id],
+        activation: nextActivation
+      });
+
+      // 3. 서버 성공 시 UI 상태 업데이트
+      setBonusPolicies((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, activation: nextActivation } : p))
+      );
+
+      setBonusMsg(`정책이 ${nextActivation ? '활성' : '비활성'} 상태로 변경되었습니다.`);
+    } catch (e) {
+      console.error('상태변경 실패:', e);
+      alert('적립 정책 상태 변경에 실패했습니다.');
+    } finally {
+      setTimeout(() => setBonusMsg(''), 3000);
+    }
+  };
+
+  /** 적립 정책 삭제 (TODO: DELETE /api/admin/bonus-policy/:id)
+   * TODO 바로 삭제 말고 정책시간 23:59:59 로 변경 (삭제(백서버에 구현돼있음)도 있긴함 필요하면 사용)*/
   const deleteBonusPolicy = async (id: number) => {
     if (!window.confirm('이 정책을 삭제하시겠습니까?')) return
 
     try {
       // 1. 서버에 삭제 요청
-      await axios.delete(`/api/admin/bonus-policy?id=${id}`);
+      await axios.patch(`/api/admin/bonus-policy/${id}/finish`);
 
-      // 2. 서버 삭제가 성공하면 프론트엔드 리스트에서도 제거 (새로고침 없이!)
+      // 2. 서버 삭제가 성공하면 프론트엔드 리스트에서도 제거
       setBonusPolicies((prev) => prev.filter((p) => p.id !== id));
 
       // 3. 알림 메시지 (선택사항)
