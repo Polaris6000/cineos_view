@@ -82,7 +82,7 @@ function PolicyFormPage() {
 
     try {
       console.log('[PolicyForm] 등록 시도:', formData)
-      const res = await axios.post('http://localhost:8080/api/admin/discount-policy', formData);
+      const res = await axios.post('/api/admin/discount-policy', formData);
 
       if (res.status === 200 || res.status === 201) {
         setSuccess(true)
