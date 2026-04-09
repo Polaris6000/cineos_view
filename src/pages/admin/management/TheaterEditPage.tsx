@@ -12,7 +12,7 @@
  *  - theater: { no, policyId, cleanupTime, name, hasRecliner, policyName }
  *  - seatPolicies: SeatPolicyDTO[]  (TheaterListPage에서 전달)
  */
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { CheckCircle } from 'lucide-react'
 import { SeatPolicy } from './TheaterListPage'

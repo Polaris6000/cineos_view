@@ -62,7 +62,7 @@ function SchedulePage() {
   const [allSched, setScheduled] = useState<Schedule[]>([])
 
   useEffect(() => {
-    axios.get('http://localhost:8080/api/admin/schedule/list')
+    axios.get('/api/admin/schedule/list')
         .then(res => {
           const filtered = res.data.filter((s: any) => {
             const scheduleDate = s.startAt.slice(0, 10)
