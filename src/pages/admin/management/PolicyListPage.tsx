@@ -181,10 +181,25 @@ function PolicyListPage() {
   }
 
   /** 적립 정책 삭제 (TODO: DELETE /api/admin/bonus-policy/:id) */
-  const deleteBonusPolicy = (id: number) => {
+  const deleteBonusPolicy = async (id: number) => {
     if (!window.confirm('이 정책을 삭제하시겠습니까?')) return
-    setBonusPolicies((prev) => prev.filter((p) => p.id !== id))
-  }
+
+    try {
+      // 1. 서버에 삭제 요청
+      await axios.delete(`/api/admin/bonus-policy?id=${id}`);
+
+      // 2. 서버 삭제가 성공하면 프론트엔드 리스트에서도 제거 (새로고침 없이!)
+      setBonusPolicies((prev) => prev.filter((p) => p.id !== id));
+
+      // 3. 알림 메시지 (선택사항)
+      setBonusMsg('정책이 삭제되었습니다.');
+      setTimeout(() => setBonusMsg(''), 3000);
+
+    } catch (e) {
+      console.error('삭제 실패: ', e);
+      alert('삭제 중 오류가 발생했습니다.');
+    }
+  };
 
   /** 적립 정책 등록 (TODO: POST /api/admin/bonus-policy) */
   const handleBonusSave = async () => {
@@ -199,16 +214,35 @@ function PolicyListPage() {
     }
 
     setBonusSaving(true)
-    await new Promise((r) => setTimeout(r, 400))
+    try {
+      const payload = {
+        policyName: bonusForm.policyName,
+        giveValue: Number(bonusForm.giveValue),
+        startAt: bonusForm.startAt? `${bonusForm.startAt}T00:00:00` : null,
+        endAt: bonusForm.endAt? `${bonusForm.endAt}T23:59:59` : null,
+        // 명시적으로 값이 true/false인지 확인
+        activation: bonusForm.activation
+      };
+      const res = await axios.post('/api/admin/bonus-policy', payload)
 
-    const res = await axios.post(`/api/admin/bonus-policy`)
-    // const newId = Math.max(...bonusPolicies.map((p) => p.id), 0) + 1
-    setBonusPolicies((prev) => [...prev, res.data])
-    setBonusForm({ policyName: '', giveValue: 0, startAt: '', endAt: null, activation: true })
-    setShowBonusForm(false)
-    setBonusSaving(false)
-    setBonusMsg('적립 정책이 등록되었습니다.')
-    setTimeout(() => setBonusMsg(''), 3000)
+      console.log(res.data)
+
+      if (res.status === 200 || res.status === 201) {
+        if (res.data) {
+          setBonusPolicies((prev) => [...prev, res.data]);
+        }
+
+        setBonusForm({ policyName: '', giveValue: 0, startAt: '', endAt: null, activation: true })
+        setShowBonusForm(false)
+        setBonusMsg('적립 정책이 등록되었습니다.')
+      }
+    } catch (e) {
+      console.error('등록 실패: ', e)
+      alert('적립 정책 등록 중 오류가 발생했습니다.')
+    } finally {
+      setBonusSaving(false)
+      setTimeout(() => setBonusMsg(''), 3000)
+    }
   }
 
   return (
