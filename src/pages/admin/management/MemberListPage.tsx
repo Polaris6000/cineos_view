@@ -256,7 +256,8 @@ function PointHistoryModal({
   const [pointLog, setPointLog] = useState<PointHistory[]>([])
 
   useEffect(() => {
-    axios.get(`http://localhost:8080/api/admin/member/${member.phone}/point-list`)
+    // Vite 프록시 경유 — localhost 하드코딩 제거
+    axios.get(`/api/admin/member/${member.phone}/point-list`)
         .then(res => {
           setPointLog(res.data)
         })
@@ -341,7 +342,8 @@ function ActivityLogModal({
   const [logs, setLogs] = useState<PointHistory[]>([])
 
   useEffect(() => {
-    axios.get('http://localhost:8080/api/admin/member/point-list')
+    // Vite 프록시 경유 — localhost 하드코딩 제거
+    axios.get('/api/admin/member/point-list')
         .then(res => {
           console.log(res.data)
           setLogs(res.data)

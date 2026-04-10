@@ -15,7 +15,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Film, PlaySquare, Armchair, ScrollText, RotateCcw,
-  LayoutDashboard,
+  LayoutDashboard, Ticket,
   Sun, Moon, Users, ShieldCheck,
 } from 'lucide-react'
 import { adminPageVariants, adminPageTransition } from '../../styles/transitions'
@@ -60,8 +60,9 @@ const NAV_SECTIONS: NavSection[] = [
   {
     section: '정책/환불',
     items: [
-      { path: '/admin/management/policy/list', label: '정책 목록', Icon: ScrollText, permission: 'policy.view' },
-      { path: '/admin/refund',                 label: '환불 처리', Icon: RotateCcw,  permission: 'refund' },
+      { path: '/admin/management/policy/list',  label: '정책 목록', Icon: ScrollText, permission: 'policy.view' },
+      { path: '/admin/management/coupon/list',  label: '쿠폰 관리', Icon: Ticket,     permission: 'policy.view' },
+      { path: '/admin/refund',                  label: '환불 처리', Icon: RotateCcw,  permission: 'refund' },
     ],
   },
   {

@@ -15,7 +15,8 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { CheckCircle } from 'lucide-react'
-import apiClient, { type SeatPolicyDTO } from '../../../api/apiClient'
+import { SeatPolicy } from './TheaterListPage'
+import axios from 'axios'
 
 function TheaterEditPage() {
   const navigate  = useNavigate()
@@ -23,11 +24,11 @@ function TheaterEditPage() {
 
   /** TheaterListPage에서 navigate state로 전달받은 데이터 */
   const theater      = location.state?.theater
-  const seatPolicies: SeatPolicyDTO[] = location.state?.seatPolicies ?? []
+  const seatPolicies: SeatPolicy[] = location.state?.seatPolicies ?? []
 
   /* state 없이 직접 접근한 경우 목록으로 리다이렉트 */
   if (!theater) {
-    navigate('/admin/management/theater/list')
+    setTimeout(() => navigate('/admin/management/theater/list'))
     return null
   }
 
@@ -61,45 +62,33 @@ function TheaterEditPage() {
     setSaving(true)
     setError('')
 
-    try {
-      const promises: Promise<unknown>[] = []
 
       /* ① 정리시간이 바뀐 경우
        *   백엔드 TheaterRequest: { ids: Long[], changeValue: Long }
        *   ids = 상영관 번호 배열, changeValue = 새 정리시간(분) */
+    try {
       if (form.cleanupTime !== theater.cleanupTime) {
-        promises.push(
-          apiClient.patch('/admin/theater/cleantime', {
+          await axios.patch('/api/admin/theater/cleantime', {
             ids:         [theater.no],
             changeValue: form.cleanupTime,
           })
-        )
       }
 
       /* ② 좌석 정책이 바뀐 경우
        *   ids = 상영관 번호 배열, changeValue = 새 policyId */
       if (form.policyId !== theater.policyId) {
-        promises.push(
-          apiClient.patch('/admin/theater/policy', {
+          await axios.patch('/api/admin/theater/policy', {
             ids:         [theater.no],
             changeValue: form.policyId,
           })
-        )
       }
 
-      /* 변경 없으면 그냥 목록으로 돌아감 */
-      if (promises.length === 0) {
-        navigate('/admin/management/theater/list')
-        return
-      }
-
-      await Promise.all(promises)
       setSuccess(true)
-      /* 1.5초 후 목록 페이지로 이동 */
       setTimeout(() => navigate('/admin/management/theater/list'), 1500)
+
     } catch (err) {
       console.error('[TheaterEditPage] 저장 실패', err)
-      setError('저장에 실패했습니다. 다시 시도해 주세요.')
+      setError('저장에 실패했습니다. 데이터 형식을 확인하거나 잠시 후 다시 시도해 주세요.')
     } finally {
       setSaving(false)
     }
