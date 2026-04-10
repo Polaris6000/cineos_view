@@ -4,16 +4,17 @@ import { Check, RefreshCw } from 'lucide-react'
 import axios from "axios";
 
 // 1. 인터페이스 정의
-interface Theater {
-  no: number
-  cleanupTime: number
-  policyId: number
+export interface Theater {
+  no: number // PK
+  cleanupTime: number // 정리시간
+  policyId: number // 좌석정책 FK
+  totalSeats: 100 // TODO 상영관에 좌석 (프론트에서 정하기로 했기때문에 수정하면 됨, MovieManagePage에 일정 추가칸에 상영관 칸에 현재는 좌석 수가 안나옴 이것도 수정해야함)
 }
 
 export interface SeatPolicy {
-  policyId: number;
-  name: string;
-  cost: number;
+  policyId: number; // PK
+  name: string; // 좌석 이름
+  cost: number; // 가격
 }
 
 const RECLINER_POLICY_ID = 2
