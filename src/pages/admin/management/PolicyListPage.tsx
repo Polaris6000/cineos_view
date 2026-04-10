@@ -130,30 +130,6 @@ function PolicyListPage() {
   const [discountMsg,      setDiscountMsg]      = useState('')
 
   /**
-   * 할인 정책 종료지정
-   * PATCH /api/admin/discount-policy/{id}/finish
-   * → 해당 정책의 end_at을 현재 시각 기준으로 설정하고 activation=false 처리
-   */
-  const finishDiscountPolicy = async (id: number) => {
-    if (!confirm('이 할인 정책을 종료 처리하시겠습니까?\n(end_at이 현재 시각으로 설정되며 비활성 처리됩니다)')) return
-
-    try {
-      await axios.patch(`/api/admin/discount-policy/${id}/finish`)
-      // 서버 성공 시 UI 즉시 반영: activation=false, endAt=오늘 날짜
-      const today = new Date().toISOString()
-      setDiscountPolicies((prev) =>
-        prev.map((p) => p.id === id ? { ...p, activation: false, endAt: today } : p)
-      )
-      setDiscountMsg('할인 정책이 종료 처리되었습니다.')
-    } catch (e) {
-      console.error('할인 정책 종료지정 실패:', e)
-      alert('할인 정책 종료지정에 실패했습니다.')
-    } finally {
-      setTimeout(() => setDiscountMsg(''), 3000)
-    }
-  }
-
-  /**
    * 할인 정책 활성화 토글
    * PATCH /api/admin/discount-policy/activation { ids, activation }
    */
@@ -187,30 +163,6 @@ function PolicyListPage() {
   ══════════════════════════════ */
   const [bonusPolicies, setBonusPolicies] = useState<BonusPolicy[]>([])
   const [bonusMsg,      setBonusMsg]      = useState('')
-
-  /**
-   * 적립 정책 종료지정
-   * PATCH /api/admin/bonus-policy/{id}/finish
-   * → 해당 정책의 end_at을 현재 시각 기준으로 설정하고 activation=false 처리
-   */
-  const finishBonusPolicy = async (id: number) => {
-    if (!confirm('이 적립 정책을 종료 처리하시겠습니까?\n(end_at이 현재 시각으로 설정되며 비활성 처리됩니다)')) return
-
-    try {
-      await axios.patch(`/api/admin/bonus-policy/${id}/finish`)
-      // 서버 성공 시 UI 즉시 반영
-      const today = new Date().toISOString()
-      setBonusPolicies((prev) =>
-        prev.map((p) => p.id === id ? { ...p, activation: false, endAt: today } : p)
-      )
-      setBonusMsg('적립 정책이 종료 처리되었습니다.')
-    } catch (e) {
-      console.error('적립 정책 종료지정 실패:', e)
-      alert('적립 정책 종료지정에 실패했습니다.')
-    } finally {
-      setTimeout(() => setBonusMsg(''), 3000)
-    }
-  }
 
   /**
    * 적립 정책 활성화 토글
@@ -393,24 +345,14 @@ function PolicyListPage() {
                       </span>
                     </td>
 
-                    {/* 관리 컬럼: 활성화 토글 + 종료지정 버튼 */}
+                    {/* 관리 컬럼: 활성화 on/off 토글 버튼만 */}
                     <td style={{ ...td, textAlign: 'center' }}>
-                      {/* 버튼 두 개를 세로로 쌓아서 표시 */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
-                        <button
-                          onClick={() => toggleDiscountActivation(p.id)}
-                          style={p.activation ? deactivateBtn : activateBtn}
-                        >
-                          {p.activation ? '비활성화' : '활성화'}
-                        </button>
-                        {/* 종료지정: end_at을 현재 시각으로 설정 → 비활성 처리 */}
-                        <button
-                          onClick={() => finishDiscountPolicy(p.id)}
-                          style={finishBtn}
-                        >
-                          종료지정
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => toggleDiscountActivation(p.id)}
+                        style={p.activation ? deactivateBtn : activateBtn}
+                      >
+                        {p.activation ? '비활성화' : '활성화'}
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -502,23 +444,14 @@ function PolicyListPage() {
                       </span>
                     </td>
 
-                    {/* 관리 컬럼: 활성화 토글 + 종료지정 버튼 */}
+                    {/* 관리 컬럼: 활성화 on/off 토글 버튼만 */}
                     <td style={{ ...td, textAlign: 'center' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
-                        <button
-                          onClick={() => toggleBonusActivation(p.id)}
-                          style={p.activation ? deactivateBtn : activateBtn}
-                        >
-                          {p.activation ? '비활성화' : '활성화'}
-                        </button>
-                        {/* 종료지정: end_at을 현재 시각으로 설정 → 비활성 처리 */}
-                        <button
-                          onClick={() => finishBonusPolicy(p.id)}
-                          style={finishBtn}
-                        >
-                          종료지정
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => toggleBonusActivation(p.id)}
+                        style={p.activation ? deactivateBtn : activateBtn}
+                      >
+                        {p.activation ? '비활성화' : '활성화'}
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -631,13 +564,4 @@ const deactivateBtn: React.CSSProperties = {
   padding: '6px 14px', background: 'var(--color-error-bg)', color: 'var(--color-error-text)',
   border: '1px solid var(--color-error-main)', borderRadius: 6, fontSize: 13, cursor: 'pointer',
 }
-/**
- * 종료지정 버튼: end_at을 현재 시각으로 설정하는 비가역적 작업
- * → 주황 계열(warning)로 강조하여 "되돌리기 어려운 작업"임을 시각적으로 전달
- */
-const finishBtn: React.CSSProperties = {
-  padding: '6px 14px', background: '#fff7ed', color: '#c2410c',
-  border: '1px solid #f97316', borderRadius: 6, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
-}
-
 export default PolicyListPage

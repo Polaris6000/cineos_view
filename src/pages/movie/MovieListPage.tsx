@@ -10,7 +10,7 @@
  *
  * API 연동:
  *  - 현재 상영 중 탭: GET /api/movie/all (오늘 스케줄 있는 영화)
- *  - 상영 예정 탭:    GET /api/movie/realAll → startAt > today 필터링
+ *  - 상영 예정 탭:    GET /api/movie/readAll → startAt > today 필터링
  *
  * FHD(1080×1920) 세로형 키오스크 기준 레이아웃
  */
@@ -86,34 +86,40 @@ function MovieListPage() {
   const [movieTheaterTypes, setMovieTheaterTypes] = useState<Map<number, Set<string>>>(new Map())
 
   /**
-   * /movie/realAll 단일 호출로 전체 영화를 받아 프론트에서 탭 분리
+   * /movie/readAll 단일 호출로 전체 영화를 받아 프론트에서 탭 분리
    *
    * [이전 구조의 문제점]
-   *  - Promise.all([/movie/all, /movie/realAll]) → 하나만 실패해도 전체 crash
+   *  - Promise.all([/movie/all, /movie/readAll]) → 하나만 실패해도 전체 crash
    *  - /movie/all 은 "오늘 스케줄 있는 영화"만 반환 → 스케줄 없으면 항상 빈 탭
    *
    * [현재 구조]
-   *  - /movie/realAll 한 번만 호출 → 실패해도 탭별로 빈 배열 표시 (앱 안 죽음)
+   *  - /movie/readAll 한 번만 호출 → 실패해도 탭별로 빈 배열 표시 (앱 안 죽음)
    *  - 현재 상영 중: startAt ≤ 오늘 AND (endAt 없음 OR endAt ≥ 오늘)
    *  - 상영 예정:    startAt > 오늘
    */
   useEffect(() => {
     setLoading(true)
-    apiClient.get<MovieDTO[]>('/movie/realAll')
+    apiClient.get<MovieDTO[]>('/movie/readAll')
       .then((res) => {
         const all = res.data
 
         // 현재 상영 중:
         //   개봉일(startAt)이 오늘 이전이고,
         //   종료일(endAt)이 없거나 오늘 이후인 영화
+        //
+        // ⚠️ 비교 시 반드시 slice(0, 10) 사용!
+        // 백엔드가 LocalDateTime을 "2026-04-11T00:00:00.000Z" 형식으로 반환하므로
+        // 날짜 문자열 "2026-04-11" 과 직접 비교하면 "T" 접미사 때문에 항상 크게 나옴
+        // 예) "2026-04-11T00:00:00.000Z" > "2026-04-11" → true (오늘 개봉 영화가 upcoming으로 분류되는 버그)
         const nowRaw = all.filter((m) => {
-          if (m.startAt > today) return false                        // 아직 개봉 안 함
+          const startDate = m.startAt.slice(0, 10)
+          if (startDate > today) return false                        // 아직 개봉 안 함
           if (m.endAt && m.endAt.slice(0, 10) < today) return false  // 이미 종료
           return true
         })
 
-        // 상영 예정: 개봉일이 오늘보다 미래인 영화
-        const upcomingRaw = all.filter((m) => m.startAt > today)
+        // 상영 예정: 개봉일(날짜 부분)이 오늘보다 미래인 영화
+        const upcomingRaw = all.filter((m) => m.startAt.slice(0, 10) > today)
 
         setNowPlaying(nowRaw.map(toDisplayMovie))
         setUpcoming(upcomingRaw.map(toDisplayMovie))

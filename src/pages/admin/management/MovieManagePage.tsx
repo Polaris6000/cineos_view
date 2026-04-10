@@ -6,8 +6,8 @@
  *  2. 마지막 스케줄 종료시간 기준으로 시작시간 자동 입력
  *  3. 영화 런타임 + 상영관 정리시간 = 종료시간 미리보기
  *  4. 스케줄 상태 표시 (정상 / 만료 / 만료처리됨)
- *  5. 만료처리 → 되돌리기 (undo 지원)
- *  6. 체크박스로 다중 선택 후 일괄 만료처리 / 일괄 되돌리기
+ *  5. 만료처리 → 유효처리 (undo 지원)
+ *  6. 체크박스로 다중 선택 후 일괄 만료처리 / 일괄 유효처리
  *
  * TODO: GET/POST/DELETE /api/admin/schedules 연동
  */
@@ -43,8 +43,16 @@ interface Movie {
   title: string // 제목
 }
 
-/** 오늘 날짜 문자열 (YYYY-MM-DD) */
-const TODAY = new Date().toISOString().slice(0, 10)
+/**
+ * 오늘 날짜 문자열 (YYYY-MM-DD) — 로컬 타임존 기준
+ *
+ * ⚠️ toISOString() 은 UTC 기준이라 한국(UTC+9) 자정~오전 9시 사이에 날짜가 하루 어긋남
+ * toLocaleDateString('en-CA') 는 'YYYY-MM-DD' 형식으로 로컬(KST) 날짜를 반환
+ *
+ * 예) 한국 시간 2026-04-11 01:00 → toISOString() = "2026-04-10T..." → TODAY = "2026-04-10" ← 틀림
+ *                               → toLocaleDateString('en-CA')    = "2026-04-11"         ← 맞음
+ */
+const TODAY = new Date().toLocaleDateString('en-CA')
 
 /** 'HH:MM' → 분 변환 */
 function timeToMin(time: string): number {
@@ -92,7 +100,9 @@ function MovieManagePage() {
           console.log('상영관 출력', res.data)
           setTheaters(res.data)
           if (res.data.length > 0) {
-            setNewTheater(res.data[0].id)
+            // ⚠️ TheaterDTO PK는 'id'가 아니라 'no' 필드임
+            // res.data[0].id → undefined 가 되어 no: undefined 로 등록 실패하던 버그 수정
+            setNewTheater(res.data[0].no)
           }
         })
         .catch(e => console.error("상영관 로드 실패", e))
@@ -112,54 +122,55 @@ function MovieManagePage() {
         })
   }, [])
 
-  // ── 로컬 스케줄 상태 ──
-  // const [schedules, setSchedules] = useState<Record<number, Schedule[]>>(
-  //   Object.fromEntries(
-  //     Object.entries(MOCK_SCHEDULES).map(([id, scheds]) => [
-  //       Number(id),
-  //       scheds.map((s) => ({ ...s })),
-  //     ]),
-  //   ),
-  // )
-
-  // 연결
+  // ── 스케줄 상태 ──
   const [schedules, setSchedules] = useState<Record<number, Schedule[]>>({})
 
-  useEffect(() => {
+  /**
+   * 서버에서 전체 스케줄을 가져와 상태를 갱신하는 함수
+   *
+   * 마운트 시 1회 호출하고, 만료/유효 처리 후에도 재호출해서
+   * 백엔드의 실제 상태를 항상 UI에 반영한다.
+   *
+   * 백엔드 버그 주의 ⚠️ [팀원 수정 필요]:
+   *   ScheduleServiceImpl.createSchedule() 67번 줄에서
+   *   반환 DTO의 activation 이 false 로 하드코딩돼 있음 → true 로 수정해야 함.
+   *   현재는 등록 직후 재조회로 실제 DB 상태(true)를 가져와 우회 처리.
+   */
+  const loadSchedules = () => {
     axios.get('/api/admin/schedule/list')
-        .then(res => {
-          const data = res.data
-          const mapped: Record<number, Schedule[]> = {}
-          const serverCancelledIds = new Set<number>();
+      .then(res => {
+        const data = res.data
+        const mapped: Record<number, Schedule[]> = {}
+        const serverCancelledIds = new Set<number>()
 
-          data.forEach((s: any) => {
-            const newSched: Schedule = {
-              id: s.id,
-              date: s.startAt.slice(0, 10),
-              startTime: s.startAt, // "2026-04-10T10:00:00"
-              endTime: s.endAt,     // "2026-04-10T12:00:00"
-              no: s.no,
-              movieId: s.movieId,
-              activation: s.activation ? 'ACTIVE' : 'CANCELLED',
+        data.forEach((s: any) => {
+          const newSched: Schedule = {
+            id:         s.id,
+            date:       s.startAt.slice(0, 10), // "YYYY-MM-DD" (로컬 날짜와 비교)
+            startTime:  s.startAt,              // ISO datetime 전체 보존
+            endTime:    s.endAt,
+            no:         s.no,
+            movieId:    s.movieId,
+            activation: s.activation ? 'ACTIVE' : 'CANCELLED',
+            availableSeats: s.activation ? 100 : 0,
+            totalSeats: 100,
+          }
 
-              availableSeats: s.activation ? 100 : 0,
-              totalSeats: 100
-            }
+          // activation=false 인 스케줄은 cancelledIds 에 등록
+          if (!s.activation) serverCancelledIds.add(s.id)
 
-            if (!s.activation) {
-              serverCancelledIds.add(s.id);
-            }
-
-            if (!mapped[s.movieId]) {
-              mapped[s.movieId] = []
-            }
-            mapped[s.movieId].push(newSched)
-          })
-
-          setSchedules(mapped)
-          setCancelledIds(serverCancelledIds);
+          if (!mapped[s.movieId]) mapped[s.movieId] = []
+          mapped[s.movieId].push(newSched)
         })
-  }, [])
+
+        setSchedules(mapped)
+        setCancelledIds(serverCancelledIds)
+      })
+      .catch(e => console.error('[MovieManagePage] 스케줄 로드 실패', e))
+  }
+
+  // 마운트 시 1회 로드
+  useEffect(() => { loadSchedules() }, [])
 
   // ── 만료처리된 scheduleId Set (undo 지원) ──
   const [cancelledIds, setCancelledIds] = useState<Set<number>>(new Set())
@@ -263,32 +274,16 @@ function MovieManagePage() {
       console.log('스케줄 로그 ',res.data)
 
       if ((res.status === 200 || res.status === 201) && res.data?.id) {
-        const s = res.data
-
-        const savedSched: Schedule = {
-          id: s.id,
-          no: s.no,
-          movieId: s.movieId,
-          startTime: s.startAt, // "2026-04-10T10:00:00" 전체 저장
-          endTime: s.endAt,     // "2026-04-10T12:10:00" 전체 저장
-          date: s.startAt.slice(0, 10),
-          movieTitle: movies.find(m => m.movieId === selectedMovieId)?.title || '제목 없음',
-          activation: s.activation ? 'ACTIVE' : 'CANCELLED',
-
-
-          availableSeats: 100, // TODO 이건 정의 해야할듯
-          totalSeats: 100, // TODO 이것 또한
-        };
-
-        setSchedules((prev) => ({
-          ...prev,
-          [selectedMovieId]: [...(prev[selectedMovieId] ?? []), savedSched],
-        }));
-        if (!s.activation) {
-          setCancelledIds(prev => new Set(prev).add(s.id));
-        }
-
-        console.log('스케줄 등록완료')
+        /**
+         * ⚠️ 백엔드 버그 우회 [팀원 수정 필요]:
+         *  ScheduleServiceImpl.createSchedule() 이 응답 DTO의 activation 을
+         *  false 로 하드코딩해서 반환함 → 등록 직후 UI 가 "만료처리됨"으로 표시됨.
+         *  실제 DB 에는 activation=true 로 저장됨.
+         *
+         *  대응: 응답 DTO 를 직접 믿지 않고 서버에서 전체 재조회.
+         */
+        loadSchedules()
+        console.log('스케줄 등록 완료 → 목록 재조회')
       }
     } catch (e) {
       console.error('스케줄 등록 실패 : ', e)
@@ -297,36 +292,38 @@ function MovieManagePage() {
 
   }
 
-  // TODO 이미 지나간 스케줄은 변경이 안되도록 해놓음
   /* ── 상태 업데이트 공통 함수 ── */
+  /**
+   * 스케줄 활성화 상태 변경 (만료처리 / 유효처리)
+   *
+   * PATCH /api/admin/schedule/activation 호출 후 서버에서 재조회한다.
+   *
+   * 재조회가 필요한 이유:
+   *  - 백엔드가 "이미 지난 스케줄" 이나 "동일 상태" 의 경우 조용히 skip 하고 204를 반환함
+   *  - 낙관적 UI 업데이트(cancelledIds 직접 변경)로는 실제 DB 상태와 어긋날 수 있음
+   *  - 재조회를 통해 항상 실제 서버 상태를 UI에 반영
+   */
   const updateActivationStatus = async (targetIds: number[], nextStatus: boolean) => {
     try {
-      const payload = {
+      // PATCH 요청: { ids: [id, ...], activation: true|false }
+      // → ActivationRequest { List<Long> ids, boolean activation }
+      await axios.patch('/api/admin/schedule/activation', {
         ids: targetIds,
-        activation: nextStatus // 👈 true면 활성화(복구), false면 비활성화(만료)
-      };
+        activation: nextStatus,
+      })
 
-      // 서버의 @PatchMapping("/activation") 호출
-      await axios.patch('/api/admin/schedule/activation', payload);
-
-      // UI 상태(cancelledIds) 동기화
-      setCancelledIds((prev) => {
-        const next = new Set(prev);
-        targetIds.forEach(id => {
-          if (nextStatus) next.delete(id); // 활성화 시 만료 목록에서 제거
-          else next.add(id);            // 비활성화 시 만료 목록에 추가
-        });
-        return next;
-      });
+      // 서버 재조회 → 실제 DB 상태를 UI에 반영
+      // (백엔드가 silent skip 해도 정확한 상태를 보여줌)
+      loadSchedules()
     } catch (e) {
-      console.error(e);
-      alert("상태 변경에 실패했습니다.");
+      console.error('[MovieManagePage] 활성화 상태 변경 실패', e)
+      alert('상태 변경에 실패했습니다.')
     }
-  };
+  }
 
   /* ── 버튼 연결 ── */
   const handleExpire = (id: number) => updateActivationStatus([id], false); // 만료시키기 (false 전달)
-  const handleUndo   = (id: number) => updateActivationStatus([id], true);  // 되돌리기 (true 전달)
+  const handleUndo   = (id: number) => updateActivationStatus([id], true);  // 유효처리 (true 전달)
 
   /* ── [신규] 단일 체크박스 토글 ── */
   const toggleCheck = (id: number) => {
@@ -355,7 +352,7 @@ function MovieManagePage() {
     const targetIds = Array.from(checkedIds);
     if (targetIds.length === 0) return;
 
-    const actionText = nextStatus ? "되돌리기" : "만료처리";
+    const actionText = nextStatus ? "유효처리" : "만료처리";
     if (!window.confirm(`선택한 ${targetIds.length}건을 일괄 ${actionText} 하시겠습니까?`)) return;
 
     // 이미 구현하신 updateActivationStatus를 재활용합니다.
@@ -527,7 +524,7 @@ function MovieManagePage() {
               )}
               {checkedCancelledCount > 0 && (
                 <button onClick={() => handleBulkUpdate(true)} style={bulkUndoBtn}>
-                  일괄 되돌리기 ({checkedCancelledCount})
+                  일괄 유효처리 ({checkedCancelledCount})
                 </button>
               )}
               <button onClick={() => setCheckedIds(new Set())} style={clearCheckBtn}>
@@ -644,14 +641,14 @@ function MovieManagePage() {
                                 만료처리
                               </button>
                             )}
-                            {/* CANCELLED → 되돌리기 버튼 (undo) */}
+                            {/* CANCELLED → 유효처리 버튼 (undo) */}
                             {sStatus === 'CANCELLED' && (
                               <button
                                 onClick={() => handleUndo(s.id)}
                                 style={undoBtn}
-                                title="만료처리 되돌리기"
+                                title="만료처리 유효처리"
                               >
-                                되돌리기
+                                유효처리
                               </button>
                             )}
                           </div>

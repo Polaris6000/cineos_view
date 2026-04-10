@@ -3,7 +3,7 @@
  * UC: 홈
  *
  * 동작:
- *  - GET /api/movie/realAll → 상영 중 + 상영 예정 영화 모두 슬라이드쇼로 표시
+ *  - GET /api/movie/readAll → 상영 중 + 상영 예정 영화 모두 슬라이드쇼로 표시
  *  - 프론트에서 endAt 기준으로 종료된 영화 제외
  *  - 5초마다 자동 전환
  *  - 화면 어디든 터치 → /movie/list 이동
@@ -71,10 +71,10 @@ function HomePage() {
 
   /**
    * 영화 목록 로드 — 상영 중 + 상영 예정 모두 표시
-   * GET /api/movie/realAll → 전체 영화 조회 후 프론트에서 종료된 영화 제외
+   * GET /api/movie/readAll → 전체 영화 조회 후 프론트에서 종료된 영화 제외
    */
   useEffect(() => {
-    apiClient.get<MovieDTO[]>('/movie/realAll')
+    apiClient.get<MovieDTO[]>('/movie/readAll')
       .then((res) => {
         const slides = res.data
           // 종료된 영화(endAt이 과거) 제외

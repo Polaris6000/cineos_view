@@ -7,31 +7,40 @@
  *      - "괜찮아요"       → 모달 닫고 바로 결제 수단 선택
  *  2. [회원 인증 모달]
  *      - 전화번호 입력(표시: 010-1111-2222, 저장: 01011112222) → 인증번호 발송
- *      - 인증번호 확인 완료 → 모달 자동 닫기 + 포인트 사용 섹션 표시
+ *      - POST /api/sms { toPhone, content } 로 실제 SMS 발송
+ *      - 6자리 코드는 프론트에서 생성 후 상태로 보관 → 사용자 입력값과 비교
+ *      - 인증번호 확인 완료 → GET /api/admin/member/{phone} 포인트 조회
+ *      - 모달 자동 닫기 + 포인트 사용 섹션 표시
  *      - 건너뛰기 → wantPoints = false
  *  3. 결제 수단: 카드 / 카카오페이 / 토스 — 일렬 배치
  *  4. 전액 포인트 결제 시 결제 수단 선택 생략
  *
  * state 수신: movieId, movieTitle, schedule, persons, totalPersons,
- *             selectedSeats, selectedSeatObjects, totalAmount, theater
+ *             selectedSeats, selectedSeatObjects, totalAmount, theater, seatPolicy
  * TODO: POST /api/bookings/pay 연동
  */
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Phone, CheckCircle, Coins,
-  CreditCard, Wallet, Info, Gift, X
+  CreditCard, Wallet, Info, Gift, X, Loader
 } from 'lucide-react'
 import { PERSON_TYPES, PAYMENT_METHODS, SEAT_PRICES, SEAT_TYPE_LABEL } from '../../api/mockData'
+import apiClient, { type MemberDTO, type SeatPolicyDTO } from '../../api/apiClient'
 
 /** 포인트 적립률 5% */
 const POINT_RATE = 0.05
 
 /**
- * 더미 잔여 포인트 — TODO: GET /api/members/points?phone= 연동
- * 인증 완료 후 포인트 사용 섹션에 표시됨
+ * 6자리 랜덤 인증번호 생성 유틸
+ * Math.random 대신 crypto.getRandomValues 사용 (더 안전)
  */
-const MOCK_USER_POINTS = 3_500
+function generateVerifyCode(): string {
+  const arr = new Uint32Array(1)
+  crypto.getRandomValues(arr)
+  // 0~999999 범위로 변환 후 6자리 0패딩
+  return String(arr[0] % 1_000_000).padStart(6, '0')
+}
 
 /**
  * 전화번호 포맷 유틸
@@ -52,12 +61,20 @@ function PaymentPage() {
 
   const {
     movieTitle, schedule,
-    persons = {}, totalPersons = 0,
+    persons = {},
     selectedSeats = [],
     selectedSeatObjects = [],
     totalAmount = 0,
-    theater,
-  } = state
+    seatPolicy,   // SeatPage에서 전달하는 실제 좌석 정책 (cost 포함)
+  } = state as {
+    movieTitle:          string
+    schedule:            { date?: string; startTime?: string; endTime?: string; theaterName?: string }
+    persons:             Record<string, number>
+    selectedSeats:       string[]
+    selectedSeatObjects: Array<{ id: string; seatType: string } | undefined>
+    totalAmount:         number
+    seatPolicy:          SeatPolicyDTO | undefined
+  }
 
   if (!schedule) {
     navigate('/')
@@ -65,9 +82,19 @@ function PaymentPage() {
   }
 
   // ── 금액 계산 ──
-  // 좌석 단가 합산 (좌석 타입별 단가 × 수량)
+  /**
+   * 좌석 단가 결정 우선순위:
+   *  1. SeatPage에서 전달한 seatPolicy.cost (실제 API 데이터)
+   *  2. mockData SEAT_PRICES (fallback — seatPolicy 없을 때)
+   */
+  const getSeatUnitPrice = (seatType: string): number => {
+    if (seatPolicy?.cost) return seatPolicy.cost
+    return SEAT_PRICES[seatType as keyof typeof SEAT_PRICES] ?? SEAT_PRICES.NORMAL
+  }
+
+  // 좌석 단가 합산
   const seatPriceTotal = selectedSeatObjects.reduce((acc, seat) => {
-    return acc + (SEAT_PRICES[seat?.seatType] ?? SEAT_PRICES.NORMAL)
+    return acc + getSeatUnitPrice(seat?.seatType ?? 'NORMAL')
   }, 0)
   // 인원 유형별 할인 합산
   const discountTotal = PERSON_TYPES.reduce((acc, { type, discount }) => {
@@ -109,11 +136,20 @@ function PaymentPage() {
 
   // ── 회원 인증 상태 ──
   // phoneRaw: 숫자만 저장 (01011112222 형식) — API 전송용
-  const [phoneRaw,    setPhoneRaw]    = useState('')
-  const [verifyCode,  setVerifyCode]  = useState('')
-  const [isVerified,  setIsVerified]  = useState(false)
-  const [verifyError, setVerifyError] = useState('')
-  const [codeSent,    setCodeSent]    = useState(false)
+  const [phoneRaw,       setPhoneRaw]       = useState('')
+  const [verifyCode,     setVerifyCode]      = useState('')   // 사용자 입력 코드
+  const [generatedCode,  setGeneratedCode]   = useState('')   // 프론트에서 생성한 실제 코드
+  const [isVerified,     setIsVerified]      = useState(false)
+  const [verifyError,    setVerifyError]     = useState('')
+  const [codeSent,       setCodeSent]        = useState(false)
+  const [smsSending,     setSmsSending]      = useState(false) // SMS 발송 중 로딩 상태
+
+  /**
+   * 포인트 잔액 — 인증 완료 후 API에서 실제 값 로드
+   * null: 아직 조회 안 함 / number: 조회 완료 잔액
+   */
+  const [userPoints,     setUserPoints]      = useState<number | null>(null)
+  const [pointsLoading,  setPointsLoading]   = useState(false)
 
   /**
    * 전화번호 input onChange
@@ -124,28 +160,91 @@ function PaymentPage() {
     setPhoneRaw(raw)
   }
 
-  /** 인증번호 발송 — TODO: POST /api/auth/send-code 연동 */
-  const handleSendCode = () => {
+  /**
+   * 인증번호 발송
+   * 1. 6자리 코드 생성 (프론트)
+   * 2. POST /api/sms { toPhone: phoneRaw, content: "인증번호: XXXXXX" } 호출
+   * 3. 서버가 실제 SMS 발송 → 사용자 폰에 수신
+   * 4. 코드는 state에 보관 → 사용자 입력값과 비교
+   */
+  const handleSendCode = async () => {
     if (phoneRaw.length < 10) {
       setVerifyError('올바른 휴대폰 번호를 입력해 주세요.')
       return
     }
-    setCodeSent(true)
+
+    setSmsSending(true)
     setVerifyError('')
+
+    // 6자리 코드 생성
+    const code = generateVerifyCode()
+    setGeneratedCode(code)
+
+    try {
+      // POST /api/sms — Nurigo SMS 서비스를 통해 실제 문자 발송
+      // toPhone: 숫자만 (01011112222 형식), content: 발송할 문자 내용
+      await apiClient.post('/sms', {
+        toPhone:  phoneRaw,
+        content:  `[CineOS] 인증번호: ${code}`,
+      })
+      setCodeSent(true)
+      console.log(`[PaymentPage] SMS 발송 완료 → ${phoneRaw}`)
+    } catch (e) {
+      console.error('[PaymentPage] SMS 발송 실패', e)
+      // 발송 실패해도 코드는 state에 있으므로 콘솔 확인 가능 (개발용)
+      // 실서비스에서는 더 엄격한 처리 필요
+      setVerifyError('SMS 발송에 실패했습니다. 다시 시도해 주세요.')
+      setGeneratedCode('')
+    } finally {
+      setSmsSending(false)
+    }
   }
 
   /**
-   * 인증번호 확인 — TODO: POST /api/auth/verify-code 연동
-   * 성공 시 모달 자동 닫기
+   * 인증번호 확인
+   * 사용자 입력 코드와 state에 저장된 생성 코드 비교
+   * 성공 시:
+   *   1. isVerified = true
+   *   2. GET /api/admin/member/{phone} 로 실제 포인트 잔액 조회
+   *   3. 모달 자동 닫기
    */
-  const handleVerify = () => {
-    if (verifyCode === '123456') {
-      setIsVerified(true)
-      setShowPhoneModal(false) // 인증 완료 → 모달 자동 닫기
-      setVerifyError('')
-    } else {
-      setVerifyError('인증번호가 올바르지 않습니다. (테스트: 123456)')
+  const handleVerify = async () => {
+    // 생성된 코드가 없으면 먼저 SMS를 보내야 함
+    if (!generatedCode) {
+      setVerifyError('먼저 인증번호를 발송해 주세요.')
+      return
     }
+
+    if (verifyCode !== generatedCode) {
+      setVerifyError('인증번호가 올바르지 않습니다. 다시 확인해 주세요.')
+      return
+    }
+
+    // 인증 성공 — 포인트 조회
+    setVerifyError('')
+    setPointsLoading(true)
+
+    try {
+      /**
+       * GET /api/admin/member/{phone}
+       * phone 경로 파라미터: 숫자만 (01011112222 형식)
+       * 응답: MemberDTO { phone, point, createAt }
+       *
+       * 신규 회원이면 404 응답 가능 → catch에서 0포인트로 처리
+       */
+      const res = await apiClient.get<MemberDTO>(`/admin/member/${phoneRaw}`)
+      setUserPoints(res.data.point)
+      console.log('[PaymentPage] 포인트 조회 완료:', res.data.point)
+    } catch (e) {
+      console.warn('[PaymentPage] 포인트 조회 실패 (신규 회원이거나 오류)', e)
+      // 신규 회원 또는 조회 실패 시 0 처리
+      setUserPoints(0)
+    } finally {
+      setPointsLoading(false)
+    }
+
+    setIsVerified(true)
+    setShowPhoneModal(false)  // 인증 완료 → 모달 자동 닫기
   }
 
   /**
@@ -157,11 +256,19 @@ function PaymentPage() {
     setShowPhoneModal(false)
     setCodeSent(false)
     setVerifyError('')
+    setGeneratedCode('')
   }
 
   // ── 포인트 사용 상태 ──
   const [pointInput, setPointInput] = useState('')
   const [pointUsed,  setPointUsed]  = useState(0)
+
+  /**
+   * 표시용 포인트 잔액
+   * - 인증 완료 후 API 조회한 실제 값 사용
+   * - 조회 전 또는 실패 시 0 표시
+   */
+  const displayPoints = userPoints ?? 0
 
   // ── 결제 수단 ──
   const [payMethod, setPayMethod] = useState('CARD')
@@ -264,13 +371,18 @@ function PaymentPage() {
                 placeholder="010-0000-0000"
                 style={{ ...inputStyle, flex: 1 }}
                 maxLength={13}                   /* 010-1111-2222 = 13자 */
+                disabled={codeSent}              /* 발송 후 번호 변경 불가 */
               />
               <button
                 onClick={handleSendCode}
-                disabled={codeSent}
-                style={{ ...smallBtn, opacity: codeSent ? 0.6 : 1 }}
+                disabled={codeSent || smsSending}
+                style={{ ...smallBtn, opacity: (codeSent || smsSending) ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                {codeSent ? '발송됨' : '인증번호 발송'}
+                {/* 발송 중: 로딩 아이콘 표시 */}
+                {smsSending
+                  ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> 발송 중...</>
+                  : codeSent ? '발송됨' : '인증번호 발송'
+                }
               </button>
             </div>
 
@@ -280,12 +392,21 @@ function PaymentPage() {
                 <input
                   type="text"
                   value={verifyCode}
-                  onChange={(e) => setVerifyCode(e.target.value)}
+                  onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="인증번호 6자리"
                   style={{ ...inputStyle, flex: 1 }}
                   maxLength={6}
                 />
-                <button onClick={handleVerify} style={smallBtn}>확인</button>
+                <button
+                  onClick={handleVerify}
+                  disabled={pointsLoading}
+                  style={{ ...smallBtn, opacity: pointsLoading ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  {pointsLoading
+                    ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> 조회 중</>
+                    : '확인'
+                  }
+                </button>
               </div>
             )}
 
@@ -294,11 +415,13 @@ function PaymentPage() {
               <p style={{ color: '#e03c3c', fontSize: 13, marginBottom: 8 }}>{verifyError}</p>
             )}
 
-            {/* 테스트 안내 */}
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
-              <Info size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-              테스트 인증번호: 123456
-            </p>
+            {/* SMS 발송 성공 안내 */}
+            {codeSent && !verifyError && (
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
+                <Info size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                입력하신 번호로 인증번호를 발송했습니다.
+              </p>
+            )}
 
             {/* 건너뛰기 버튼 */}
             <button onClick={handlePhoneModalSkip} style={modalBtnNo}>
@@ -350,8 +473,8 @@ function PaymentPage() {
             })
             return Object.entries(byType).map(([type, cnt]) => (
               <div key={type} style={{ ...priceRow, fontSize: 13, color: 'var(--text-muted)' }}>
-                <span>{SEAT_TYPE_LABEL[type] ?? '일반'} {cnt}석</span>
-                <span>{((SEAT_PRICES[type] ?? SEAT_PRICES.NORMAL) * cnt).toLocaleString()}원</span>
+                <span>{SEAT_TYPE_LABEL[type as keyof typeof SEAT_TYPE_LABEL] ?? '일반'} {cnt}석</span>
+                <span>{(getSeatUnitPrice(type) * (cnt as number)).toLocaleString()}원</span>
               </div>
             ))
           })()}
@@ -408,7 +531,7 @@ function PaymentPage() {
           <div style={pointBalanceBox}>
             <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>잔여 포인트</span>
             <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-brand-default)' }}>
-              {MOCK_USER_POINTS.toLocaleString()}P
+              {displayPoints.toLocaleString()}P
             </span>
           </div>
 
@@ -435,11 +558,11 @@ function PaymentPage() {
                 placeholder="사용할 포인트 입력"
                 style={inputStyle}
                 min={0}
-                max={MOCK_USER_POINTS}
+                max={displayPoints}
               />
               {/* 전액 사용: 잔여 포인트와 결제 금액 중 작은 값으로 자동 입력 */}
               <button
-                onClick={() => setPointInput(String(Math.min(MOCK_USER_POINTS, totalAmount)))}
+                onClick={() => setPointInput(String(Math.min(displayPoints, totalAmount)))}
                 style={{ ...smallBtn, background: 'var(--bg-surface)',
                           border: '1px solid var(--color-brand-default)',
                           color: 'var(--color-brand-default)' }}

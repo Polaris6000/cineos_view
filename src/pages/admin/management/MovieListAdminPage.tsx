@@ -2,7 +2,7 @@
  * MovieListAdminPage.tsx — 관리자 영화 목록
  *
  * API 연동:
- *  - GET  /api/movie/realAll       → 전체 영화 목록
+ *  - GET  /api/movie/readAll       → 전체 영화 목록
  *  - DELETE /api/movie/remove?movieId={id} → 영화 삭제 (TODO: 낙관적 처리)
  */
 import { useState, useMemo, useEffect } from 'react'
@@ -92,9 +92,9 @@ function MovieListAdminPage() {
   const [search,         setSearch]         = useState('')
   const [showLog,        setShowLog]        = useState(false)
 
-  /** GET /api/movie/realAll — 전체 영화 목록 */
+  /** GET /api/movie/readAll — 전체 영화 목록 */
   useEffect(() => {
-    apiClient.get<MovieDTO[]>('/movie/realAll')
+    apiClient.get<MovieDTO[]>('/movie/readAll')
       .then((res) => setMovies(res.data.map(toAdminMovie)))
       .catch((err) => console.error('[MovieListAdminPage] 영화 목록 로드 실패', err))
       .finally(() => setLoading(false))
