@@ -12,7 +12,7 @@
  * TODO: GET/POST/DELETE /api/admin/schedules 연동
  */
 import { useState, useMemo, useEffect } from 'react'
-import { MOCK_THEATERS } from '../../../api/mockData'
+import { Theater } from './TheaterListPage'
 import axios from "axios";
 
 /* ── 타입 정의 ── */
@@ -83,6 +83,21 @@ function MovieManagePage() {
   const [selectedMovieId, setSelectedMovieId] = useState<number>(1)
   const [movies, setMovies] = useState<Movie[]>([])
 
+  // 상영관
+  const [theaters, setTheaters] = useState<Theater[]>([])
+
+  useEffect(() => {
+    axios.get('/api/admin/theater/list')
+        .then(res => {
+          console.log('상영관 출력', res.data)
+          setTheaters(res.data)
+          if (res.data.length > 0) {
+            setNewTheater(res.data[0].id)
+          }
+        })
+        .catch(e => console.error("상영관 로드 실패", e))
+  }, [])
+
   useEffect(() => {
     axios.get('http://localhost:8080/api/movie/readAll')
         .then(res => {
@@ -114,8 +129,8 @@ function MovieManagePage() {
     axios.get('/api/admin/schedule/list')
         .then(res => {
           const data = res.data
-
           const mapped: Record<number, Schedule[]> = {}
+          const serverCancelledIds = new Set<number>();
 
           data.forEach((s: any) => {
             const newSched: Schedule = {
@@ -131,6 +146,10 @@ function MovieManagePage() {
               totalSeats: 100
             }
 
+            if (!s.activation) {
+              serverCancelledIds.add(s.id);
+            }
+
             if (!mapped[s.movieId]) {
               mapped[s.movieId] = []
             }
@@ -138,6 +157,7 @@ function MovieManagePage() {
           })
 
           setSchedules(mapped)
+          setCancelledIds(serverCancelledIds);
         })
   }, [])
 
@@ -150,10 +170,10 @@ function MovieManagePage() {
   // ── 새 스케줄 입력 ──
   const [newDate,    setNewDate]    = useState<string>(TODAY)
   const [newTime,    setNewTime]    = useState<string>('10:00')
-  const [newTheater, setNewTheater] = useState<number>(MOCK_THEATERS[0]?.id ?? 1)
+  const [newTheater, setNewTheater] = useState<number>(theaters[0]?.no ?? 1)
 
   const selectedMovie = movies.find((m) => m.movieId === selectedMovieId)
-  const selectedTheater = MOCK_THEATERS.find((t) => t.id === newTheater)
+  const selectedTheater = theaters.find((t) => t.no === newTheater)
 
   /** 선택된 상영관+날짜의 통합 스케줄 (타임라인용) */
   const theaterDaySchedules = useMemo((): (Schedule & { movieTitle: string })[] => {
@@ -171,7 +191,7 @@ function MovieManagePage() {
               }));
         })
         .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [schedules, movies, newTheater, newDate]); // 의존성 배열에 'movies' 추가!
+  }, [schedules, movies, newTheater, newDate]);
 
   /** 마지막 스케줄 종료시간 (자동입력용) */
   const lastEndTime = useMemo((): string | null => {
@@ -224,7 +244,7 @@ function MovieManagePage() {
 
     if (overlap) {
       alert(
-        `❗ 시간이 겹칩니다!\n\n` +
+        ` 시간이 겹칩니다!\n\n` +
         `"${overlap.movieTitle}" (${overlap.startTime.slice(11, 16)} ~ ${overlap.endTime.slice(11, 16)})\n` +
         `와(과) 겹쳐서 등록할 수 없습니다.`,
       )
@@ -253,18 +273,21 @@ function MovieManagePage() {
           endTime: s.endAt,     // "2026-04-10T12:10:00" 전체 저장
           date: s.startAt.slice(0, 10),
           movieTitle: movies.find(m => m.movieId === selectedMovieId)?.title || '제목 없음',
+          activation: s.activation ? 'ACTIVE' : 'CANCELLED',
 
 
           availableSeats: 100, // TODO 이건 정의 해야할듯
           totalSeats: 100, // TODO 이것 또한
-          // activation은 선택적(optional)이므로 필요 시 서버 데이터 매핑
-          activation: s.activation ? 'ACTIVE' : 'CANCELLED'
         };
 
         setSchedules((prev) => ({
           ...prev,
           [selectedMovieId]: [...(prev[selectedMovieId] ?? []), savedSched],
         }));
+        if (!s.activation) {
+          setCancelledIds(prev => new Set(prev).add(s.id));
+        }
+
         console.log('스케줄 등록완료')
       }
     } catch (e) {
@@ -305,42 +328,42 @@ function MovieManagePage() {
   const handleExpire = (id: number) => updateActivationStatus([id], false); // 만료시키기 (false 전달)
   const handleUndo   = (id: number) => updateActivationStatus([id], true);  // 되돌리기 (true 전달)
 
-  // /* ── 단건 만료처리 ── */
-  // const handleExpire = async (scheduleId: number) => {
-  //   if (window.confirm('이 상영 일정을 만료처리하시겠습니까?')) {
-  //     await updateActivationStatus([scheduleId], false);
-  //   }
-  // };
-  //
-  // /* ── 단건 되돌리기 ── */
-  // const handleUndo = async (scheduleId: number) => {
-  //   await updateActivationStatus([scheduleId], true);
-  // };
+  /* ── [신규] 단일 체크박스 토글 ── */
+  const toggleCheck = (id: number) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
-  // /* ── 일괄 만료처리 (체크박스 선택된 것들) ── */
-  // const handleBulkExpire = async () => {
-  //   const targets = [...checkedIds].filter((id) => {
-  //     const sched = movieSchedules.find((s) => s.id === id);
-  //     return sched && getScheduleStatus(sched.date, id, cancelledIds) === 'ACTIVE';
-  //   });
-  //
-  //   if (targets.length === 0) return;
-  //   if (window.confirm(`선택된 ${targets.length}건을 일괄 만료처리하시겠습니까?`)) {
-  //     const success = await updateActivationStatus(targets, false);
-  //     if (success) setCheckedIds(new Set()); // 성공 시 체크 해제
-  //   }
-  // };
-  //
-  // /* ── 일괄 되돌리기 ── */
-  // const handleBulkUndo = async () => {
-  //   const targets = [...checkedIds].filter((id) => cancelledIds.has(id));
-  //
-  //   if (targets.length === 0) return;
-  //   if (window.confirm(`선택된 ${targets.length}건을 일괄 되돌리시겠습니까?`)) {
-  //     const success = await updateActivationStatus(targets, true);
-  //     if (success) setCheckedIds(new Set());
-  //   }
-  // };
+  /* ── [신규] 날짜 그룹 전체 선택/해제 ── */
+  const toggleGroupCheck = (ids: number[], allChecked: boolean) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => {
+        if (allChecked) next.delete(id);
+        else next.add(id);
+      });
+      return next;
+    });
+  };
+
+  /* ── [개선] 일괄 상태 업데이트 함수 ── */
+  const handleBulkUpdate = async (nextStatus: boolean) => {
+    const targetIds = Array.from(checkedIds);
+    if (targetIds.length === 0) return;
+
+    const actionText = nextStatus ? "되돌리기" : "만료처리";
+    if (!window.confirm(`선택한 ${targetIds.length}건을 일괄 ${actionText} 하시겠습니까?`)) return;
+
+    // 이미 구현하신 updateActivationStatus를 재활용합니다.
+    await updateActivationStatus(targetIds, nextStatus);
+
+    // 성공 시 체크박스 초기화
+    setCheckedIds(new Set());
+  };
 
   // ── 선택된 영화의 전체 스케줄 & 날짜별 그룹핑 ──
   const movieSchedules = schedules[selectedMovieId] ?? []
@@ -408,9 +431,9 @@ function MovieManagePage() {
               onChange={(e) => setNewTheater(Number(e.target.value))}
               style={inputS}
             >
-              {MOCK_THEATERS.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.totalSeats}석, 정리 {t.cleanupTime}분)
+              {theaters.map((t) => (
+                <option key={t.no} value={t.no}>
+                  {t.no}관 ({t.totalSeats}석, 정리 {t.cleanupTime}분)
                 </option>
               ))}
             </select>
@@ -445,7 +468,7 @@ function MovieManagePage() {
       {/* ── 타임라인 ── */}
       <div style={card}>
         <p style={sLabel}>
-          {selectedTheater?.name ?? '-'} · {newDate} 기존 스케줄
+          {selectedTheater?.no ?? '-'} · {newDate} 기존 스케줄
           {lastEndTime && (
             <span style={{ color: 'var(--text-muted)', fontSize: 12, marginLeft: 8 }}>
               (마지막 종료: {lastEndTime.slice(11, 16)})
@@ -491,17 +514,19 @@ function MovieManagePage() {
           <p style={{ ...sLabel, margin: 0 }}>
             "{selectedMovie?.title}" 등록된 상영 일정 ({movieSchedules.length}건)
           </p>
-          {/* 체크된 항목이 있을 때만 일괄 액션 버튼 노출 */}
+          {/* 체크된 항목이 있을 때만 일괄 액션 버튼 노출
+          TODO 서버에서는 기간이 이미 지나간 만료된 스케줄은 변경하지 않음 UI도 막는게 아닌 변경이 안되게 반영해야함,
+           그리고 만료된 스케줄인데 만료여부가 만료면 만료표시가 됨 이것도 그냥 만료로 하면 될듯함 */}
           {checkedIds.size > 0 && (
             <div style={bulkActionBar}>
               <span style={bulkCount}>{checkedIds.size}건 선택됨</span>
               {checkedActiveCount > 0 && (
-                <button onClick={handleBulkExpire} style={bulkExpireBtn}>
+                <button onClick={() => handleBulkUpdate(false)} style={bulkExpireBtn}>
                   일괄 만료처리 ({checkedActiveCount})
                 </button>
               )}
               {checkedCancelledCount > 0 && (
-                <button onClick={handleBulkUndo} style={bulkUndoBtn}>
+                <button onClick={() => handleBulkUpdate(true)} style={bulkUndoBtn}>
                   일괄 되돌리기 ({checkedCancelledCount})
                 </button>
               )}
