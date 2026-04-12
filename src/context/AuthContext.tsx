@@ -26,11 +26,26 @@ import {
   MOCK_PASSWORDS,
 } from '../types/auth'
 
+/**
+ * 자동 로그인 저장소 키
+ * - localStorage  : 자동 로그인 ON  → 브라우저 닫아도 유지
+ * - sessionStorage: 자동 로그인 OFF → 탭/브라우저 닫으면 소멸
+ *
+ * TODO: 백엔드 AdminController 구현 완료 시
+ *   - POST /api/admin/login → 응답의 uuid를 저장
+ *   - 앱 시작 시 uuid가 있으면 GET /api/admin/login/auto?uuid=... 로 세션 복원
+ *   (현재는 백엔드 uuid 컬럼/mapper만 존재하고 API 엔드포인트 미구현)
+ */
+const STORAGE_KEY = 'cineos_admin'
+
 /* ── Context 타입 ───────────────────────────────────── */
 interface AuthContextValue {
   currentAdmin:    AdminUser | null
-  /** 로그인 시도. 성공 시 true, 실패 시 false 반환 */
-  login:           (id: string, password: string) => Promise<boolean>
+  /**
+   * 로그인 시도. 성공 시 true, 실패 시 false 반환
+   * @param rememberMe true → localStorage(자동로그인), false → sessionStorage(탭 닫으면 해제)
+   */
+  login:           (id: string, password: string, rememberMe: boolean) => Promise<boolean>
   logout:          () => void
   hasPermission:   (permission: Permission) => boolean
   isSuperAdmin:    boolean
@@ -41,11 +56,17 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 /* ── Provider ───────────────────────────────────────── */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // localStorage에서 로그인 상태 복원 (새로고침 대응)
+  /**
+   * 초기 로그인 상태 복원
+   * localStorage → sessionStorage 순서로 확인
+   * (자동로그인이면 localStorage에, 아니면 sessionStorage에 저장돼 있음)
+   */
   const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(() => {
     try {
-      const saved = localStorage.getItem('cineos_admin')
-      return saved ? (JSON.parse(saved) as AdminUser) : null
+      const fromLocal   = localStorage.getItem(STORAGE_KEY)
+      const fromSession = sessionStorage.getItem(STORAGE_KEY)
+      const raw = fromLocal ?? fromSession
+      return raw ? (JSON.parse(raw) as AdminUser) : null
     } catch {
       return null
     }
@@ -53,9 +74,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /**
    * login — 아이디/비밀번호로 인증
+   * @param rememberMe true: localStorage에 저장(영구), false: sessionStorage에 저장(탭 닫으면 해제)
+   *
    * TODO: POST /api/admin/login 연동 후 더미 코드 교체
+   *   성공 응답의 adminDTO.uuid를 받아서 저장해야 함
    */
-  const login = useCallback(async (id: string, password: string): Promise<boolean> => {
+  const login = useCallback(async (
+    id: string,
+    password: string,
+    rememberMe: boolean,
+  ): Promise<boolean> => {
     // 네트워크 딜레이 시뮬레이션
     await new Promise((r) => setTimeout(r, 500))
 
@@ -66,15 +94,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!account) return false
 
     setCurrentAdmin(account)
-    // 세션 유지를 위해 localStorage에 저장 (비밀번호는 저장 안 함)
-    localStorage.setItem('cineos_admin', JSON.stringify(account))
+
+    const serialized = JSON.stringify(account)
+    if (rememberMe) {
+      // 자동 로그인 ON: 브라우저 닫아도 유지
+      localStorage.setItem(STORAGE_KEY, serialized)
+      sessionStorage.removeItem(STORAGE_KEY) // 중복 방지
+    } else {
+      // 자동 로그인 OFF: 탭/브라우저 닫으면 해제
+      sessionStorage.setItem(STORAGE_KEY, serialized)
+      localStorage.removeItem(STORAGE_KEY)   // 중복 방지
+    }
     return true
   }, [])
 
-  /** logout — 로그아웃 후 세션 삭제 */
+  /** logout — 로그아웃 후 양쪽 저장소 모두 삭제 */
   const logout = useCallback(() => {
     setCurrentAdmin(null)
-    localStorage.removeItem('cineos_admin')
+    localStorage.removeItem(STORAGE_KEY)
+    sessionStorage.removeItem(STORAGE_KEY)
   }, [])
 
   /**

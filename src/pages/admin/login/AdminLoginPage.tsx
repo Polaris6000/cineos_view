@@ -24,10 +24,11 @@ function AdminLoginPage() {
   const location   = useLocation()
   const { login }  = useAuth()
 
-  const [id,      setId]      = useState('')
-  const [pw,      setPw]      = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState('')
+  const [id,         setId]         = useState('')
+  const [pw,         setPw]         = useState('')
+  const [rememberMe, setRememberMe] = useState(false)  // 자동 로그인 체크박스
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState('')
 
   // PrivateRoute에서 리다이렉트될 때 전달한 원래 경로 — 없으면 영화 목록으로
   const from = (location.state as { from?: Location })?.from?.pathname
@@ -48,7 +49,8 @@ function AdminLoginPage() {
     setLoading(true)
 
     // AuthContext.login() 호출 — 공백 제거된 값으로 비교, 성공: true, 실패: false 반환
-    const ok = await login(trimId, trimPw)
+    // rememberMe: true → localStorage 유지, false → sessionStorage(탭 닫으면 소멸)
+    const ok = await login(trimId, trimPw, rememberMe)
 
     if (ok) {
       // 로그인 성공 → 원래 접근하려던 페이지(또는 대시보드)로 이동
@@ -108,6 +110,20 @@ function AdminLoginPage() {
           />
         </div>
 
+        {/* 자동 로그인 체크박스 */}
+        <label style={rememberLabel}>
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            style={rememberCheck}
+          />
+          자동 로그인
+          <span style={rememberHint}>
+            {rememberMe ? '(브라우저 닫아도 로그인 유지)' : '(탭 닫으면 자동 로그아웃)'}
+          </span>
+        </label>
+
         {/* 에러 메시지 (UC-11: 로그인 실패 경고) */}
         {error && (
           <div style={errorBox}>
@@ -163,6 +179,17 @@ const labelStyle: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: 
 const inputStyle: React.CSSProperties = {
   padding: '12px 14px', border: '1px solid #dfe0df', borderRadius: 8,
   fontSize: 15, background: '#fff', color: '#0e0b08', outline: 'none',
+}
+/** 자동 로그인 체크박스 래퍼 */
+const rememberLabel: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 8,
+  fontSize: 13, color: '#4f4537', cursor: 'pointer', userSelect: 'none',
+}
+const rememberCheck: React.CSSProperties = {
+  width: 16, height: 16, cursor: 'pointer', accentColor: '#ffb800',
+}
+const rememberHint: React.CSSProperties = {
+  fontSize: 11, color: '#9a8c7e', marginLeft: 2,
 }
 const errorBox: React.CSSProperties = {
   padding: '12px 16px', background: '#fdeaea', border: '1px solid #e03c3c',

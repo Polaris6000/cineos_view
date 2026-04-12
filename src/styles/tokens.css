@@ -136,7 +136,7 @@
   --color-warning-main: var(--primitive-warning-500);   /* #ffb800 메인 색상   */
 
   /* ── Status: Info ────────────────────────────────── */
-  /* ✅  버그 수정: 이전 값 #70b8e0 은 밝은 색이라 다크 배경에 부적합했음 */
+  /*  버그 수정: 이전 값 #70b8e0 은 밝은 색이라 다크 배경에 부적합했음 */
   --color-info-bg:   var(--primitive-info-900);         /* #001c38 어두운 배경 */
   --color-info-text: var(--primitive-info-300);         /* #70b8e0 강조 텍스트 */
   --color-info-main: var(--primitive-info-500);         /* #2a88c8 메인 색상   */

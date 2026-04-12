@@ -15,24 +15,46 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Code2, ChevronDown, ChevronUp } from 'lucide-react'
 
 /* ── 바로가기 링크 정의 ─────────────────────────────── */
+
+/** 고객 화면 (키오스크 플로우 순서) */
 const CUSTOMER_LINKS = [
   { label: '홈',          path: '/' },
-  { label: '영화 목록',    path: '/movie/list' },
-  // { label: '날짜 선택',    path: '/booking/schedule' },
-  // { label: '좌석 선택',    path: '/booking/seat' },
-  // { label: '결제',         path: '/payment' },
-  // { label: '결제 완료',    path: '/payment/result' },
+  { label: '영화 목록',   path: '/movie/list' },
+  { label: '영화 상세',   path: '/movie/detail/1' },     // movieId=1 예시
+  { label: '상영 일정',   path: '/booking/schedule' },   // movieId는 state로 전달
+  { label: '좌석 선택',   path: '/booking/seat' },
+  { label: '결제',        path: '/payment' },
+  { label: '결제 완료',   path: '/payment/result' },
 ]
 
+/** 관리자 화면 (카테고리별 그룹) */
 const ADMIN_LINKS = [
-  { label: '로그인',        path: '/admin/login' },
-  { label: '대시보드',      path: '/admin/statistics/dashboard' },
-  { label: '영화 목록',     path: '/admin/management/movie/list' },
-  { label: '영화 등록',     path: '/admin/management/movie/form' },
-  { label: '상영관 목록',   path: '/admin/management/theater/list' },
-  { label: '환불',          path: '/admin/refund' },
-  { label: '회원 관리',     path: '/admin/management/members' },
-  { label: '계정 관리',     path: '/admin/management/accounts' },
+  // ── 인증 ──
+  { label: '로그인',         path: '/admin/login' },
+  // ── 통계 ──
+  { label: '대시보드',       path: '/admin/statistics/dashboard' },
+  { label: '일별 통계',      path: '/admin/statistics/stats/daily' },
+  { label: '월별 통계',      path: '/admin/statistics/stats/monthly' },
+  { label: '시간대 통계',    path: '/admin/statistics/stats/by-hour' },
+  { label: '요일 통계',      path: '/admin/statistics/stats/by-day' },
+  { label: '영화별 통계',    path: '/admin/statistics/stats/by-movie' },
+  // ── 영화 ──
+  { label: '영화 목록',      path: '/admin/management/movie/list' },
+  { label: '영화 등록',      path: '/admin/management/movie/form' },
+  { label: '영화 관리',      path: '/admin/management/movie/manage' },
+  // ── 상영관 / 좌석 ──
+  { label: '상영관 목록',    path: '/admin/management/theater/list' },
+  { label: '상영관 편집',    path: '/admin/management/theater/edit' },
+  { label: '좌석 목록',      path: '/admin/management/seat/list' },
+  // ── 정책 ──
+  { label: '정책 목록',      path: '/admin/management/policy/list' },
+  { label: '할인정책 등록',  path: '/admin/management/policy/form' },
+  { label: '적립정책 등록',  path: '/admin/management/policy/bonus-form' },
+  { label: '쿠폰 목록',      path: '/admin/management/coupon/list' },
+  // ── 회원 / 환불 ──
+  { label: '회원 관리',      path: '/admin/management/members' },
+  { label: '계정 관리',      path: '/admin/management/accounts' },
+  { label: '환불',           path: '/admin/refund' },
 ]
 
 /* ── 인라인 스타일 (tokens.css 의존 없이 독립적으로 동작) ── */
@@ -112,7 +134,7 @@ function DevNav() {
 
       {/* 링크 목록 — collapsed 시 숨김 */}
       {!collapsed && (
-        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+        <div style={{ maxHeight: 520, overflowY: 'auto' }}>
           {/* 고객 화면 */}
           <p style={sectionTitle}>고객 화면</p>
           {CUSTOMER_LINKS.map(({ label, path }) => (

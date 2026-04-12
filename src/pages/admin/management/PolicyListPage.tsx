@@ -130,6 +130,27 @@ function PolicyListPage() {
   const [discountMsg,      setDiscountMsg]      = useState('')
 
   /**
+   * 할인 정책 종료지정
+   * PATCH /api/admin/discount-policy/{id}/finish
+   * → endAt 을 오늘 23:59:59 로 설정 (서비스단에서 처리)
+   */
+  const finishDiscountPolicy = async (id: number) => {
+    if (!window.confirm('이 정책의 만료일을 오늘 23:59:59로 지정하시겠습니까?\n경고: 해당 작업은 돌이킬 수 없습니다.')) return
+    try {
+      await axios.patch(`/api/admin/discount-policy/${id}/finish`)
+      // 성공 시 목록 재조회해서 변경된 endAt 반영
+      const res = await axios.get('/api/admin/discount-policy/list')
+      setDiscountPolicies(res.data)
+      setDiscountMsg('종료일이 오늘 23:59:59로 지정되었습니다.')
+    } catch (e) {
+      console.error('할인 정책 종료지정 실패:', e)
+      alert('종료지정에 실패했습니다. (이미 만료됐거나 비활성 상태일 수 있습니다.)')
+    } finally {
+      setTimeout(() => setDiscountMsg(''), 3000)
+    }
+  }
+
+  /**
    * 할인 정책 활성화 토글
    * PATCH /api/admin/discount-policy/activation { ids, activation }
    */
@@ -163,6 +184,26 @@ function PolicyListPage() {
   ══════════════════════════════ */
   const [bonusPolicies, setBonusPolicies] = useState<BonusPolicy[]>([])
   const [bonusMsg,      setBonusMsg]      = useState('')
+
+  /**
+   * 적립 정책 종료지정
+   * PATCH /api/admin/bonus-policy/{id}/finish
+   * → endAt 을 오늘 23:59:59 로 설정 (서비스단에서 처리)
+   */
+  const finishBonusPolicy = async (id: number) => {
+    if (!window.confirm('이 정책의 만료일을 오늘 23:59:59로 지정하시겠습니까?\n경고: 해당 작업은 돌이킬 수 없습니다.')) return
+    try {
+      await axios.patch(`/api/admin/bonus-policy/${id}/finish`)
+      const res = await axios.get('/api/admin/bonus-policy/list')
+      setBonusPolicies(res.data)
+      setBonusMsg('종료일이 오늘 23:59:59로 지정되었습니다.')
+    } catch (e) {
+      console.error('적립 정책 종료지정 실패:', e)
+      alert('종료지정에 실패했습니다. (이미 만료됐거나 비활성 상태일 수 있습니다.)')
+    } finally {
+      setTimeout(() => setBonusMsg(''), 3000)
+    }
+  }
 
   /**
    * 적립 정책 활성화 토글
@@ -216,7 +257,7 @@ function PolicyListPage() {
           )}
         </div>
 
-        {seatMsg && <div style={saveMsgBox}>✅ {seatMsg}</div>}
+        {seatMsg && <div style={saveMsgBox}>{seatMsg}</div>}
 
         <div style={priceGrid}>
           {(['NORMAL', 'RECLINER'] as SeatType[]).map((type) => (
@@ -266,7 +307,7 @@ function PolicyListPage() {
           </button>
         </div>
 
-        {discountMsg && <div style={saveMsgBox}>✅ {discountMsg}</div>}
+        {discountMsg && <div style={saveMsgBox}>{discountMsg}</div>}
 
         <div style={tableWrap}>
           <table style={table}>
@@ -345,14 +386,26 @@ function PolicyListPage() {
                       </span>
                     </td>
 
-                    {/* 관리 컬럼: 활성화 on/off 토글 버튼만 */}
+                    {/* 관리 컬럼: 종료지정 + 활성화 on/off 토글 버튼 */}
                     <td style={{ ...td, textAlign: 'center' }}>
-                      <button
-                        onClick={() => toggleDiscountActivation(p.id)}
-                        style={p.activation ? deactivateBtn : activateBtn}
-                      >
-                        {p.activation ? '비활성화' : '활성화'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                        {/* 활성 상태일 때만 종료지정 버튼 표시 */}
+                        {p.activation && (
+                          <button
+                            onClick={() => finishDiscountPolicy(p.id)}
+                            style={finishBtn}
+                            title="오늘 23:59:59로 만료일 지정"
+                          >
+                            종료지정
+                          </button>
+                        )}
+                        <button
+                          onClick={() => toggleDiscountActivation(p.id)}
+                          style={p.activation ? deactivateBtn : activateBtn}
+                        >
+                          {p.activation ? '비활성화' : '활성화'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -380,7 +433,7 @@ function PolicyListPage() {
           </button>
         </div>
 
-        {bonusMsg && <div style={saveMsgBox}>✅ {bonusMsg}</div>}
+        {bonusMsg && <div style={saveMsgBox}>{bonusMsg}</div>}
 
         <div style={tableWrap}>
           <table style={table}>
@@ -444,14 +497,26 @@ function PolicyListPage() {
                       </span>
                     </td>
 
-                    {/* 관리 컬럼: 활성화 on/off 토글 버튼만 */}
+                    {/* 관리 컬럼: 종료지정 + 활성화 on/off 토글 버튼 */}
                     <td style={{ ...td, textAlign: 'center' }}>
-                      <button
-                        onClick={() => toggleBonusActivation(p.id)}
-                        style={p.activation ? deactivateBtn : activateBtn}
-                      >
-                        {p.activation ? '비활성화' : '활성화'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                        {/* 활성 상태일 때만 종료지정 버튼 표시 */}
+                        {p.activation && (
+                          <button
+                            onClick={() => finishBonusPolicy(p.id)}
+                            style={finishBtn}
+                            title="오늘 23:59:59로 만료일 지정"
+                          >
+                            종료지정
+                          </button>
+                        )}
+                        <button
+                          onClick={() => toggleBonusActivation(p.id)}
+                          style={p.activation ? deactivateBtn : activateBtn}
+                        >
+                          {p.activation ? '비활성화' : '활성화'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -563,5 +628,10 @@ const activateBtn: React.CSSProperties = {
 const deactivateBtn: React.CSSProperties = {
   padding: '6px 14px', background: 'var(--color-error-bg)', color: 'var(--color-error-text)',
   border: '1px solid var(--color-error-main)', borderRadius: 6, fontSize: 13, cursor: 'pointer',
+}
+/** 관리 컬럼: 종료지정 버튼 (활성 정책에만 표시 — 오늘 23:59:59로 endAt 지정) */
+const finishBtn: React.CSSProperties = {
+  padding: '6px 14px', background: '#fff7ed', color: '#c2410c',
+  border: '1px solid #c2410c', borderRadius: 6, fontSize: 13, cursor: 'pointer',
 }
 export default PolicyListPage

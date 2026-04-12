@@ -24,6 +24,7 @@
  *   MANAGER     — 통계·정책·회원·계정 페이지 접근 불가 (ForbiddenPage 리다이렉트)
  */
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 
 // 전역 Context
@@ -79,6 +80,14 @@ import AdminAccountPage from './pages/admin/management/AdminAccountPage'
  */
 function AnimatedRoutes() {
   const location = useLocation()
+
+  /**
+   * 페이지 이동 시 스크롤 최상단으로 이동
+   * pathname이 바뀔 때마다 실행 — 영화 목록 → 상세 등 모든 네비게이션에 적용
+   */
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [location.pathname])
 
   return (
     /* mode="wait": 이전 페이지 exit 끝난 후 다음 페이지 enter 시작 */

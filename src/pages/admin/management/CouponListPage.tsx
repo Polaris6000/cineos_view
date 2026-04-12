@@ -115,7 +115,7 @@ function CouponListPage() {
           </div>
         </div>
 
-        {msg && <div style={msgBox}>✅ {msg}</div>}
+        {msg && <div style={msgBox}>{msg}</div>}
 
         {policies.filter((p) => p.conditionType === 'COUPON').length === 0 ? (
           // COUPON 타입 정책이 없으면 안내 문구 표시
