@@ -109,7 +109,7 @@ function MovieManagePage() {
   }, [])
 
   useEffect(() => {
-    axios.get('http://localhost:8080/api/movie/readAll')
+    axios.get('/api/movie/readAll')
         .then(res => {
           console.log(res.data)
           const data: Movie[] = res.data;
