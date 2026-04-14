@@ -5,7 +5,7 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle } from 'lucide-react'
-import axios from "axios";
+import apiClient from "../../../api/apiClient.ts";
 
 // 타입 정의 (필요에 따라 PolicyManagePage에서 가져온 타입을 확장하세요)
 interface DiscountPolicy {
@@ -98,7 +98,7 @@ function PolicyFormPage() {
 
     try {
       console.log('[PolicyForm] 등록 시도:', formData)
-      const res = await axios.post('/api/admin/discount-policy', formData);
+      const res = await apiClient.post('/api/admin/discount-policy', formData);
 
       if (res.status === 200 || res.status === 201) {
         setSuccess(true)

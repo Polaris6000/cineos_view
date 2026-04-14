@@ -29,8 +29,8 @@ function ForbiddenPage() {
         <div style={accountInfo}>
           <span style={accountLabel}>현재 계정</span>
           <span style={accountValue}>
-            {currentAdmin.name} (@{currentAdmin.id}) — {
-              currentAdmin.role === 'SUPER_ADMIN' ? '최고관리자' : '일반관리자'
+            {currentAdmin.name} (@{currentAdmin.loginId}) — {
+              currentAdmin.level === false ? '최고관리자' : '일반관리자'
             }
           </span>
         </div>

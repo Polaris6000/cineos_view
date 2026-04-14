@@ -117,7 +117,7 @@ function AnimatedRoutes() {
             </Route>
 
             {/* 정책 — policy.view 권한 필요 (SUPER_ADMIN 전용) */}
-            <Route element={<PrivateRoute permission="policy.view" />}>
+            <Route element={<PrivateRoute permission="ROLE_POLICY_LIST" />}>
               <Route path="management/policy/list"       element={<PolicyListPage />} />
               <Route path="management/policy/form"       element={<PolicyFormPage />} />
               <Route path="management/policy/manage"     element={<PolicyManagePage />} />
@@ -128,7 +128,7 @@ function AnimatedRoutes() {
             </Route>
 
             {/* 통계 — statistics 권한 필요 (SUPER_ADMIN 전용) */}
-            <Route element={<PrivateRoute permission="statistics" />}>
+            <Route element={<PrivateRoute permission="ROLE_STATISTICS" />}>
               <Route path="statistics/dashboard"      element={<StatsDashboardPage />} />
               <Route path="statistics/stats/daily"    element={<StatsDailyPage />} />
               <Route path="statistics/stats/monthly"  element={<StatsMonthlyPage />} />
@@ -138,7 +138,7 @@ function AnimatedRoutes() {
             </Route>
 
             {/* 회원 정보 관리 — member.view 권한 필요 (SUPER_ADMIN 전용) */}
-            <Route element={<PrivateRoute permission="member.view" />}>
+            <Route element={<PrivateRoute permission="ROLE_MEMBER_MANAGEMENT" />}>
               <Route path="management/members" element={<MemberListPage />} />
             </Route>
 

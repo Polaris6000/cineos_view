@@ -69,7 +69,7 @@ function SchedulePage() {
     }
     setSchedLoading(true)
     setSchedError(false)
-    apiClient.get<ScheduleDTO[]>(`/admin/schedule/${movieId}/movie`)
+    apiClient.get<ScheduleDTO[]>(`/schedule/${movieId}/movie`)
       .then((res) => {
         // activation=true 이고 오늘 날짜인 스케줄만 필터 (MovieDetailPage 와 동일한 로직)
         const filtered = res.data.filter(

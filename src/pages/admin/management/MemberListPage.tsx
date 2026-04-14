@@ -12,7 +12,7 @@
  */
 import { useState, useEffect } from 'react'
 import { Search, Star, Activity } from 'lucide-react'
-import axios from 'axios'
+import apiClient from '../../../api/apiClient.ts'
 
 /* ── 타입 ──────────────────────────────────────────── */
 interface Member {
@@ -123,7 +123,7 @@ function MemberListPage() {
   useEffect(() => {
     setLoading(true)
 
-    axios.get('/api/admin/member/list', {
+    apiClient.get('/api/admin/member/list', {
       params: { keyword }
     })
         .then(res => {
@@ -257,7 +257,7 @@ function PointHistoryModal({
 
   useEffect(() => {
     // Vite 프록시 경유 — localhost 하드코딩 제거
-    axios.get(`/api/admin/member/${member.phone}/point-list`)
+    apiClient.get(`/api/admin/member/${member.phone}/point-list`)
         .then(res => {
           setPointLog(res.data)
         })
@@ -343,7 +343,7 @@ function ActivityLogModal({
 
   useEffect(() => {
     // Vite 프록시 경유 — localhost 하드코딩 제거
-    axios.get('/api/admin/member/point-list')
+    apiClient.get('/api/admin/member/point-list')
         .then(res => {
           console.log(res.data)
           setLogs(res.data)

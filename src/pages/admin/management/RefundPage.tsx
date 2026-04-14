@@ -14,6 +14,7 @@
 import { useState } from 'react'
 import { CheckCircle } from 'lucide-react'
 import { MOCK_BOOKINGS } from '../../../api/mockData'
+import apiClient from '../../../api/apiClient.ts'
 
 /** MOCK_BOOKINGS 항목 타입 */
 type Booking = typeof MOCK_BOOKINGS[number]

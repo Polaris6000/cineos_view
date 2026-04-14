@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, RefreshCw } from 'lucide-react'
-import axios from "axios";
+import apiClient from "../../../api/apiClient.ts";
 
 // 1. 인터페이스 정의
 export interface Theater {
@@ -51,10 +51,10 @@ function TheaterListPage() {
 
     try {
       // 상영관 목록 가져오기
-      const theaterRes = await axios.get<Theater[]>('/api/admin/theater/list');
+      const theaterRes = await apiClient.get<Theater[]>('/api/admin/theater/list');
       console.log('상영관 ',theaterRes.data)
       // 좌석 정책 목록 가져오기
-      const policyRes = await axios.get<SeatPolicy[]>('/api/admin/seat-policy/list');
+      const policyRes = await apiClient.get<SeatPolicy[]>('/api/admin/seat-policy/list');
       console.log('좌석 정책', policyRes.data)
 
       // 상태 업데이트 (정렬 포함)
@@ -94,7 +94,7 @@ function TheaterListPage() {
 
     setAddSaving(true)
     try {
-      await axios.post('/api/admin/theater', {
+      await apiClient.post('/api/admin/theater', {
         policyId:    addForm.policyId,
         cleanupTime: addForm.cleanupTime,
       })

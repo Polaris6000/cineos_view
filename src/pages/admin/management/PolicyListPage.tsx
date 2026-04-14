@@ -16,7 +16,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import apiClient from '../../../api/apiClient.ts'
 import { SEAT_PRICES, SEAT_TYPE_LABEL } from '../../../api/mockData'
 
 type SeatType = keyof typeof SEAT_PRICES
@@ -62,9 +62,9 @@ function PolicyListPage() {
       try {
         setLoading(true)
         const [seatRes, discountRes, bonusRes] = await Promise.all([
-          axios.get('/api/admin/seat-policy/list'),
-          axios.get('/api/admin/discount-policy/list'),
-          axios.get('/api/admin/bonus-policy/list'),
+          apiClient.get('/api/admin/seat-policy/list'),
+          apiClient.get('/api/admin/discount-policy/list'),
+          apiClient.get('/api/admin/bonus-policy/list'),
         ])
 
         // 좌석 정책: { name: '일반'|'리클라이너', cost: number } 배열 → Record로 변환
@@ -110,7 +110,7 @@ function PolicyListPage() {
     setSeatSaving(true)
     try {
       for (const data of changedTargets) {
-        await axios.patch('/api/admin/seat-policy', data)
+        await apiClient.patch('/api/admin/seat-policy', data)
       }
       setPrices({ ...editPrices })
       setSeatEditing(false)
@@ -141,7 +141,7 @@ function PolicyListPage() {
     try {
       // 백엔드: PATCH /api/admin/discount-policy/activation
       // ActivationRequest: { ids: Long[], activation: boolean }
-      await axios.patch('/api/admin/discount-policy/activation', {
+      await apiClient.patch('/api/admin/discount-policy/activation', {
         ids: [id],
         activation: nextActivation,
       })
@@ -174,7 +174,7 @@ function PolicyListPage() {
 
     const nextActivation = !target.activation
     try {
-      await axios.patch('/api/admin/bonus-policy/finish-btn', {
+      await apiClient.patch('/api/admin/bonus-policy/finish-btn', {
         ids: [id],
         activation: nextActivation,
       })

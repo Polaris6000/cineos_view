@@ -14,7 +14,7 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle } from 'lucide-react'
-import axios from 'axios'
+import apiClient from '../../../api/apiClient.ts'
 
 function BonusPolicyFormPage() {
   const navigate = useNavigate()
@@ -91,7 +91,7 @@ function BonusPolicyFormPage() {
     setSaving(true)
     try {
       console.log('[BonusPolicyForm] 등록 시도:', payload)
-      const res = await axios.post('/api/admin/bonus-policy', payload)
+      const res = await apiClient.post('/api/admin/bonus-policy', payload)
 
       if (res.status === 200 || res.status === 201) {
         setSuccess(true)

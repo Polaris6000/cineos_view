@@ -21,10 +21,9 @@ import {
 } from 'react'
 import {
   type AdminUser,
-  type Permission,
-  MOCK_ADMIN_ACCOUNTS,
-  MOCK_PASSWORDS,
+  type Permission, ROLE_PERMISSIONS,
 } from '../types/auth'
+import axios from '../api/axiosToken.ts'
 
 /* ── Context 타입 ───────────────────────────────────── */
 interface AuthContextValue {
@@ -33,7 +32,7 @@ interface AuthContextValue {
   login:           (id: string, password: string) => Promise<boolean>
   logout:          () => void
   hasPermission:   (permission: Permission) => boolean
-  isSuperAdmin:    boolean
+  isMaster: boolean
 }
 
 /* ── Context 생성 ───────────────────────────────────── */
@@ -56,25 +55,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * TODO: POST /api/admin/login 연동 후 더미 코드 교체
    */
   const login = useCallback(async (id: string, password: string): Promise<boolean> => {
-    // 네트워크 딜레이 시뮬레이션
-    await new Promise((r) => setTimeout(r, 500))
+    try {
+      const res = await axios.post('/api/admin/login', {
+        loginId: id,
+        password: password
+      })
 
-    const expectedPw = MOCK_PASSWORDS[id]
-    if (!expectedPw || expectedPw !== password) return false
+      const { accessToken, refreshToken, role } = res.data
+      console.log(role);
 
-    const account = MOCK_ADMIN_ACCOUNTS.find((a) => a.id === id)
-    if (!account) return false
+      // 토큰 로컬스토리지에 저장
+      localStorage.setItem('accessToken', accessToken)
+      localStorage.setItem('refreshToken', refreshToken)
 
-    setCurrentAdmin(account)
-    // 세션 유지를 위해 localStorage에 저장 (비밀번호는 저장 안 함)
-    localStorage.setItem('cineos_admin', JSON.stringify(account))
-    return true
+      const adminInfo: AdminUser = {
+        loginId: id,
+        level: role === 'ROLE_MASTER' ? false : true,
+        permissions: role === 'ROLE_MASTER' ? ROLE_PERMISSIONS['MASTER'] : []
+      }
+      console.log('관리자 확인용', adminInfo)
+      setCurrentAdmin(adminInfo)
+      return true
+    } catch {
+      return false
+    }
   }, [])
 
   /** logout — 로그아웃 후 세션 삭제 */
   const logout = useCallback(() => {
     setCurrentAdmin(null)
     localStorage.removeItem('cineos_admin')
+    localStorage.removeItem('accessToken')
+    localStorage.removeItem('refreshToken')
   }, [])
 
   /**
@@ -83,13 +95,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const hasPermission = useCallback((permission: Permission): boolean => {
     if (!currentAdmin) return false
+
     return currentAdmin.permissions.includes(permission)
   }, [currentAdmin])
 
-  const isSuperAdmin = currentAdmin?.role === 'SUPER_ADMIN'
+  const isMaster = currentAdmin?.level === false
 
   return (
-    <AuthContext.Provider value={{ currentAdmin, login, logout, hasPermission, isSuperAdmin }}>
+    <AuthContext.Provider value={{ currentAdmin, login, logout, hasPermission, isMaster: isMaster }}>
       {children}
     </AuthContext.Provider>
   )

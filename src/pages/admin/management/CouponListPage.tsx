@@ -15,7 +15,7 @@
  * 드롭다운에는 COUPON 타입 정책만 필터링하여 표시.
  */
 import { useState, useEffect } from 'react'
-import axios from 'axios'
+import apiClient from '../../../api/apiClient.ts'
 import { DiscountPolicy } from './PolicyListPage'
 
 /** 쿠폰 1건 타입 (CouponDTO 대응) */
@@ -43,9 +43,9 @@ function CouponListPage() {
       try {
         setLoading(true)
         const [couponRes, policyRes] = await Promise.all([
-          axios.get('/api/admin/discount-policy/coupon/list'),
+          apiClient.get('/api/admin/discount-policy/coupon/list'),
           // 전체 할인 정책 fetch — 쿠폰 목록에서 정책명 표시 시 모든 타입 커버 필요
-          axios.get('/api/admin/discount-policy/list'),
+          apiClient.get('/api/admin/discount-policy/list'),
         ])
         setCoupons(couponRes.data)
 
@@ -81,10 +81,10 @@ function CouponListPage() {
 
     setIssuing(true)
     try {
-      await axios.post(`/api/admin/discount-policy/coupon/${selectedPolicyId}`)
+      await apiClient.post(`/api/admin/discount-policy/coupon/${selectedPolicyId}`)
 
       // 발행 성공 → 목록 새로고침 (서버가 생성한 couponNum을 가져오기 위해)
-      const res = await axios.get('/api/admin/discount-policy/coupon/list')
+      const res = await apiClient.get('/api/admin/discount-policy/coupon/list')
       setCoupons(res.data)
 
       setMsg('쿠폰이 발행되었습니다.')
