@@ -35,14 +35,20 @@ export const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
     'ROLE_MEMBER_MANAGEMENT',
     'ROLE_ADMIN_MANAGEMENT',
   ],
-  STAFF: [], // 자동로그인 구현 때 DB에서 채울 예정
+  STAFF: [],
 }
 
 /* ── 관리자 계정 타입 ────────────────────────────────── */
 export interface AdminUser {
+  adminId: number // 관리자 인덱스
   loginId: string // 로그인한 아이디
+  password: string
   name?: string // 관리자 이름
+  adminPhone: string // 관리자 전화번호
   level: boolean // false: MASTER, true: STAFF
+  uuid: string // 자동로그인을 위한 토큰
+  createdAt: string // 생성일
+
   permissions: Permission[] // 권한 리스트
 }
 

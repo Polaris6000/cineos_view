@@ -51,10 +51,10 @@ function TheaterListPage() {
 
     try {
       // 상영관 목록 가져오기
-      const theaterRes = await apiClient.get<Theater[]>('/api/admin/theater/list');
+      const theaterRes = await apiClient.get<Theater[]>('/admin/theater/list');
       console.log('상영관 ',theaterRes.data)
       // 좌석 정책 목록 가져오기
-      const policyRes = await apiClient.get<SeatPolicy[]>('/api/admin/seat-policy/list');
+      const policyRes = await apiClient.get<SeatPolicy[]>('/admin/seat-policy/list');
       console.log('좌석 정책', policyRes.data)
 
       // 상태 업데이트 (정렬 포함)
@@ -94,7 +94,7 @@ function TheaterListPage() {
 
     setAddSaving(true)
     try {
-      await apiClient.post('/api/admin/theater', {
+      await apiClient.post('/admin/theater', {
         policyId:    addForm.policyId,
         cleanupTime: addForm.cleanupTime,
       })

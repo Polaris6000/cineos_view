@@ -135,6 +135,8 @@ function MovieManagePage() {
    *   ScheduleServiceImpl.createSchedule() 67번 줄에서
    *   반환 DTO의 activation 이 false 로 하드코딩돼 있음 → true 로 수정해야 함.
    *   현재는 등록 직후 재조회로 실제 DB 상태(true)를 가져와 우회 처리.
+   *
+   *   수정완료
    */
   const loadSchedules = () => {
     apiClient.get('/admin/schedule/list')

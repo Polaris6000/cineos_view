@@ -8,25 +8,26 @@
  * TODO: GET /api/admin/accounts 연동
  * TODO: PUT /api/admin/accounts/:id/permissions 연동
  */
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ShieldCheck, ShieldOff, Lock, Save, RotateCcw, Eye } from 'lucide-react'
 import type { AdminUser, Permission } from '../../../types/auth'
 import { ROLE_PERMISSIONS } from '../../../types/auth'
 import { useAuth } from '../../../context/AuthContext'
+import apiClient from "../../../api/apiClient.ts";
 
-const PERMISSION_META: Record<Permission, { label: string; desc: string; superOnly?: boolean }> = {
-  'ROLE_REFUND':            { label: '환불 처리',        desc: '예매 취소 및 환불 처리' },
-  'ROLE_MOVIE_LIST':        { label: '영화 목록 조회',    desc: '영화 목록 조회' },
-  'ROLE_MOVIE_REGISTER':    { label: '영화 등록',         desc: '새 영화 등록' },
-  'ROLE_MOVIE_EDIT':        { label: '영화 수정',         desc: '기존 영화 정보 수정' },
-  'ROLE_MOVIE_DELETE':      { label: '영화 삭제',         desc: '영화 및 상영 일정 삭제' },
-  'ROLE_THEATER_LIST':      { label: '상영관 조회',        desc: '상영관/좌석 정보 조회' },
-  'ROLE_THEATER_EDIT':      { label: '상영관 수정',        desc: '상영관 및 좌석 구성 수정' },
-  'ROLE_POLICY_LIST':       { label: '정책 조회',          desc: '요금 정책 조회', superOnly: true },
-  'ROLE_POLICY_EDIT':       { label: '정책 수정',          desc: '요금/할인 정책 수정', superOnly: true },
-  'ROLE_STATISTICS':        { label: '통계 조회',          desc: '모든 통계 페이지 접근', superOnly: true },
-  'ROLE_MEMBER_MANAGEMENT': { label: '회원 정보 관리',     desc: '회원 목록 조회 및 상세 확인', superOnly: true },
-  'ROLE_ADMIN_MANAGEMENT':  { label: '계정 및 권한 관리',  desc: '관리자 계정 생성/권한 설정', superOnly: true },
+const PERMISSION_META: Record<Permission, { id: number; label: string; desc: string; superOnly?: boolean }> = {
+  'ROLE_REFUND':            { id: 1, label: '환불 처리',        desc: '예매 취소 및 환불 처리' },
+  'ROLE_MOVIE_LIST':        { id: 2, label: '영화 목록 조회',    desc: '영화 목록 조회' },
+  'ROLE_MOVIE_REGISTER':    { id: 3, label: '영화 등록',         desc: '새 영화 등록' },
+  'ROLE_MOVIE_EDIT':        { id: 4, label: '영화 수정',         desc: '기존 영화 정보 수정' },
+  'ROLE_MOVIE_DELETE':      { id: 5, label: '영화 삭제',         desc: '영화 및 상영 일정 삭제' },
+  'ROLE_THEATER_LIST':      { id: 6, label: '상영관 조회',        desc: '상영관/좌석 정보 조회' },
+  'ROLE_THEATER_EDIT':      { id: 7, label: '상영관 수정',        desc: '상영관 및 좌석 구성 수정' },
+  'ROLE_POLICY_LIST':       { id: 8, label: '정책 조회',          desc: '요금 정책 조회', superOnly: true },
+  'ROLE_POLICY_EDIT':       { id: 9, label: '정책 수정',          desc: '요금/할인 정책 수정', superOnly: true },
+  'ROLE_STATISTICS':        { id: 10, label: '통계 조회',          desc: '모든 통계 페이지 접근', superOnly: true },
+  'ROLE_MEMBER_MANAGEMENT': { id: 11, label: '회원 정보 관리',     desc: '회원 목록 조회 및 상세 확인', superOnly: true },
+  'ROLE_ADMIN_MANAGEMENT':  { id: 12, label: '계정 및 권한 관리',  desc: '관리자 계정 생성/권한 설정', superOnly: true },
 }
 
 const PERMISSION_GROUPS = [
@@ -52,6 +53,7 @@ const PERMISSION_GROUPS = [
 
 function AdminAccountPage() {
   const { currentAdmin, isMaster } = useAuth()
+  console.log('관리자 여부: ', isMaster)
 
   // 빈 배열로 시작 → 나중에 API 연동
   const [accounts, setAccounts] = useState<AdminUser[]>([])
@@ -59,33 +61,62 @@ function AdminAccountPage() {
   const [savedMsg, setSavedMsg] = useState<Record<string, string>>({})
 
   // TODO: API 연동 시 여기서 데이터 가져오기
-  // useEffect(() => {
-  //   api.get('/admin/list').then(res => setAccounts(res.data))
-  // }, [])
+  useEffect(() => {
+    apiClient.get<AdminUser[]>('/admin/list')
+        .then(res => {
+          const sanitizedData = res.data.map(user => ({
+            ...user,
+            // 서버에서 온 [{id:1, roleName:'ROLE_REFUND'}]를 ['ROLE_REFUND']로 변환
+            permissions: (user.permissions as any[] || []).map(p => p.roleName || p)
+          }));
+          setAccounts(sanitizedData);
+        }).catch(err => console.error(err))
+  }, [])
 
   const togglePermission = useCallback((loginId: string, perm: Permission) => {
     setAccounts((prev) =>
         prev.map((a) => {
           if (a.loginId !== loginId) return a
           if (!a.level) return a  // MASTER(level=false)는 수정 불가
-          const has = a.permissions.includes(perm)
+
+          const currentPermissions = a.permissions || [];
+          const has = currentPermissions.includes(perm);
+
           return {
             ...a,
             permissions: has
-                ? a.permissions.filter((p) => p !== perm)
-                : [...a.permissions, perm],
+                ? currentPermissions.filter((p) => p !== perm)
+                : [...currentPermissions, perm],
           }
         })
     )
   }, [])
 
   const handleSave = async (loginId: string) => {
-    setSaving((s) => ({ ...s, [loginId]: true }))
-    await new Promise((r) => setTimeout(r, 600))
-    setSaving((s) => ({ ...s, [loginId]: false }))
-    setSavedMsg((m) => ({ ...m, [loginId]: '저장 완료!' }))
-    setTimeout(() => setSavedMsg((m) => ({ ...m, [loginId]: '' })), 2000)
-  }
+    const accountToSave = accounts.find(a => a.loginId === loginId);
+    if (!accountToSave) return;
+
+    setSaving((s) => ({ ...s, [loginId]: true }));
+
+    try {
+      // 백단 DTO 형식에 맞춰 데이터 재조립
+      const requestBody = {
+        adminId: accountToSave.adminId, // Long
+        // String 배열 ['ROLE_REFUND']를 숫자 배열 [1]로 변환
+        roles: accountToSave.permissions.map(permName => PERMISSION_META[permName as Permission].id)
+      };
+
+      await apiClient.post(`/admin/role`, requestBody);
+
+      setSavedMsg((m) => ({ ...m, [loginId]: '저장 완료!' }));
+      setTimeout(() => setSavedMsg((m) => ({ ...m, [loginId]: '' })), 2000);
+    } catch (err) {
+      console.error('권한 저장 실패:', err);
+      alert('권한 저장 중 오류가 발생했습니다.');
+    } finally {
+      setSaving((s) => ({ ...s, [loginId]: false }));
+    }
+  };
 
   const handleReset = (loginId: string) => {
     setAccounts((prev) =>
@@ -117,10 +148,19 @@ function AdminAccountPage() {
         <div style={cardList}>
           {accounts.map((account) => {
             const isAccountMaster = account.level === false
-            const isChanged = JSON.stringify(account.permissions.slice().sort())
-                !== JSON.stringify(ROLE_PERMISSIONS[account.level ? 'STAFF' : 'MASTER'].slice().sort())
+
+            const permissions = account.permissions || [];
+
+            // 2. 비교 로직에서도 안전하게 처리
+            const defaultPerms = ROLE_PERMISSIONS[account.level ? 'STAFF' : 'MASTER'] || [];
+            const isChanged = JSON.stringify([...permissions].sort())
+                !== JSON.stringify([...defaultPerms].sort());
 
             return (
+                // const isChanged = JSON.stringify(account.permissions.slice().sort())
+                // !== JSON.stringify(ROLE_PERMISSIONS[account.level ? 'STAFF' : 'MASTER'].slice().sort())
+            //
+            // return (
                 <div key={account.loginId} style={{ ...card, opacity: isAccountMaster ? 0.75 : 1 }}>
                   <div style={cardHeader}>
                     <div>
@@ -150,7 +190,8 @@ function AdminAccountPage() {
                         <div style={permGrid}>
                           {group.permissions.map((perm) => {
                             const meta = PERMISSION_META[perm]
-                            const has = account.permissions.includes(perm)
+                            const has = permissions.includes(perm); // account.permissions 대신 사용
+                            // const has = account.permissions.includes(perm)
                             const locked = isAccountMaster || !isMaster
 
                             return (

@@ -123,7 +123,7 @@ function MemberListPage() {
   useEffect(() => {
     setLoading(true)
 
-    apiClient.get('/api/admin/member/list', {
+    apiClient.get('/admin/member/list', {
       params: { keyword }
     })
         .then(res => {
@@ -257,7 +257,7 @@ function PointHistoryModal({
 
   useEffect(() => {
     // Vite 프록시 경유 — localhost 하드코딩 제거
-    apiClient.get(`/api/admin/member/${member.phone}/point-list`)
+    apiClient.get(`/admin/member/${member.phone}/point-list`)
         .then(res => {
           setPointLog(res.data)
         })
@@ -343,7 +343,7 @@ function ActivityLogModal({
 
   useEffect(() => {
     // Vite 프록시 경유 — localhost 하드코딩 제거
-    apiClient.get('/api/admin/member/point-list')
+    apiClient.get('/admin/member/point-list')
         .then(res => {
           console.log(res.data)
           setLogs(res.data)

@@ -91,7 +91,7 @@ function BonusPolicyFormPage() {
     setSaving(true)
     try {
       console.log('[BonusPolicyForm] 등록 시도:', payload)
-      const res = await apiClient.post('/api/admin/bonus-policy', payload)
+      const res = await apiClient.post('/admin/bonus-policy', payload)
 
       if (res.status === 200 || res.status === 201) {
         setSuccess(true)
