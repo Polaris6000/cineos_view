@@ -109,7 +109,7 @@ function MovieManagePage() {
   }, [])
 
   useEffect(() => {
-    apiClient.get('/movie/readAll')
+    apiClient.get('/movie/admin/admin/readAll')
         .then(res => {
           console.log(res.data)
           const data: Movie[] = res.data;

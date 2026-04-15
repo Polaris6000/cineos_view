@@ -11,8 +11,8 @@
  *
  * 데이터 흐름:
  *  1. location.state로 { movieTitle, schedule(ScheduleDTO), persons, totalPersons } 수신
- *  2. schedule.no(상영관 번호) → GET /api/admin/theater/list → 해당 상영관 정보 조회
- *  3. theater.policyId → GET /api/admin/seat-policy/list → 좌석 타입·단가 조회
+ *  2. schedule.no(상영관 번호) → GET /api/theater/list → 해당 상영관 정보 조회 (고객용)
+ *  3. theater.policyId → GET /api/seat-policy/list → 좌석 타입·단가 조회 (고객용)
  *  4. 조회한 상영관 정보 기반 기본 좌석 배치 생성 (10행 × 10열)
  *  5. useWebSocket(schedule.id) → 실시간 예약완료/임시점유 좌석 반영
  *
@@ -118,8 +118,8 @@ function SeatPage() {
 
   /**
    * 상영관 + 좌석 정책 API 호출
-   * - GET /api/admin/theater/list → schedule.no 와 일치하는 상영관 찾기
-   * - GET /api/admin/seat-policy/list → theater.policyId 와 일치하는 정책 찾기
+   * - GET /api/theater/list → schedule.no 와 일치하는 상영관 찾기 (고객용 — 토큰 불필요)
+   * - GET /api/seat-policy/list → theater.policyId 와 일치하는 정책 찾기 (고객용 — 토큰 불필요)
    *
    * 두 API가 모두 성공해야 좌석 배치를 렌더링할 수 있으므로 Promise.all 사용
    */
@@ -129,8 +129,8 @@ function SeatPage() {
       setApiError('')
       try {
         const [theaterRes, policyRes] = await Promise.all([
-          apiClient.get<TheaterDTO[]>('/admin/theater/list'),
-          apiClient.get<SeatPolicyDTO[]>('/admin/seat-policy/list'),
+          apiClient.get<TheaterDTO[]>('/theater/list'),
+          apiClient.get<SeatPolicyDTO[]>('/seat-policy/list'),
         ])
 
         // schedule.no로 해당 상영관 찾기

@@ -222,7 +222,7 @@
   --badge-all: var(--primitive-badge-green);          /* 전체관람가 #4caf50 */
   --badge-12:  var(--primitive-info-500);             /* 12세  #2a88c8 (파랑) */
   --badge-15:  var(--color-brand-default);            /* 15세  #ffb800 (골드) */
-  --badge-18:  var(--primitive-error-500);            /* 청불  #e03c3c (레드) */
+  --badge-18:  var(--primitive-error-500);            /* 청소년 관람불가  #e03c3c (레드) */
 
   /* ── 차트 / 통계 전용 액센트 ─────────────────────── */
   --color-accent-purple: var(--primitive-accent-purple);   /* #9c7aff */

@@ -40,8 +40,6 @@ export interface Theater {
   cols: number;
   basePrice: number;
   hasRecliner: boolean;
-  // hasVip 제거 — VIP석 운용하지 않음 (일반/리클라이너/커플만 사용)
-  hasCouple: boolean;
   cleanupTime: number; // 상영 후 정리시간 (분) — 스케줄 종료시간 계산에 사용됨
 }
 
@@ -193,16 +191,15 @@ export const GENRE_OPTIONS = [
 export const RATING_OPTIONS = [
   { label: '전체', value: '' },
   { label: '전체관람가', value: 'ALL' },
-  { label: '12세', value: '12' },
-  { label: '15세', value: '15' },
-  { label: '청소년관람불가', value: '19' },
+  { label: '12세 이상', value: '12' },
+  { label: '15세 이상', value: '15' },
+  { label: '청소년 관람불가', value: '19' },
 ]
 
 
 /* ───────────────────────────────────────────────────
    2. 요금 정책 (좌석 타입별 단가)
    사용 좌석: 일반(NORMAL) / 리클라이너(RECLINER)
-   VIP석·커플석 운용하지 않음
    청소년 할인: 2000원
    ─────────────────────────────────────────────────── */
 export const SEAT_PRICES = {
@@ -228,7 +225,6 @@ export const MOCK_THEATERS = [
     cols: 15,
     basePrice: 14000,
     hasRecliner: false,
-    hasCouple: true,
     cleanupTime: 15, // 정리시간 15분
   },
   {
@@ -239,7 +235,6 @@ export const MOCK_THEATERS = [
     cols: 12,
     basePrice: 14000,
     hasRecliner: false,
-    hasCouple: true, // 마지막 행 커플석 있음
     cleanupTime: 10, // 정리시간 10분
   },
   {
@@ -250,7 +245,6 @@ export const MOCK_THEATERS = [
     cols: 10,
     basePrice: 14000,
     hasRecliner: false,
-    hasCouple: true, // 마지막 행 커플석 있음
     cleanupTime: 10, // 정리시간 10분
   },
   {
@@ -261,7 +255,6 @@ export const MOCK_THEATERS = [
     cols: 10,
     basePrice: 14000,
     hasRecliner: true,
-    hasCouple: false,
     cleanupTime: 20, // 리클라이너관 정리시간 20분
   },
 ]
@@ -348,12 +341,10 @@ export function generateSeats(theater: Theater): Seat[] {
   const seats: Seat[] = [];
 
   for (let r = 0; r < rows; r++) {
-    const isLastRow = r === rows - 1;
-
     for (let c = 1; c <= cols; c++) {
       const seatId = `${rowLabels[r]}${c}`;
 
-      /* ── 좌석 타입 결정 (VIP 없음 — 일반/리클라이너/커플만 사용) ── */
+      /* ── 좌석 타입 결정 (일반 / 리클라이너) ── */
       let seatType: Seat['seatType'] = 'NORMAL';
 
       if (hasRecliner) {

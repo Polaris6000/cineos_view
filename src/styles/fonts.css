@@ -9,8 +9,8 @@
   font-weight: 400;
   font-style: normal;
   font-display: swap;
-  src: url('/fonts/Pretendard-Regular.woff2') format('woff2'),
-       url('/fonts/Pretendard-Regular.woff') format('woff');
+  src: url('/public/fonts/Pretendard-Regular.woff2') format('woff2'),
+       url('/public/fonts/Pretendard-Regular.woff') format('woff');
 }
 
 /* Pretendard Medium (500) — 라벨, 보조 정보 */
@@ -19,8 +19,8 @@
   font-weight: 500;
   font-style: normal;
   font-display: swap;
-  src: url('/fonts/Pretendard-Medium.woff2') format('woff2'),
-       url('/fonts/Pretendard-Medium.woff') format('woff');
+  src: url('/public/fonts/Pretendard-Medium.woff2') format('woff2'),
+       url('/public/fonts/Pretendard-Medium.woff') format('woff');
 }
 
 /* Pretendard SemiBold (600) — 버튼, 탭, 소제목 */
@@ -29,8 +29,8 @@
   font-weight: 600;
   font-style: normal;
   font-display: swap;
-  src: url('/fonts/Pretendard-SemiBold.woff2') format('woff2'),
-       url('/fonts/Pretendard-SemiBold.woff') format('woff');
+  src: url('/public/fonts/Pretendard-SemiBold.woff2') format('woff2'),
+       url('/public/fonts/Pretendard-SemiBold.woff') format('woff');
 }
 
 /* Pretendard Bold (700) — 헤딩, 영화 제목, 금액 */
@@ -39,8 +39,8 @@
   font-weight: 700;
   font-style: normal;
   font-display: swap;
-  src: url('/fonts/Pretendard-Bold.woff2') format('woff2'),
-       url('/fonts/Pretendard-Bold.woff') format('woff');
+  src: url('/public/fonts/Pretendard-Bold.woff2') format('woff2'),
+       url('/public/fonts/Pretendard-Bold.woff') format('woff');
 }
 
 /* Pretendard ExtraBold (800) — 메인 타이틀, 강조 배너 */
@@ -49,6 +49,6 @@
   font-weight: 800;
   font-style: normal;
   font-display: swap;
-  src: url('/fonts/Pretendard-ExtraBold.woff2') format('woff2'),
-       url('/fonts/Pretendard-ExtraBold.woff') format('woff');
+  src: url('/public/fonts/Pretendard-ExtraBold.woff2') format('woff2'),
+       url('/public/fonts/Pretendard-ExtraBold.woff') format('woff');
 }

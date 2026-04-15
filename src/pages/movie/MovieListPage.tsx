@@ -9,8 +9,8 @@
  *  - 카드 클릭 → UC-02 영화 상세 페이지로 이동
  *
  * API 연동:
- *  - 현재 상영 중 탭: GET /api/movie/all (오늘 스케줄 있는 영화)
- *  - 상영 예정 탭:    GET /api/movie/readAll → startAt > today 필터링
+ *  - 현재 상영 중 탭: GET /api/movie/admin/admin/readAll → startAt ≤ today AND endAt 없거나 ≥ today 필터링
+ *  - 상영 예정 탭:    GET /api/movie/admin/admin/readAll → startAt > today 필터링
  *
  * FHD(1080×1920) 세로형 키오스크 기준 레이아웃
  */
@@ -31,9 +31,9 @@ const THEATER_TYPE_OPTIONS = [
 /** 등급 → 표시 텍스트 (카드용 짧은 형식) */
 const RATING_LABEL: Record<string, string> = {
   ALL:  '전체관람가',
-  '12': '12세',
-  '15': '15세',
-  '19': '청불',
+  '12': '12세 이상',
+  '15': '15세 이상',
+  '19': '청소년 관람불가',
 }
 
 /** 런타임(분) → "2시간 46분" 형식 변환 */
@@ -99,7 +99,7 @@ function MovieListPage() {
    */
   useEffect(() => {
     setLoading(true)
-    apiClient.get<MovieDTO[]>('/movie/readAll')
+    apiClient.get<MovieDTO[]>('/movie/admin/admin/readAll')
       .then((res) => {
         const all = res.data
 
@@ -107,7 +107,7 @@ function MovieListPage() {
         //   개봉일(startAt)이 오늘 이전이고,
         //   종료일(endAt)이 없거나 오늘 이후인 영화
         //
-        // ⚠️ 비교 시 반드시 slice(0, 10) 사용!
+        //  비교 시 반드시 slice(0, 10) 사용!
         // 백엔드가 LocalDateTime을 "2026-04-11T00:00:00.000Z" 형식으로 반환하므로
         // 날짜 문자열 "2026-04-11" 과 직접 비교하면 "T" 접미사 때문에 항상 크게 나옴
         // 예) "2026-04-11T00:00:00.000Z" > "2026-04-11" → true (오늘 개봉 영화가 upcoming으로 분류되는 버그)
@@ -229,7 +229,7 @@ function MovieListPage() {
 
       {/* ── 페이지 헤더 ── */}
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>영화</h1>
+        <h1 className={styles.pageTitle}>현장 예매</h1>
       </div>
 
       {/* ── 탭: 현재 상영 중 / 상영 예정 ── */}
@@ -250,7 +250,7 @@ function MovieListPage() {
           className={`${styles.tab} ${activeTab === 'upcoming' ? styles.tabActive : ''}`}
           onClick={() => handleTabChange('upcoming')}
         >
-          상영 예정
+          상영 예정작
         </button>
       </div>
 
@@ -389,7 +389,7 @@ function MovieListPage() {
                       <span className={`${styles.badge} ${styles[`badge${movie.rating}`]}`}>
                         {RATING_LABEL[movie.rating] ?? movie.rating}
                       </span>
-                      <span className={styles.cardGenre}>{movie.genre}</span>
+                      <div className={styles.cardGenre}>{movie.genre}</div>
                     </div>
                     <p className={styles.cardRuntime}>{formatRuntime(movie.runtime)}</p>
                   </div>

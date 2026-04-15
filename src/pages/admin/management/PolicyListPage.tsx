@@ -55,16 +55,31 @@ function PolicyListPage() {
   const [loading, setLoading] = useState(true)
 
   /* ──────────────────────────────────────────
+     페이지네이션 상태 (할인 / 적립 정책 각각)
+     - /log 엔드포인트는 Page<T> 형태로 반환
+     - page 파라미터는 1-based (백엔드 defaultValue="1")
+  ────────────────────────────────────────── */
+  const [discountPage,       setDiscountPage]       = useState(1)
+  const [discountTotalPages, setDiscountTotalPages] = useState(1)
+  const [bonusPage,          setBonusPage]          = useState(1)
+  const [bonusTotalPages,    setBonusTotalPages]    = useState(1)
+
+  /* ──────────────────────────────────────────
      공통: 초기 데이터 로딩 (좌석 / 할인 / 적립)
+     - 할인·적립 정책은 /log (페이징) 엔드포인트 사용
+     - 좌석 정책은 비페이징 /list 그대로 사용
   ────────────────────────────────────────── */
   useEffect(() => {
     const fetchAllData = async () => {
       try {
         setLoading(true)
         const [seatRes, discountRes, bonusRes] = await Promise.all([
+          // 좌석 정책: 페이징 없는 단순 배열 반환
           apiClient.get('/admin/seat-policy/list'),
-          apiClient.get('/admin/discount-policy/list'),
-          apiClient.get('/admin/bonus-policy/list'),
+          // 할인 정책: Page<DiscountPolicyDTO> 반환 (백엔드 /log 엔드포인트)
+          apiClient.get('/admin/discount-policy/log', { params: { page: 1 } }),
+          // 적립 정책: Page<BonusPolicyDTO> 반환 (백엔드 /log 엔드포인트)
+          apiClient.get('/admin/bonus-policy/log', { params: { page: 1 } }),
         ])
 
         // 좌석 정책: { name: '일반'|'리클라이너', cost: number } 배열 → Record로 변환
@@ -76,8 +91,14 @@ function PolicyListPage() {
 
         setPrices(seatMap as Record<SeatType, number>)
         setEditPrices(seatMap as Record<SeatType, number>)
-        setDiscountPolicies(discountRes.data)
-        setBonusPolicies(bonusRes.data)
+
+        // Page<T> 응답 구조: { content: [...], totalPages: N, ... }
+        // content가 없으면 배열 그대로 사용 (이전 버전 호환)
+        setDiscountPolicies(discountRes.data.content ?? discountRes.data)
+        setDiscountTotalPages(discountRes.data.totalPages ?? 1)
+
+        setBonusPolicies(bonusRes.data.content ?? bonusRes.data)
+        setBonusTotalPages(bonusRes.data.totalPages ?? 1)
       } catch (e) {
         console.error('데이터 로딩 중 에러 발생:', e)
       } finally {
@@ -86,6 +107,36 @@ function PolicyListPage() {
     }
     void fetchAllData()
   }, [])
+
+  /**
+   * 할인 정책 페이지 변경 핸들러
+   * 새 페이지 번호로 /log 재요청
+   */
+  const fetchDiscountPage = async (page: number) => {
+    try {
+      const res = await apiClient.get('/admin/discount-policy/log', { params: { page } })
+      setDiscountPolicies(res.data.content ?? res.data)
+      setDiscountTotalPages(res.data.totalPages ?? 1)
+      setDiscountPage(page)
+    } catch (e) {
+      console.error('[PolicyListPage] 할인 정책 페이지 로드 실패:', e)
+    }
+  }
+
+  /**
+   * 적립 정책 페이지 변경 핸들러
+   * 새 페이지 번호로 /log 재요청
+   */
+  const fetchBonusPage = async (page: number) => {
+    try {
+      const res = await apiClient.get('/admin/bonus-policy/log', { params: { page } })
+      setBonusPolicies(res.data.content ?? res.data)
+      setBonusTotalPages(res.data.totalPages ?? 1)
+      setBonusPage(page)
+    } catch (e) {
+      console.error('[PolicyListPage] 적립 정책 페이지 로드 실패:', e)
+    }
+  }
 
   /* ══════════════════════════════
      1. 좌석 타입별 추가 요금
@@ -137,10 +188,12 @@ function PolicyListPage() {
   const finishDiscountPolicy = async (id: number) => {
     if (!window.confirm('이 정책의 만료일을 오늘 23:59:59로 지정하시겠습니까?\n경고: 해당 작업은 돌이킬 수 없습니다.')) return
     try {
-      await axios.patch(`/api/admin/discount-policy/${id}/finish`)
-      // 성공 시 목록 재조회해서 변경된 endAt 반영
-      const res = await axios.get('/api/admin/discount-policy/list')
-      setDiscountPolicies(res.data)
+      // apiClient 사용 (axios 직접 사용 금지 — baseURL '/api' + 인증 헤더 자동 포함)
+      await apiClient.patch(`/admin/discount-policy/${id}/finish`)
+      // 종료 성공 시 현재 페이지 재조회 (/log 페이징 엔드포인트 사용)
+      const res = await apiClient.get('/admin/discount-policy/log', { params: { page: discountPage } })
+      setDiscountPolicies(res.data.content ?? res.data)
+      setDiscountTotalPages(res.data.totalPages ?? 1)
       setDiscountMsg('종료일이 오늘 23:59:59로 지정되었습니다.')
     } catch (e) {
       console.error('할인 정책 종료지정 실패:', e)
@@ -193,9 +246,12 @@ function PolicyListPage() {
   const finishBonusPolicy = async (id: number) => {
     if (!window.confirm('이 정책의 만료일을 오늘 23:59:59로 지정하시겠습니까?\n경고: 해당 작업은 돌이킬 수 없습니다.')) return
     try {
-      await axios.patch(`/api/admin/bonus-policy/${id}/finish`)
-      const res = await axios.get('/api/admin/bonus-policy/list')
-      setBonusPolicies(res.data)
+      // apiClient 사용 (axios 직접 사용 금지 — baseURL '/api' + 인증 헤더 자동 포함)
+      await apiClient.patch(`/admin/bonus-policy/${id}/finish`)
+      // 종료 성공 시 현재 페이지 재조회 (/log 페이징 엔드포인트 사용)
+      const res = await apiClient.get('/admin/bonus-policy/log', { params: { page: bonusPage } })
+      setBonusPolicies(res.data.content ?? res.data)
+      setBonusTotalPages(res.data.totalPages ?? 1)
       setBonusMsg('종료일이 오늘 23:59:59로 지정되었습니다.')
     } catch (e) {
       console.error('적립 정책 종료지정 실패:', e)
@@ -413,6 +469,28 @@ function PolicyListPage() {
             </tbody>
           </table>
         </div>
+
+        {/* ── 할인 정책 페이지네이션 ── */}
+        {/* discountTotalPages > 1 일 때만 표시 (단일 페이지면 불필요) */}
+        {discountTotalPages > 1 && (
+          <div style={paginationRow}>
+            <button
+              onClick={() => fetchDiscountPage(discountPage - 1)}
+              disabled={discountPage <= 1}
+              style={pageBtn}
+            >
+              ‹ 이전
+            </button>
+            <span style={pageInfo}>{discountPage} / {discountTotalPages}</span>
+            <button
+              onClick={() => fetchDiscountPage(discountPage + 1)}
+              disabled={discountPage >= discountTotalPages}
+              style={pageBtn}
+            >
+              다음 ›
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── 3. 적립 정책 ── */}
@@ -524,6 +602,27 @@ function PolicyListPage() {
             </tbody>
           </table>
         </div>
+
+        {/* ── 적립 정책 페이지네이션 ── */}
+        {bonusTotalPages > 1 && (
+          <div style={paginationRow}>
+            <button
+              onClick={() => fetchBonusPage(bonusPage - 1)}
+              disabled={bonusPage <= 1}
+              style={pageBtn}
+            >
+              ‹ 이전
+            </button>
+            <span style={pageInfo}>{bonusPage} / {bonusTotalPages}</span>
+            <button
+              onClick={() => fetchBonusPage(bonusPage + 1)}
+              disabled={bonusPage >= bonusTotalPages}
+              style={pageBtn}
+            >
+              다음 ›
+            </button>
+          </div>
+        )}
       </div>
 
     </div>
@@ -634,4 +733,20 @@ const finishBtn: React.CSSProperties = {
   padding: '6px 14px', background: '#fff7ed', color: '#c2410c',
   border: '1px solid #c2410c', borderRadius: 6, fontSize: 13, cursor: 'pointer',
 }
+
+/** 페이지네이션 컨테이너 — 테이블 하단에 중앙 정렬 */
+const paginationRow: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  gap: 12, marginTop: 14,
+}
+/** 이전/다음 버튼 */
+const pageBtn: React.CSSProperties = {
+  padding: '6px 16px', background: 'var(--bg-base)',
+  border: '1px solid var(--border-default)', borderRadius: 6,
+  fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)',
+  cursor: 'pointer',
+}
+/** 페이지 번호 표시 텍스트 */
+const pageInfo = { fontSize: 13, color: 'var(--text-muted)', minWidth: 60, textAlign: 'center' as const }
+
 export default PolicyListPage

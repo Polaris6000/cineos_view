@@ -63,7 +63,7 @@ export default apiClient
    - 프론트 내부 타입과 구분하기 위해 접두사 없이 명시적으로 네이밍
    ─────────────────────────────────────────────────────── */
 
-/** GET /api/movie/all, /api/movie/realAll 응답 */
+/** GET /api/movie/admin/admin/readAll 응답 (관리자용 전체 조회) */
 export interface MovieDTO {
   movieId:     number
   title:       string

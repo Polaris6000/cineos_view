@@ -45,7 +45,7 @@ const RATING_OPTIONS = [
   { value: 'ALL', label: '전체관람가' },
   { value: '12',  label: '12세 이상' },
   { value: '15',  label: '15세 이상' },
-  { value: '19',  label: '청소년관람불가' },
+  { value: '19',  label: '청소년 관람불가' },
 ]
 
 /* ─────────────────────────────────────────
@@ -309,11 +309,11 @@ function MovieFormPage() {
        * 명시하면 boundary가 빠져서 파싱 실패할 수 있음
        */
       /**
-       * 등록: POST  /api/movie/upload  (백엔드 @PostMapping)
-       * 수정: PATCH /api/movie/modify  (백엔드 @PatchMapping) ← 반드시 patch 사용
+       * 등록: POST  /api/movie/admin/upload  (백엔드 @PostMapping)
+       * 수정: PATCH /api/movie/admin/modify  (백엔드 @PatchMapping) ← 반드시 patch 사용
        * POST로 보내면 405 Method Not Allowed 발생
        */
-      const endpoint = isEdit ? '/movie/modify' : '/movie/upload'
+      const endpoint = isEdit ? '/movie/admin/modify' : '/movie/admin/upload'
       // Content-Type을 undefined로 지정 → apiClient 기본값(application/json) 제거
       // → axios가 FormData를 감지해 multipart/form-data; boundary=... 자동 설정
       await (isEdit

@@ -43,11 +43,13 @@ function CouponListPage() {
       try {
         setLoading(true)
         const [couponRes, policyRes] = await Promise.all([
-          apiClient.get('/admin/discount-policy/coupon/list'),
+          // Page<CouponDTO> 반환 — 필수 파라미터 page 전달
+          apiClient.get('/admin/discount-policy/coupon/list', { params: { page: 1 } }),
           // 전체 할인 정책 fetch — 쿠폰 목록에서 정책명 표시 시 모든 타입 커버 필요
           apiClient.get('/admin/discount-policy/list'),
         ])
-        setCoupons(couponRes.data)
+        // Page<CouponDTO> 응답 구조: { content: [...], totalElements: N, ... }
+        setCoupons(couponRes.data.content ?? couponRes.data)
 
         const allPolicies = policyRes.data as DiscountPolicy[]
         // 전체 정책을 저장 (목록 정책명 표시용)
@@ -84,8 +86,8 @@ function CouponListPage() {
       await apiClient.post(`/admin/discount-policy/coupon/${selectedPolicyId}`)
 
       // 발행 성공 → 목록 새로고침 (서버가 생성한 couponNum을 가져오기 위해)
-      const res = await apiClient.get('/admin/discount-policy/coupon/list')
-      setCoupons(res.data)
+      const res = await apiClient.get('/admin/discount-policy/coupon/list', { params: { page: 1 } })
+      setCoupons(res.data.content ?? res.data)
 
       setMsg('쿠폰이 발행되었습니다.')
     } catch (e) {

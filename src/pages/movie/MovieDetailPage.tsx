@@ -52,35 +52,15 @@ function MovieDetailPage() {
     if (!id) return
     setLoading(true)
 
-    /**
-     * ⚠️ 백엔드 버그 우회 [팀원 수정 필요]:
-     *   MovieController.java 112번 줄:
-     *     @GetMapping("/{movieId}/readOne")
-     *     public ResponseEntity<MovieDTO> getMovieById(@PathVariable Long id) { ... }
-     *
-     *   URL 경로 변수명은 {movieId} 인데 파라미터명은 id → Spring이 바인딩 못 해서 500 에러
-     *   수정 방법: @PathVariable Long id → @PathVariable Long movieId (또는 @PathVariable("movieId") Long id)
-     *
-     *   [임시 우회]
-     *   /movie/readAll 로 전체 목록을 받은 뒤 movieId 로 필터링
-     *   백엔드가 수정되면 아래 코드를 다시 단일 조회로 교체할 것:
-     *     apiClient.get<MovieDTO>(`/movie/${id}/readOne`)
-     */
-    apiClient.get<MovieDTO[]>('/movie/readAll')
-      .then((res) => {
-        const found = res.data.find((m) => m.movieId === Number(id))
-        if (found) {
-          setMovie(found)
-        } else {
-          console.error('[MovieDetailPage] 영화를 찾을 수 없음 id=', id)
-          setError(true)
-        }
-      })
-      .catch((err) => {
-        console.error('[MovieDetailPage] 영화 조회 실패', err)
-        setError(true)
-      })
-      .finally(() => setLoading(false))
+    apiClient.get<MovieDTO>(`/movie/${id}/readOne`) // 백엔드에 새로 만든 경로 호출
+        .then((res) => {
+          setMovie(res.data); // 리스트가 아닌 단일 객체를 바로 설정
+        })
+        .catch((err) => {
+          console.error('[MovieDetailPage] 영화 조회 실패', err);
+          setError(true);
+        })
+        .finally(() => setLoading(false));
   }, [id])
 
   /* ── 스케줄 조회: GET /api/admin/schedule/{movieId}/movie ── */

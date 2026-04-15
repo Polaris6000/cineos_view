@@ -15,24 +15,28 @@ import { Search, Star, Activity } from 'lucide-react'
 import apiClient from '../../../api/apiClient.ts'
 
 /* ── 타입 ──────────────────────────────────────────── */
+/**
+ * 백엔드 MemberDTO 기준 필드: phone, point, createAt
+ * bookingCount는 백엔드에 없으므로 프론트 기본값 0 처리
+ */
 interface Member {
-  // name: string // TODO 필요없음
-  // email: string // TODO 필요없음
   phone: string
   point: number
-  createAt: string       // 'YYYY-MM-DD'
-  bookingCount: number // TODO 프론트에서 계산
-  // isActive: boolean // TODO 필요없음
+  createAt: string       // ISO datetime (LocalDateTime → 직렬화 결과)
 }
 
+/**
+ * 백엔드 PointHistoryDTO 기준 필드
+ * phone은 String 타입 — number 아님!
+ */
 interface PointHistory {
   pointId: number
-  title: string // 영화 이름
-  createAt: string           // 'YYYY-MM-DD HH:mm'
+  title: string          // 포인트 적립된 영화 이름
+  createAt: string       // ISO datetime
   type: 'EARN' | 'REFUND_EARN' | 'REFUND_USE' | 'USE'
-  amountPoint: number         // 적립(+) or 사용(-)
-  paymentId: string    // 예: "영화 예매 (BK20260401001)"
-  phone: number        // 회원 전화번호
+  amountPoint: number
+  paymentId: string      // 결제 ID
+  phone: string          // 회원 전화번호 (String)
 }
 
 // interface ActivityLog {
@@ -111,27 +115,44 @@ function MemberListPage() {
   // 전체 활동 로그 모달
   const [showActivityLog, setShowActivityLog] = useState(false)
 
-  /**
-   * 검색 필터링
-   * 이름, 이메일, 전화번호 중 하나라도 keyword를 포함하면 노출
-   * TODO: 실제 API 연동 시 GET /api/admin/members?keyword=&page= 로 교체
-   */
-
   // 포인트 내역 모달: 선택된 회원 (null이면 닫힘)
   const [pointMember, setPointMember] = useState<Member | null>(null)
 
+  /**
+   * 백엔드 GET /api/admin/member/list 응답은 Page<MemberDTO> 구조:
+   *   { content: [...], totalElements: N, totalPages: M, ... }
+   *
+   * keyword 검색은 백엔드가 지원하지 않으므로 전체 목록을 한 번만 받아
+   * 클라이언트에서 phone 기준 필터링.
+   *
+   * 현재 page=1(size 고정 10건) → 추후 페이지네이션 UI 추가 가능
+   */
+  const [allMembers, setAllMembers] = useState<Member[]>([])
+
   useEffect(() => {
     setLoading(true)
+    apiClient.get('/admin/member/list', { params: { page: 1 } })
+      .then(res => {
+        // Page<MemberDTO> → content 배열 추출
+        // res.data.content 없으면 배열 직접 반환하는 경우도 대비
+        const list: Member[] = res.data.content ?? res.data
+        setAllMembers(list)
+        setMembers(list)
+      })
+      .catch(err => console.error('[MemberListPage] 회원 목록 로드 실패', err))
+      .finally(() => setLoading(false))
+  }, [])
 
-    apiClient.get('/admin/member/list', {
-      params: { keyword }
-    })
-        .then(res => {
-          setMembers(res.data)
-          setLoading(false)
-        })
-
-  }, [keyword])
+  /**
+   * keyword 변경 시 클라이언트 필터링 (전화번호 포함 여부)
+   */
+  useEffect(() => {
+    if (!keyword.trim()) {
+      setMembers(allMembers)
+    } else {
+      setMembers(allMembers.filter(m => m.phone.includes(keyword.trim())))
+    }
+  }, [keyword, allMembers])
 
   return (
     <div style={wrap}>
@@ -169,7 +190,6 @@ function MemberListPage() {
             <tr style={tHead}>
               <th style={th}>전화번호</th>
               <th style={{ ...th, textAlign: 'right' }}>포인트</th>
-              <th style={{ ...th, textAlign: 'right' }}>예매 횟수</th>
               <th style={{ ...th, textAlign: 'center' }}>가입일</th>
               {/*<th style={{ ...th, textAlign: 'center' }}>상태</th>*/}
               {/* 상세 버튼 제거 — 테이블에서 이미 모든 정보 확인 가능 */}
@@ -196,11 +216,9 @@ function MemberListPage() {
                   <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: 'var(--color-brand-default)' }}>
                     {m.point.toLocaleString()} P
                   </td>
-                  <td style={{ ...td, textAlign: 'right', color: 'var(--text-secondary)' }}>
-                    {m.bookingCount}회
-                  </td>
                   <td style={{ ...td, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
-                    {m.createAt}
+                    {/* LocalDateTime 직렬화 결과 → 앞 10자만 (날짜) 표시 */}
+                    {m.createAt?.slice(0, 10) ?? '-'}
                   </td>
                   {/*<td style={{ ...td, textAlign: 'center' }}>*/}
                   {/*  <span style={{*/}
