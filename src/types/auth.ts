@@ -7,76 +7,77 @@
  */
 
 /* ── 역할 ──────────────────────────────────────────── */
-export type AdminRole = 'SUPER_ADMIN' | 'MANAGER'
+export type AdminRole = 'MASTER' | 'STAFF'
 
 /* ── 개별 권한 단위 ─────────────────────────────────── */
 export type Permission =
-  | 'refund'          // 환불 처리         (UC-17)
-  | 'movie.view'      // 영화 목록 조회
-  | 'movie.create'    // 영화 등록          (UC-18)
-  | 'movie.edit'      // 영화 수정          (UC-19)
-  | 'movie.delete'    // 영화 삭제          (UC-20)
-  | 'theater.view'    // 상영관 조회
-  | 'theater.edit'    // 상영관/좌석 수정   (UC-21)
-  | 'policy.view'     // 정책 조회          (SUPER_ADMIN only)
-  | 'policy.edit'     // 정책 수정          (SUPER_ADMIN only)
-  | 'statistics'      // 통계 전체          (SUPER_ADMIN only)
-  | 'member.view'     // 회원 조회          (SUPER_ADMIN only)
-  | 'account.manage'  // 관리자 계정 관리   (SUPER_ADMIN only)
+    | 'ROLE_REFUND' // 환불 처리         (UC-17)
+    | 'ROLE_MOVIE_LIST' // 영화 목록 조회
+    | 'ROLE_MOVIE_REGISTER'// 영화 등록          (UC-18)
+    | 'ROLE_MOVIE_EDIT' // 영화 수정          (UC-19)
+    | 'ROLE_MOVIE_DELETE' // 영화 삭제          (UC-20)
+    | 'ROLE_THEATER_LIST' // 상영관 조회
+    | 'ROLE_THEATER_EDIT' // 상영관/좌석 수정   (UC-21)
+    | 'ROLE_POLICY_LIST' // 정책 조회          (SUPER_ADMIN only)
+    | 'ROLE_POLICY_EDIT' // 정책 수정          (SUPER_ADMIN only)
+    | 'ROLE_STATISTICS' // 통계 전체          (SUPER_ADMIN only)
+    | 'ROLE_MEMBER_MANAGEMENT' // 회원 조회          (SUPER_ADMIN only)
+    | 'ROLE_ADMIN_MANAGEMENT' // 관리자 계정 관리   (SUPER_ADMIN only)
 
 /* ── 역할별 기본 권한 셋 ────────────────────────────── */
 export const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
-  SUPER_ADMIN: [
-    'refund',
-    'movie.view', 'movie.create', 'movie.edit', 'movie.delete',
-    'theater.view', 'theater.edit',
-    'policy.view', 'policy.edit',
-    'statistics',
-    'member.view',
-    'account.manage',
+  MASTER: [
+    'ROLE_REFUND',
+    'ROLE_MOVIE_LIST', 'ROLE_MOVIE_REGISTER', 'ROLE_MOVIE_EDIT', 'ROLE_MOVIE_DELETE',
+    'ROLE_THEATER_LIST', 'ROLE_THEATER_EDIT',
+    'ROLE_POLICY_LIST', 'ROLE_POLICY_EDIT',
+    'ROLE_STATISTICS',
+    'ROLE_MEMBER_MANAGEMENT',
+    'ROLE_ADMIN_MANAGEMENT',
   ],
-  MANAGER: [
-    'refund',
-    'movie.view', 'movie.create', 'movie.edit', 'movie.delete',
-    'theater.view', 'theater.edit',
-  ],
+  STAFF: [],
 }
 
 /* ── 관리자 계정 타입 ────────────────────────────────── */
 export interface AdminUser {
-  id: string           // 로그인 아이디
-  name: string         // 표시 이름
-  role: AdminRole
-  /** 역할 기본값을 덮어쓸 수 있는 개별 권한 목록 (최고관리자가 설정) */
-  permissions: Permission[]
+  adminId: number // 관리자 인덱스
+  loginId: string // 로그인한 아이디
+  password: string
+  name?: string // 관리자 이름
+  adminPhone: string // 관리자 전화번호
+  level: boolean // false: MASTER, true: STAFF
+  uuid: string // 자동로그인을 위한 토큰
+  createdAt: string // 생성일
+
+  permissions: Permission[] // 권한 리스트
 }
 
 /* ── 더미 계정 데이터 (TODO: 백엔드 API 연동 시 제거) ── */
-export const MOCK_ADMIN_ACCOUNTS: AdminUser[] = [
-  {
-    id: 'admin',
-    name: '관리자',
-    role: 'SUPER_ADMIN',
-    permissions: ROLE_PERMISSIONS['SUPER_ADMIN'],
-  },
-  {
-    id: 'manager',
-    name: '김아르바',
-    role: 'MANAGER',
-    permissions: ROLE_PERMISSIONS['MANAGER'],
-  },
-  {
-    id: 'manager2',
-    name: '이아르바',
-    role: 'MANAGER',
-    // 최고관리자가 일부 권한 추가 부여한 케이스
-    permissions: [...ROLE_PERMISSIONS['MANAGER']],
-  },
-]
+// export const MOCK_ADMIN_ACCOUNTS: AdminUser[] = [
+//   {
+//     id: 'admin',
+//     name: '관리자',
+//     role: 'MASTER',
+//     permissions: ROLE_PERMISSIONS['MASTER'],
+//   },
+//   {
+//     id: 'manager',
+//     name: '김아르바',
+//     role: 'STAFF',
+//     permissions: ROLE_PERMISSIONS['STAFF'],
+//   },
+//   {
+//     id: 'manager2',
+//     name: '이아르바',
+//     role: 'STAFF',
+//     // 최고관리자가 일부 권한 추가 부여한 케이스
+//     permissions: [...ROLE_PERMISSIONS['STAFF']],
+//   },
+// ]
 
-/** 비밀번호 매핑 (더미) — id: password */
-export const MOCK_PASSWORDS: Record<string, string> = {
-  admin:    'admin123',
-  manager:  'manager123',
-  manager2: 'manager123',
-}
+/* 비밀번호 매핑 (더미) — id: password */
+// export const MOCK_PASSWORDS: Record<string, string> = {
+//   admin:    'admin123',
+//   manager:  'manager123',
+//   manager2: 'manager123',
+// }

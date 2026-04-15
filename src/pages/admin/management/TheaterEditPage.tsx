@@ -16,7 +16,7 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { CheckCircle } from 'lucide-react'
 import { SeatPolicy } from './TheaterListPage'
-import axios from 'axios'
+import apiClient from '../../../api/apiClient.ts'
 
 function TheaterEditPage() {
   const navigate  = useNavigate()
@@ -68,7 +68,7 @@ function TheaterEditPage() {
        *   ids = 상영관 번호 배열, changeValue = 새 정리시간(분) */
     try {
       if (form.cleanupTime !== theater.cleanupTime) {
-          await axios.patch('/api/admin/theater/cleantime', {
+          await apiClient.patch('/admin/theater/cleantime', {
             ids:         [theater.no],
             changeValue: form.cleanupTime,
           })
@@ -77,7 +77,7 @@ function TheaterEditPage() {
       /* ② 좌석 정책이 바뀐 경우
        *   ids = 상영관 번호 배열, changeValue = 새 policyId */
       if (form.policyId !== theater.policyId) {
-          await axios.patch('/api/admin/theater/policy', {
+          await apiClient.patch('/admin/theater/policy', {
             ids:         [theater.no],
             changeValue: form.policyId,
           })

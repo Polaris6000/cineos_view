@@ -8,22 +8,51 @@
 import axios from 'axios'
 
 const apiClient = axios.create({
-  baseURL: '/api',        // Vite proxy: /api → localhost:8080
-  timeout: 10_000,        // 10초 타임아웃
+  baseURL: '/api',
+  timeout: 10_000,
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
-// ── 응답 에러 인터셉터 ────────────────────────────────
+// ── 요청 인터셉터 (JWT 토큰 첨부) ────────────────────────
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('accessToken')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// ── 응답 인터셉터 ────────────────────────────────────────
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const status = error.response?.status
-    const url    = error.config?.url ?? '(unknown)'
-    console.error(`[API Error] ${status ?? 'network'} → ${url}`, error.message)
-    return Promise.reject(error)
-  },
+    (response) => response,
+    async (error) => {
+      const status = error.response?.status
+      const url    = error.config?.url ?? '(unknown)'
+      console.error(`[API Error] ${status ?? 'network'} → ${url}`, error.message)
+
+      // 401 → 토큰 재발급 시도
+      if (status === 401) {
+        const accessToken  = localStorage.getItem('accessToken')
+        const refreshToken = localStorage.getItem('refreshToken')
+
+        try {
+          const res = await axios.post('/admin/refresh', { accessToken, refreshToken })
+          localStorage.setItem('accessToken', res.data.accessToken)
+          localStorage.setItem('refreshToken', res.data.refreshToken)
+
+          // 실패한 요청 재시도
+          error.config.headers.Authorization = `Bearer ${res.data.accessToken}`
+          return axios(error.config)
+        } catch {
+          // 재발급 실패 → 로그아웃
+          localStorage.clear()
+          window.location.href = '/admin/login'
+        }
+      }
+      return Promise.reject(error)
+    },
 )
 
 export default apiClient

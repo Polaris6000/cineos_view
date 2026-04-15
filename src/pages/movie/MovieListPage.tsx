@@ -141,9 +141,9 @@ function MovieListPage() {
    */
   useEffect(() => {
     Promise.all([
-      apiClient.get<ScheduleDTO[]>('/admin/schedule/list'),
-      apiClient.get<TheaterDTO[]>('/admin/theater/list'),
-      apiClient.get<SeatPolicyDTO[]>('/admin/seat-policy/list'),
+      apiClient.get<ScheduleDTO[]>('/schedule/list'),
+      apiClient.get<TheaterDTO[]>('/theater/list'),
+      apiClient.get<SeatPolicyDTO[]>('/seat-policy/list'),
     ]).then(([schedRes, theaterRes, policyRes]) => {
       // policyId → 'NORMAL' | 'RECLINER'
       const policyTypeMap = new Map<number, string>()

@@ -5,8 +5,12 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle } from 'lucide-react'
-import axios from "axios";
+import apiClient from "../../../api/apiClient.ts";
 
+
+/*
+TODO 할인정책에 할인율, 할인값이 0%인데도 추가가 됨
+ */
 // 타입 정의 (필요에 따라 PolicyManagePage에서 가져온 타입을 확장하세요)
 interface DiscountPolicy {
   // id: number // 인덱스
@@ -98,7 +102,7 @@ function PolicyFormPage() {
 
     try {
       console.log('[PolicyForm] 등록 시도:', formData)
-      const res = await axios.post('/api/admin/discount-policy', formData);
+      const res = await apiClient.post('/admin/discount-policy', formData);
 
       if (res.status === 200 || res.status === 201) {
         setSuccess(true)

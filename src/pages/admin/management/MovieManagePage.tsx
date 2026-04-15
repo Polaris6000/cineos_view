@@ -13,7 +13,7 @@
  */
 import { useState, useMemo, useEffect } from 'react'
 import { Theater } from './TheaterListPage'
-import axios from "axios";
+import apiClient from "../../../api/apiClient.ts";
 
 /* ── 타입 정의 ── */
 interface Schedule {
@@ -95,7 +95,7 @@ function MovieManagePage() {
   const [theaters, setTheaters] = useState<Theater[]>([])
 
   useEffect(() => {
-    axios.get('/api/admin/theater/list')
+    apiClient.get('/admin/theater/list')
         .then(res => {
           console.log('상영관 출력', res.data)
           setTheaters(res.data)
@@ -109,7 +109,7 @@ function MovieManagePage() {
   }, [])
 
   useEffect(() => {
-    axios.get('http://localhost:8080/api/movie/readAll')
+    apiClient.get('/movie/readAll')
         .then(res => {
           console.log(res.data)
           const data: Movie[] = res.data;
@@ -135,9 +135,11 @@ function MovieManagePage() {
    *   ScheduleServiceImpl.createSchedule() 67번 줄에서
    *   반환 DTO의 activation 이 false 로 하드코딩돼 있음 → true 로 수정해야 함.
    *   현재는 등록 직후 재조회로 실제 DB 상태(true)를 가져와 우회 처리.
+   *
+   *   수정완료
    */
   const loadSchedules = () => {
-    axios.get('/api/admin/schedule/list')
+    apiClient.get('/admin/schedule/list')
       .then(res => {
         const data = res.data
         const mapped: Record<number, Schedule[]> = {}
@@ -270,7 +272,7 @@ function MovieManagePage() {
         endAt: `${endDate}T${previewEndTime}:00`,
       };
 
-      const res = await axios.post('/api/admin/schedule', payload)
+      const res = await apiClient.post('/admin/schedule', payload)
       console.log('스케줄 로그 ',res.data)
 
       if ((res.status === 200 || res.status === 201) && res.data?.id) {
@@ -307,7 +309,7 @@ function MovieManagePage() {
     try {
       // PATCH 요청: { ids: [id, ...], activation: true|false }
       // → ActivationRequest { List<Long> ids, boolean activation }
-      await axios.patch('/api/admin/schedule/activation', {
+      await apiClient.patch('/admin/schedule/activation', {
         ids: targetIds,
         activation: nextStatus,
       })

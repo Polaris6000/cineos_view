@@ -45,39 +45,39 @@ const NAV_SECTIONS: NavSection[] = [
   {
     section: '영화 관리',
     items: [
-      { path: '/admin/management/movie/list',   label: '영화 목록', Icon: Film,        permission: 'movie.view' },
-      { path: '/admin/management/movie/form',   label: '영화 등록', Icon: Film,        permission: 'movie.create' },
-      { path: '/admin/management/movie/manage', label: '상영 관리', Icon: PlaySquare,  permission: 'movie.edit' },
+      { path: '/admin/management/movie/list',   label: '영화 목록', Icon: Film,        permission: 'ROLE_MOVIE_LIST' },
+      { path: '/admin/management/movie/form',   label: '영화 등록', Icon: Film,        permission: 'ROLE_MOVIE_REGISTER' },
+      { path: '/admin/management/movie/manage', label: '상영 관리', Icon: PlaySquare,  permission: 'ROLE_MOVIE_EDIT' },
     ],
   },
   {
     section: '상영관/좌석',
     items: [
-      { path: '/admin/management/theater/list', label: '상영관 목록',    Icon: Armchair, permission: 'theater.view' },
-      { path: '/admin/management/seat/list',    label: '좌석 목록',      Icon: Armchair, permission: 'theater.view' },
+      { path: '/admin/management/theater/list', label: '상영관 목록',    Icon: Armchair, permission: 'ROLE_THEATER_LIST' },
+      { path: '/admin/management/seat/list',    label: '좌석 목록',      Icon: Armchair, permission: 'ROLE_THEATER_LIST' },
     ],
   },
   {
     section: '정책/환불',
     items: [
-      { path: '/admin/management/policy/list',  label: '정책 목록', Icon: ScrollText, permission: 'policy.view' },
-      { path: '/admin/management/coupon/list',  label: '쿠폰 관리', Icon: Ticket,     permission: 'policy.view' },
-      { path: '/admin/refund',                  label: '환불 처리', Icon: RotateCcw,  permission: 'refund' },
+      { path: '/admin/management/policy/list',  label: '정책 목록', Icon: ScrollText, permission: 'ROLE_POLICY_LIST' },
+      { path: '/admin/management/coupon/list',  label: '쿠폰 관리', Icon: Ticket,     permission: 'ROLE_POLICY_LIST' },
+      { path: '/admin/refund',                  label: '환불 처리', Icon: RotateCcw,  permission: 'ROLE_REFUND' },
     ],
   },
   {
     // 통계 섹션 — SUPER_ADMIN 전용 (나머지 통계는 대시보드 내 탭 내비로 이동)
     section: '통계',
     items: [
-      { path: '/admin/statistics/dashboard', label: '대시보드', Icon: LayoutDashboard, permission: 'statistics' },
+      { path: '/admin/statistics/dashboard', label: '대시보드', Icon: LayoutDashboard, permission: 'ROLE_STATISTICS' },
     ],
   },
   {
     // 회원·계정 관리 — SUPER_ADMIN 전용
     section: '회원/계정 관리',
     items: [
-      { path: '/admin/management/members',  label: '회원 정보 관리', Icon: Users,       permission: 'member.view' },
-      { path: '/admin/management/accounts', label: '계정 및 권한',   Icon: ShieldCheck, permission: 'account.manage' },
+      { path: '/admin/management/members',  label: '회원 정보 관리', Icon: Users,       permission: 'ROLE_MEMBER_MANAGEMENT' },
+      { path: '/admin/management/accounts', label: '계정 및 권한',   Icon: ShieldCheck, permission: 'ROLE_ADMIN_MANAGEMENT' },
     ],
   },
 ]
@@ -128,9 +128,9 @@ function AdminLayout() {
   })).filter((sec) => sec.items.length > 0)
 
   // 역할 뱃지 스타일
-  const roleBadgeText  = currentAdmin?.role === 'SUPER_ADMIN' ? '최고관리자' : '일반관리자'
-  const roleBadgeColor = currentAdmin?.role === 'SUPER_ADMIN' ? '#ffb800' : '#82b0ff'
-  const roleBadgeBg    = currentAdmin?.role === 'SUPER_ADMIN'
+  const roleBadgeText  = currentAdmin?.level === false ? '최고관리자' : '일반관리자'
+  const roleBadgeColor = currentAdmin?.level === false ? '#ffb800' : '#82b0ff'
+  const roleBadgeBg    = currentAdmin?.level === false
     ? 'rgba(255,184,0,0.15)' : 'rgba(130,176,255,0.15)'
 
   return (
@@ -169,7 +169,7 @@ function AdminLayout() {
             </p>
             {/* 아이디 */}
             <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
-              @{currentAdmin.id}
+              @{currentAdmin.loginId}
             </p>
           </div>
         )}

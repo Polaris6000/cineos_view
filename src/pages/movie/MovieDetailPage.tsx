@@ -86,7 +86,7 @@ function MovieDetailPage() {
   /* ── 스케줄 조회: GET /api/admin/schedule/{movieId}/movie ── */
   useEffect(() => {
     if (!id) return
-    apiClient.get<ScheduleDTO[]>(`/admin/schedule/${id}/movie`)
+    apiClient.get<ScheduleDTO[]>(`/schedule/${id}/movie`)
       .then((res) => {
         // 오늘 날짜이고 활성화된 스케줄만 필터
         const filtered = res.data.filter(

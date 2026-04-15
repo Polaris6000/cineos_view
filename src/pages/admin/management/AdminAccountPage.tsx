@@ -8,255 +8,251 @@
  * TODO: GET /api/admin/accounts 연동
  * TODO: PUT /api/admin/accounts/:id/permissions 연동
  */
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ShieldCheck, ShieldOff, Lock, Save, RotateCcw, Eye } from 'lucide-react'
 import type { AdminUser, Permission } from '../../../types/auth'
-import { MOCK_ADMIN_ACCOUNTS, ROLE_PERMISSIONS } from '../../../types/auth'
+import { ROLE_PERMISSIONS } from '../../../types/auth'
 import { useAuth } from '../../../context/AuthContext'
+import apiClient from "../../../api/apiClient.ts";
 
-/**
- * 각 권한의 표시명과 설명
- * SUPER_ADMIN 전용 권한은 label 에 (최고관리자 전용) 표시
- */
-const PERMISSION_META: Record<Permission, { label: string; desc: string; superOnly?: boolean }> = {
-  'refund':         { label: '환불 처리',       desc: '예매 취소 및 환불 처리' },
-  'movie.view':     { label: '영화 목록 조회',   desc: '영화 목록 조회' },
-  'movie.create':   { label: '영화 등록',        desc: '새 영화 등록' },
-  'movie.edit':     { label: '영화 수정',        desc: '기존 영화 정보/상영 시간 수정' },
-  'movie.delete':   { label: '영화 삭제',        desc: '영화 및 상영 일정 삭제' },
-  'theater.view':   { label: '상영관 조회',       desc: '상영관/좌석 정보 조회' },
-  'theater.edit':   { label: '상영관 수정',       desc: '상영관 및 좌석 구성 수정' },
-  'policy.view':    { label: '정책 조회',         desc: '요금 정책 조회', superOnly: true },
-  'policy.edit':    { label: '정책 수정',         desc: '요금/할인 정책 수정', superOnly: true },
-  'statistics':     { label: '통계 조회',         desc: '모든 통계 페이지 접근', superOnly: true },
-  'member.view':    { label: '회원 정보 관리',    desc: '회원 목록 조회 및 상세 확인', superOnly: true },
-  'account.manage': { label: '계정 및 권한 관리', desc: '관리자 계정 생성/권한 설정', superOnly: true },
+const PERMISSION_META: Record<Permission, { id: number; label: string; desc: string; superOnly?: boolean }> = {
+  'ROLE_REFUND':            { id: 1, label: '환불 처리',        desc: '예매 취소 및 환불 처리' },
+  'ROLE_MOVIE_LIST':        { id: 2, label: '영화 목록 조회',    desc: '영화 목록 조회' },
+  'ROLE_MOVIE_REGISTER':    { id: 3, label: '영화 등록',         desc: '새 영화 등록' },
+  'ROLE_MOVIE_EDIT':        { id: 4, label: '영화 수정',         desc: '기존 영화 정보 수정' },
+  'ROLE_MOVIE_DELETE':      { id: 5, label: '영화 삭제',         desc: '영화 및 상영 일정 삭제' },
+  'ROLE_THEATER_LIST':      { id: 6, label: '상영관 조회',        desc: '상영관/좌석 정보 조회' },
+  'ROLE_THEATER_EDIT':      { id: 7, label: '상영관 수정',        desc: '상영관 및 좌석 구성 수정' },
+  'ROLE_POLICY_LIST':       { id: 8, label: '정책 조회',          desc: '요금 정책 조회', superOnly: true },
+  'ROLE_POLICY_EDIT':       { id: 9, label: '정책 수정',          desc: '요금/할인 정책 수정', superOnly: true },
+  'ROLE_STATISTICS':        { id: 10, label: '통계 조회',          desc: '모든 통계 페이지 접근', superOnly: true },
+  'ROLE_MEMBER_MANAGEMENT': { id: 11, label: '회원 정보 관리',     desc: '회원 목록 조회 및 상세 확인', superOnly: true },
+  'ROLE_ADMIN_MANAGEMENT':  { id: 12, label: '계정 및 권한 관리',  desc: '관리자 계정 생성/권한 설정', superOnly: true },
 }
 
-/**
- * 권한 그룹 (화면에서 그룹별로 카드를 나눔)
- * MANAGER가 가질 수 있는 권한과 SUPER_ADMIN 전용 권한을 분리
- */
 const PERMISSION_GROUPS = [
   {
     groupLabel: '운영 권한 (일반관리자 부여 가능)',
-    permissions: ['refund', 'movie.view', 'movie.create', 'movie.edit', 'movie.delete', 'theater.view', 'theater.edit'] as Permission[],
+    permissions: [
+      'ROLE_REFUND',
+      'ROLE_MOVIE_LIST', 'ROLE_MOVIE_REGISTER', 'ROLE_MOVIE_EDIT', 'ROLE_MOVIE_DELETE',
+      'ROLE_THEATER_LIST', 'ROLE_THEATER_EDIT',
+    ] as Permission[],
   },
   {
     groupLabel: '최고관리자 전용 권한',
-    permissions: ['policy.view', 'policy.edit', 'statistics', 'member.view', 'account.manage'] as Permission[],
+    permissions: [
+      'ROLE_POLICY_LIST', 'ROLE_POLICY_EDIT',
+      'ROLE_STATISTICS',
+      'ROLE_MEMBER_MANAGEMENT',
+      'ROLE_ADMIN_MANAGEMENT',
+    ] as Permission[],
     superOnly: true,
   },
 ]
 
 function AdminAccountPage() {
-  // 현재 로그인한 관리자 정보 및 최고관리자 여부
-  const { currentAdmin, isSuperAdmin } = useAuth()
+  const { currentAdmin, isMaster } = useAuth()
+  console.log('관리자 여부: ', isMaster)
 
-  // 더미 계정 목록으로 초기화
-  // SUPER_ADMIN은 전체 계정, MANAGER는 본인 계정만 볼 수 있음
-  const [accounts, setAccounts] = useState<AdminUser[]>(
-    MOCK_ADMIN_ACCOUNTS
-      .filter((a) => isSuperAdmin || a.id === currentAdmin?.id) // MANAGER는 본인만 필터링
-      .map((a) => ({ ...a, permissions: [...a.permissions] }))
-  )
-  // 저장 중 상태 (계정 id → boolean)
+  // 빈 배열로 시작 → 나중에 API 연동
+  const [accounts, setAccounts] = useState<AdminUser[]>([])
   const [saving, setSaving] = useState<Record<string, boolean>>({})
-  // 변경 알림 (계정 id → 메시지)
   const [savedMsg, setSavedMsg] = useState<Record<string, string>>({})
 
-  /**
-   * 권한 토글 핸들러
-   * SUPER_ADMIN 계정은 수정 불가 (조건 처리)
-   */
-  const togglePermission = useCallback((accountId: string, perm: Permission) => {
+  // TODO: API 연동 시 여기서 데이터 가져오기
+  useEffect(() => {
+    apiClient.get<AdminUser[]>('/admin/list')
+        .then(res => {
+          const sanitizedData = res.data.map(user => ({
+            ...user,
+            // 서버에서 온 [{id:1, roleName:'ROLE_REFUND'}]를 ['ROLE_REFUND']로 변환
+            permissions: (user.permissions as any[] || []).map(p => p.roleName || p)
+          }));
+          setAccounts(sanitizedData);
+        }).catch(err => console.error(err))
+  }, [])
+
+  const togglePermission = useCallback((loginId: string, perm: Permission) => {
     setAccounts((prev) =>
-      prev.map((a) => {
-        if (a.id !== accountId) return a
-        // SUPER_ADMIN 권한 수정 금지
-        if (a.role === 'SUPER_ADMIN') return a
-        const has = a.permissions.includes(perm)
-        return {
-          ...a,
-          permissions: has
-            ? a.permissions.filter((p) => p !== perm)   // 제거
-            : [...a.permissions, perm],                  // 추가
-        }
-      })
+        prev.map((a) => {
+          if (a.loginId !== loginId) return a
+          if (!a.level) return a  // MASTER(level=false)는 수정 불가
+
+          const currentPermissions = a.permissions || [];
+          const has = currentPermissions.includes(perm);
+
+          return {
+            ...a,
+            permissions: has
+                ? currentPermissions.filter((p) => p !== perm)
+                : [...currentPermissions, perm],
+          }
+        })
     )
   }, [])
 
-  /**
-   * 권한 저장 핸들러
-   * TODO: PUT /api/admin/accounts/:id/permissions { permissions: [...] } 연동
-   */
-  const handleSave = async (accountId: string) => {
-    setSaving((s) => ({ ...s, [accountId]: true }))
-    // 더미 딜레이
-    await new Promise((r) => setTimeout(r, 600))
-    setSaving((s) => ({ ...s, [accountId]: false }))
-    setSavedMsg((m) => ({ ...m, [accountId]: '저장 완료!' }))
-    setTimeout(() => setSavedMsg((m) => ({ ...m, [accountId]: '' })), 2000)
-  }
+  const handleSave = async (loginId: string) => {
+    const accountToSave = accounts.find(a => a.loginId === loginId);
+    if (!accountToSave) return;
 
-  /**
-   * 역할 기본값으로 리셋
-   */
-  const handleReset = (accountId: string) => {
+    setSaving((s) => ({ ...s, [loginId]: true }));
+
+    try {
+      // 백단 DTO 형식에 맞춰 데이터 재조립
+      const requestBody = {
+        adminId: accountToSave.adminId, // Long
+        // String 배열 ['ROLE_REFUND']를 숫자 배열 [1]로 변환
+        roles: accountToSave.permissions.map(permName => PERMISSION_META[permName as Permission].id)
+      };
+
+      await apiClient.post(`/admin/role`, requestBody);
+
+      setSavedMsg((m) => ({ ...m, [loginId]: '저장 완료!' }));
+      setTimeout(() => setSavedMsg((m) => ({ ...m, [loginId]: '' })), 2000);
+    } catch (err) {
+      console.error('권한 저장 실패:', err);
+      alert('권한 저장 중 오류가 발생했습니다.');
+    } finally {
+      setSaving((s) => ({ ...s, [loginId]: false }));
+    }
+  };
+
+  const handleReset = (loginId: string) => {
     setAccounts((prev) =>
-      prev.map((a) => {
-        if (a.id !== accountId) return a
-        return { ...a, permissions: [...ROLE_PERMISSIONS[a.role]] }
-      })
+        prev.map((a) => {
+          if (a.loginId !== loginId) return a
+          // MASTER면 전체권한, STAFF면 빈배열 (자동로그인 구현 후 DB에서)
+          return { ...a, permissions: [...ROLE_PERMISSIONS[a.level ? 'STAFF' : 'MASTER']] }
+        })
     )
   }
 
   return (
-    <div style={wrap}>
-      {/* 페이지 헤더 */}
-      <div style={pageHeader}>
-        <h2 style={pageTitle}>계정 및 권한 관리</h2>
-        {isSuperAdmin ? (
-          <p style={pageDesc}>
-            일반관리자 계정의 개별 권한을 추가하거나 제거할 수 있습니다.
-            최고관리자 계정의 권한은 수정할 수 없습니다.
-          </p>
-        ) : (
-          // MANAGER는 본인 권한 조회만 가능 — 수정 불가 안내
-          <p style={{ ...pageDesc, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Eye size={14} color="var(--text-muted)" />
-            내 권한을 조회할 수 있습니다. 권한 변경은 최고관리자에게 문의하세요.
-          </p>
-        )}
-      </div>
+      <div style={wrap}>
+        <div style={pageHeader}>
+          <h2 style={pageTitle}>계정 및 권한 관리</h2>
+          {isMaster ? (
+              <p style={pageDesc}>
+                일반관리자 계정의 개별 권한을 추가하거나 제거할 수 있습니다.
+                최고관리자 계정의 권한은 수정할 수 없습니다.
+              </p>
+          ) : (
+              <p style={{ ...pageDesc, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Eye size={14} color="var(--text-muted)" />
+                내 권한을 조회할 수 있습니다. 권한 변경은 최고관리자에게 문의하세요.
+              </p>
+          )}
+        </div>
 
-      {/* 계정 카드 목록 */}
-      <div style={cardList}>
-        {accounts.map((account) => {
-          // isAccountSuperAdmin: 이 카드가 최고관리자 계정인지 여부
-          const isAccountSuperAdmin = account.role === 'SUPER_ADMIN'
-          const isChanged = JSON.stringify(account.permissions.sort())
-            !== JSON.stringify(ROLE_PERMISSIONS[account.role].slice().sort())
+        <div style={cardList}>
+          {accounts.map((account) => {
+            const isAccountMaster = account.level === false
 
-          return (
-            <div key={account.id} style={{
-              ...card,
-              opacity: isAccountSuperAdmin ? 0.75 : 1,
-            }}>
-              {/* 계정 정보 헤더 */}
-              <div style={cardHeader}>
-                <div>
-                  <p style={cardName}>{account.name}</p>
-                  <p style={cardId}>@{account.id}</p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {/* 역할 뱃지 */}
+            const permissions = account.permissions || [];
+
+            // 2. 비교 로직에서도 안전하게 처리
+            const defaultPerms = ROLE_PERMISSIONS[account.level ? 'STAFF' : 'MASTER'] || [];
+            const isChanged = JSON.stringify([...permissions].sort())
+                !== JSON.stringify([...defaultPerms].sort());
+
+            return (
+                // const isChanged = JSON.stringify(account.permissions.slice().sort())
+                // !== JSON.stringify(ROLE_PERMISSIONS[account.level ? 'STAFF' : 'MASTER'].slice().sort())
+            //
+            // return (
+                <div key={account.loginId} style={{ ...card, opacity: isAccountMaster ? 0.75 : 1 }}>
+                  <div style={cardHeader}>
+                    <div>
+                      <p style={cardName}>{account.name}</p>
+                      <p style={cardId}>@{account.loginId}</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{
                     padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700,
-                    background: isAccountSuperAdmin ? 'rgba(255,184,0,0.15)' : 'rgba(130,176,255,0.15)',
-                    color: isAccountSuperAdmin ? '#ffb800' : '#82b0ff',
+                    background: isAccountMaster ? 'rgba(255,184,0,0.15)' : 'rgba(130,176,255,0.15)',
+                    color: isAccountMaster ? '#ffb800' : '#82b0ff',
                   }}>
-                    {isAccountSuperAdmin ? '최고관리자' : '일반관리자'}
+                    {isAccountMaster ? '최고관리자' : '일반관리자'}
                   </span>
-                  {/* SUPER_ADMIN 계정 잠금 아이콘 */}
-                  {isAccountSuperAdmin && <Lock size={14} color="var(--text-muted)" />}
-                  {/* 현재 로그인 계정 표시 */}
-                  {account.id === currentAdmin?.id && (
-                    <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4,
-                                   background: 'var(--color-info-bg)', color: 'var(--color-info-dark)',
-                                   fontWeight: 600 }}>내 계정</span>
-                  )}
-                </div>
-              </div>
-
-              {/* 권한 그룹별 토글 */}
-              {PERMISSION_GROUPS.map((group) => (
-                <div key={group.groupLabel} style={permGroup}>
-                  <p style={permGroupLabel}>{group.groupLabel}</p>
-                  <div style={permGrid}>
-                    {group.permissions.map((perm) => {
-                      const meta = PERMISSION_META[perm]
-                      const has  = account.permissions.includes(perm)
-                      /**
-                       * 토글 잠금 조건:
-                       *  1. 대상 계정이 SUPER_ADMIN이면 항상 잠금 (최고관리자 권한은 변경 불가)
-                       *  2. 현재 로그인한 사용자가 MANAGER이면 항상 잠금 (읽기 전용)
-                       */
-                      const locked = isAccountSuperAdmin || !isSuperAdmin
-
-                      return (
-                        <button
-                          key={perm}
-                          style={{
-                            ...permBtn,
-                            background: has ? 'var(--color-success-bg)' : 'var(--bg-surface)',
-                            borderColor: has ? 'var(--color-success-main)' : 'var(--border-default)',
-                            color: has ? 'var(--color-success-text)' : 'var(--text-muted)',
-                            cursor: locked ? 'not-allowed' : 'pointer',
-                          }}
-                          onClick={() => !locked && togglePermission(account.id, perm)}
-                          title={meta.desc}
-                          disabled={locked}
-                        >
-                          {/* 권한 보유 여부 아이콘 */}
-                          {has
-                            ? <ShieldCheck size={13} style={{ flexShrink: 0 }} />
-                            : <ShieldOff   size={13} style={{ flexShrink: 0 }} />
-                          }
-                          {meta.label}
-                        </button>
-                      )
-                    })}
+                      {isAccountMaster && <Lock size={14} color="var(--text-muted)" />}
+                      {account.loginId === currentAdmin?.loginId && (
+                          <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4,
+                            background: 'var(--color-info-bg)', color: 'var(--color-info-dark)',
+                            fontWeight: 600 }}>내 계정</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
 
-              {/* 저장/리셋 버튼 — 현재 로그인이 SUPER_ADMIN이고, 대상이 MANAGER인 경우만 표시 */}
-              {isSuperAdmin && !isAccountSuperAdmin && (
-                <div style={cardFooter}>
-                  {savedMsg[account.id] && (
-                    <span style={{ fontSize: 13, color: 'var(--color-success-text)', fontWeight: 600 }}>
-                      ✓ {savedMsg[account.id]}
+                  {PERMISSION_GROUPS.map((group) => (
+                      <div key={group.groupLabel} style={permGroup}>
+                        <p style={permGroupLabel}>{group.groupLabel}</p>
+                        <div style={permGrid}>
+                          {group.permissions.map((perm) => {
+                            const meta = PERMISSION_META[perm]
+                            const has = permissions.includes(perm); // account.permissions 대신 사용
+                            // const has = account.permissions.includes(perm)
+                            const locked = isAccountMaster || !isMaster
+
+                            return (
+                                <button
+                                    key={perm}
+                                    style={{
+                                      ...permBtn,
+                                      background: has ? 'var(--color-success-bg)' : 'var(--bg-surface)',
+                                      borderColor: has ? 'var(--color-success-main)' : 'var(--border-default)',
+                                      color: has ? 'var(--color-success-text)' : 'var(--text-muted)',
+                                      cursor: locked ? 'not-allowed' : 'pointer',
+                                    }}
+                                    onClick={() => !locked && togglePermission(account.loginId, perm)}
+                                    title={meta.desc}
+                                    disabled={locked}
+                                >
+                                  {has
+                                      ? <ShieldCheck size={13} style={{ flexShrink: 0 }} />
+                                      : <ShieldOff   size={13} style={{ flexShrink: 0 }} />
+                                  }
+                                  {meta.label}
+                                </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                  ))}
+
+                  {isMaster && !isAccountMaster && (
+                      <div style={cardFooter}>
+                        {savedMsg[account.loginId] && (
+                            <span style={{ fontSize: 13, color: 'var(--color-success-text)', fontWeight: 600 }}>
+                      ✓ {savedMsg[account.loginId]}
                     </span>
+                        )}
+                        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+                          <button style={resetBtn} onClick={() => handleReset(account.loginId)}>
+                            <RotateCcw size={13} />
+                            초기화
+                          </button>
+                          <button
+                              style={{
+                                ...saveBtn,
+                                background: isChanged ? 'var(--btn-primary-bg)' : 'var(--bg-surface)',
+                                color: isChanged ? 'var(--btn-primary-text)' : 'var(--text-muted)',
+                                borderColor: isChanged ? 'var(--btn-primary-bg)' : 'var(--border-default)',
+                              }}
+                              onClick={() => handleSave(account.loginId)}
+                              disabled={saving[account.loginId]}
+                          >
+                            <Save size={13} />
+                            {saving[account.loginId] ? '저장 중...' : '저장'}
+                          </button>
+                        </div>
+                      </div>
                   )}
-                  <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-                    {/* 역할 기본값 리셋 */}
-                    <button
-                      style={resetBtn}
-                      onClick={() => handleReset(account.id)}
-                      title="역할 기본 권한으로 초기화"
-                    >
-                      <RotateCcw size={13} />
-                      초기화
-                    </button>
-                    {/* 저장 버튼 — 변경 사항 있을 때 강조 */}
-                    <button
-                      style={{
-                        ...saveBtn,
-                        background: isChanged
-                          ? 'var(--btn-primary-bg)'
-                          : 'var(--bg-surface)',
-                        color: isChanged
-                          ? 'var(--btn-primary-text)'
-                          : 'var(--text-muted)',
-                        borderColor: isChanged
-                          ? 'var(--btn-primary-bg)'
-                          : 'var(--border-default)',
-                      }}
-                      onClick={() => handleSave(account.id)}
-                      disabled={saving[account.id]}
-                    >
-                      <Save size={13} />
-                      {saving[account.id] ? '저장 중...' : '저장'}
-                    </button>
-                  </div>
                 </div>
-              )}
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
-    </div>
   )
 }
 
