@@ -14,7 +14,7 @@
  * 할인 정책은 condition_type=COUPON인 것만 쿠폰 발행 가능하므로
  * 드롭다운에는 COUPON 타입 정책만 필터링하여 표시.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import apiClient from '../../../api/apiClient.ts'
 import { DiscountPolicy } from './PolicyListPage'
 
@@ -35,45 +35,71 @@ function CouponListPage() {
   const [issuing,   setIssuing]   = useState(false) // 발행 중 여부
   const [msg,       setMsg]       = useState('')     // 피드백 메시지
 
-  /* ──────────────────────────────────────────
-     초기 데이터 로딩: 쿠폰 목록 + 할인 정책 목록 병렬 조회
-  ────────────────────────────────────────── */
-  useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        setLoading(true)
-        const [couponRes, policyRes] = await Promise.all([
-          // Page<CouponDTO> 반환 — 필수 파라미터 page 전달
-          apiClient.get('/admin/discount-policy/coupon/list', { params: { page: 1 } }),
-          // 전체 할인 정책 fetch — 쿠폰 목록에서 정책명 표시 시 모든 타입 커버 필요
-          apiClient.get('/admin/discount-policy/list'),
-        ])
-        // Page<CouponDTO> 응답 구조: { content: [...], totalElements: N, ... }
-        setCoupons(couponRes.data.content ?? couponRes.data)
+  /* ────────────────────────────────────────────────────────
+     [추가] 페이징 관련 상태 관리
+     ──────────────────────────────────────────────────────── */
+  const [currentPage, setCurrentPage] = useState(1) // 현재 보고 있는 페이지 번호 (1부터 시작)
+  const [totalPages,  setTotalPages]  = useState(1)  // 서버에서 받아온 전체 페이지 수
+  const [totalItems,  setTotalItems]  = useState(0)  // 전체 쿠폰 개수 (UI 표시용)
 
+  /* ────────────────────────────────────────────────────────
+     데이터 로딩 함수: 쿠폰 목록 조회
+     - page 인자를 받아 해당 페이지의 데이터를 서버에 요청.
+     - useCallback을 사용하여 불필요한 함수 재생성을 방지.
+  ──────────────────────────────────────────────────────── */
+  const fetchCoupons = useCallback(async (page: number) => {
+    try {
+      setLoading(true)
+      // 서버의 @RequestParam Integer page에 대응
+      const res = await apiClient.get('/admin/discount-policy/coupon/list', {
+        params: { page: page }
+      })
+
+      // Page<CouponDTO>의 content 배열과 페이징 정보를 상태에 저장
+      const { content, totalPages, totalElements } = res.data
+      setCoupons(content ?? [])
+      setTotalPages(totalPages ?? 1)
+      setTotalItems(totalElements ?? 0)
+    } catch (e) {
+      console.error('[CouponListPage] 쿠폰 목록 로딩 실패:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  /* ────────────────────────────────────────────────────────
+     초기 1회 실행: 할인 정책 목록 로드
+     ──────────────────────────────────────────────────────── */
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        // 전체 할인 정책 fetch — 드롭다운 구성용
+        const policyRes = await apiClient.get('/admin/discount-policy/list')
         const allPolicies = policyRes.data as DiscountPolicy[]
-        // 전체 정책을 저장 (목록 정책명 표시용)
         setPolicies(allPolicies)
 
-        // 발행 드롭다운은 COUPON 타입만 필터링
+        // 발행 드롭다운 기본값 설정 (COUPON 타입 중 첫 번째)
         const couponPolicies = allPolicies.filter((p) => p.conditionType === 'COUPON')
-        // 기본 선택값: 첫 번째 COUPON 정책
         if (couponPolicies.length > 0) {
           setSelectedPolicyId(couponPolicies[0].id)
         }
       } catch (e) {
-        console.error('[CouponListPage] 데이터 로딩 실패:', e)
-      } finally {
-        setLoading(false)
+        console.error('[CouponListPage] 초기 데이터 로딩 실패:', e)
       }
     }
-    void fetchAll()
+    void fetchInitialData()
   }, [])
 
+  /* ────────────────────────────────────────────────────────
+     페이지 변경 감지: currentPage가 바뀔 때마다 서버에서 데이터를 다시 가져옴
+     ──────────────────────────────────────────────────────── */
+  useEffect(() => {
+    void fetchCoupons(currentPage)
+  }, [currentPage, fetchCoupons])
+
   /**
-   * 쿠폰 발행
+   * 쿠폰 발행 함수
    * POST /api/admin/discount-policy/coupon/{policyId}
-   * 성공 시 목록을 서버에서 새로 불러와 최신 상태 유지
    */
   const handleIssueCoupon = async () => {
     if (selectedPolicyId === '') {
@@ -85,11 +111,11 @@ function CouponListPage() {
     try {
       await apiClient.post(`/admin/discount-policy/coupon/${selectedPolicyId}`)
 
-      // 발행 성공 → 목록 새로고침 (서버가 생성한 couponNum을 가져오기 위해)
-      const res = await apiClient.get('/admin/discount-policy/coupon/list', { params: { page: 1 } })
-      setCoupons(res.data.content ?? res.data)
+      setMsg('쿠폰이 성공적으로 발행되었습니다.')
 
-      setMsg('쿠폰이 발행되었습니다.')
+      // 발행 직후에는 최신 쿠폰을 확인하기 위해 1페이지로 강제 이동 및 갱신
+      setCurrentPage(1)
+      void fetchCoupons(1)
     } catch (e) {
       console.error('[CouponListPage] 쿠폰 발행 실패:', e)
       alert('쿠폰 발행에 실패했습니다.')
@@ -99,7 +125,7 @@ function CouponListPage() {
     }
   }
 
-  /* ── 사용 가능 / 사용 완료 건수 집계 ── */
+  /* ── 사용 가능 / 사용 완료 건수 집계 (현재 페이지 내에서 계산) ── */
   const availableCount = coupons.filter((c) => c.status).length
   const usedCount      = coupons.filter((c) => !c.status).length
 
@@ -117,7 +143,7 @@ function CouponListPage() {
           </div>
         </div>
 
-        {msg && <div style={msgBox}>{msg}</div>}
+          {msg && <div style={msgBox}>{msg}</div>}
 
         {policies.filter((p) => p.conditionType === 'COUPON').length === 0 ? (
           // COUPON 타입 정책이 없으면 안내 문구 표시
@@ -157,24 +183,26 @@ function CouponListPage() {
         )}
       </div>
 
-      {/* ── 쿠폰 목록 섹션 ── */}
-      <div style={sectionCard}>
-        <div style={sectionHeader}>
-          <div>
-            <h2 style={sectionTitle}>쿠폰 목록</h2>
-            <p style={sectionDesc}>
-              전체 {coupons.length}건
-              &nbsp;·&nbsp;
-              <span style={{ color: 'var(--color-success-main)', fontWeight: 600 }}>
+        {/* ── 쿠폰 목록 섹션 ── */}
+        <div style={sectionCard}>
+          <div style={sectionHeader}>
+            <div>
+              <h2 style={sectionTitle}>쿠폰 목록</h2>
+              <p style={sectionDesc}>
+                전체 {totalItems}건 (현재 페이지: {currentPage} / {totalPages})
+                &nbsp;·&nbsp;
+                {/* 사용 가능 건수 표시 (초록색) */}
+                <span style={{ color: 'var(--color-success-main)', fontWeight: 600 }}>
                 사용 가능 {availableCount}건
               </span>
-              &nbsp;·&nbsp;
-              <span style={{ color: 'var(--text-muted)' }}>
+                &nbsp;/&nbsp;
+                {/* 사용 완료 건수 표시 (빨간색) */}
+                <span style={{ color: 'var(--color-error-main)', fontWeight: 600 }}>
                 사용 완료 {usedCount}건
               </span>
-            </p>
+              </p>
+            </div>
           </div>
-        </div>
 
         <div style={tableWrap}>
           <table style={table}>
@@ -228,10 +256,51 @@ function CouponListPage() {
                   )
                 })
               )}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── [추가] 페이지네이션 UI ── */}
+          {!loading && totalPages > 0 && (
+              <div style={paginationWrap}>
+                {/* 이전 페이지 버튼 */}
+                <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    style={{ ...pageBtn, opacity: currentPage === 1 ? 0.5 : 1 }}
+                >
+                  이전
+                </button>
+
+                {/* 페이지 번호 목록: 1부터 totalPages까지 생성 */}
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(num => (
+                      <button
+                          key={num}
+                          onClick={() => setCurrentPage(num)}
+                          style={{
+                            ...pageNumberBtn,
+                            backgroundColor: currentPage === num ? 'var(--color-brand-default)' : 'transparent',
+                            color: currentPage === num ? '#fff' : 'var(--text-primary)',
+                            border: currentPage === num ? 'none' : '1px solid var(--border-subtle)'
+                          }}
+                      >
+                        {num}
+                      </button>
+                  ))}
+                </div>
+
+                {/* 다음 페이지 버튼 */}
+                <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    style={{ ...pageBtn, opacity: currentPage === totalPages ? 0.5 : 1 }}
+                >
+                  다음
+                </button>
+              </div>
+          )}
         </div>
-      </div>
 
     </div>
   )
@@ -281,5 +350,21 @@ const th: React.CSSProperties = {
 }
 const tr   = { borderBottom: '1px solid var(--border-subtle)' }
 const td: React.CSSProperties = { padding: '12px 16px', fontSize: 14, color: 'var(--text-primary)' }
+
+/* 페이징 전용 스타일 */
+const paginationWrap: React.CSSProperties = {
+  display: 'flex', justifyContent: 'center', alignItems: 'center',
+  gap: 16, marginTop: 24, paddingBottom: 8
+}
+const pageBtn: React.CSSProperties = {
+  padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border-default)',
+  background: 'var(--bg-surface)', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+  color: 'var(--text-secondary)', transition: 'all 0.2s'
+}
+const pageNumberBtn: React.CSSProperties = {
+  width: 34, height: 34, borderRadius: 8, cursor: 'pointer',
+  fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  transition: 'all 0.2s'
+}
 
 export default CouponListPage
