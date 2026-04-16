@@ -27,7 +27,7 @@ import {
 import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 import { PERSON_TYPES, PAYMENT_METHODS, SEAT_PRICES, SEAT_TYPE_LABEL } from '../../api/mockData'
 import axios from 'axios';
-import {MemberDTO} from '../../api/typeData'
+import { MemberDTO } from '../../api/typeData'
 
 /** 포인트 적립률 5% */
 const POINT_RATE = 0.05
@@ -164,7 +164,7 @@ function PaymentPage() {
         setIsVerified(true)
         setVerifyError('')
         setShowPhoneModal(false) // 인증 완료 → 모달 자동 닫기
-      } 
+      }
 
 
     } else {
@@ -224,79 +224,25 @@ function PaymentPage() {
   // ── 토스 위젯 전용 상태 추가 ──
   const clientKey = "test_ck_eqRGgYO1r5MyEOZWJX4nrQnN2Eya"; //테스트키
   const customerKey = "fbAUhfT1MpEwaLbEuEzvc"; // 테스트키
-  const [widgets, setWidgets] = useState<any>(null);
-  const [ready, setReady] = useState(false);
-  const renderCountRef = useRef(false); // [추가] 중복 렌더링 방지용
+  const [tossInstance, setTossInstance] = useState<any>(null); // widgets 대신 tossInstance 사용
 
-  // 2. 위젯 초기화 Effect (조립용)
+  // 2. SDK 초기화 (위젯이 아닌 일반 SDK 로드)
   useEffect(() => {
-    async function initWidgets() {
+    async function initSDK() {
       try {
         const tossPayments = await loadTossPayments(clientKey);
-        const widgetsInstance = tossPayments.widgets({ customerKey });
-        setWidgets(widgetsInstance);
+        setTossInstance(tossPayments);
       } catch (error) {
-        console.error("위젯 초기화 실패:", error);
+        console.error("SDK 초기화 실패:", error);
       }
     }
-    initWidgets();
+    initSDK();
   }, []);
 
-  // 2. 위젯 UI 렌더링 (최초 1회만 수행)
-  useEffect(() => {
-    async function renderWidgets() {
-      if (!widgets || renderCountRef.current) return;
-
-      // 초기 금액 설정
-      await widgets.setAmount({
-        currency: "KRW",
-        value: finalAmount,
-      });
-
-      // UI 렌더링
-      await Promise.all([
-        widgets.renderPaymentMethods({
-          selector: "#payment-method",
-          variantKey: "DEFAULT",
-        }),
-        widgets.renderAgreement({
-          selector: "#agreement",
-          variantKey: "AGREEMENT",
-        }),
-      ]);
-
-      renderCountRef.current = true;
-      setReady(true);
-    }
-
-    renderWidgets();
-  }, [widgets]); // finalAmount나 pointUsed를 넣지 않습니다.
-
-  // 3. [중요] 금액만 업데이트 (반응성 핵심)
-  // 포인트 사용 등으로 finalAmount가 바뀔 때 렌더링 없이 금액만 동기화합니다.
-  useEffect(() => {
-    if (ready && widgets) {
-      // 0원일 때는 토스 위젯 업데이트를 시도하지 않거나 예외처리
-      if (finalAmount > 0) {
-        widgets.setAmount({
-          currency: "KRW",
-          value: finalAmount,
-        }).catch(err => console.error("금액 업데이트 실패:", err));
-      }
-    }
-  }, [finalAmount, ready, widgets]);
-
-  // 4. 결제 영역 노출 제어 (JSX에서 처리)
-  // 재렌더링을 막기 위해 DOM 요소는 항상 유지하되, 포인트 전액 결제 시 시각적으로만 가립니다.
-  const paymentControlStyle: React.CSSProperties = {
-    display: isFullPoint ? 'none' : 'block',
-    opacity: ready ? 1 : 0.5,
-    transition: 'opacity 0.2s ease-in-out'
-  };
 
   /** 최종 결제 요청 함수 (토스 위젯 방식 적용) */
   const handlePay = async () => {
-    //가장먼저 결제하려는 데이터 임시 저장
+    // 1. 데이터 저장 로직 (생략 - 기존과 동일)
     const pendingBooking = {
       movieTitle,
       schedule,
@@ -310,45 +256,41 @@ function PaymentPage() {
       finalAmount,
       phone: phoneRaw,
       theater,
-      payMethod: 'CARD', // 결제 타입을 미리 지정.
+      payMethod: isFullPoint ? 'POINT' : 'CARD', // 결제 타입을 미리 지정.
       timestamp: Date.now() // 혹시 모를 유효기간 체크용
     };
+    localStorage.setItem('pending_booking_data', JSON.stringify(pendingBooking));
   
-    
-
-
     if (isFullPoint) {
-      // 포인트 전액 결제 시에는 토스 위젯 없이 기존 로직(navigate)으로 처리
-      console.log("포인트 전액 결제를 진행합니다.");
-      pendingBooking.payMethod = 'POINT' //결제타입을 변경
-      localStorage.setItem('pending_booking_data', JSON.stringify(pendingBooking));
-      
-      //결제 정보에 대한 값을 설정
-      const paymentKey = "point";
-      const orderId = crypto.randomUUID()
-      const amount = finalAmount;
-      
-      navigate(`/payment/result?orderId=${orderId}&amount=${amount}&paymentKey=${paymentKey}`);
+      navigate(`/payment/result?orderId=${crypto.randomUUID()}&amount=0&paymentKey=point`);
       return;
     }
-
-    // localStorage는 문자열만 저장 가능하므로 JSON.stringify 필수!
-    localStorage.setItem('pending_booking_data', JSON.stringify(pendingBooking));
-
-    if (!ready) return;
-
+  
+    if (!tossInstance) return;
+  
     try {
-      await widgets.requestPayment({
-        orderId: `${crypto.randomUUID()}`,
+      // [v2 Standard 핵심]
+      // 1단계: payment 인스턴스 생성
+      const payment = tossInstance.payment({ customerKey });
+  
+      // 2단계: 통합 requestPayment 메서드 호출
+      // 여기서 method를 'CARD'로 지정하면 카드 결제창이 뜹니다.
+      await payment.requestPayment({
+        method: "CARD", // 'CARD', 'TRANSFER', 'VIRTUAL_ACCOUNT' 등
+        amount: {
+          currency: "KRW",
+          value: finalAmount,
+        },
+        orderId: crypto.randomUUID(),
         orderName: `${movieTitle} 예매 (${totalPersons}명)`,
-        successUrl: window.location.origin + "/payment/result", // 성공 경로
-        failUrl: window.location.origin + "/payment", //실패경로. 실패시 다시 원래 자리로
+        successUrl: window.location.origin + "/payment/result",
+        failUrl: window.location.origin + "/payment",
         customerMobilePhone: phoneRaw,
       });
     } catch (error) {
-      console.error(error);
+      console.error("결제 요청 에러:", error);
     }
-  }
+  };
 
 
   // --- [웹소켓 관련 로직 통합 시작] ---
@@ -675,23 +617,41 @@ function PaymentPage() {
         </div>
       )}
 
-      {/* ── [조립된 영역] 결제 수단 (전액 포인트가 아닐 때만 표시) ── */}
-      <div style={{ ...card, ...paymentControlStyle }}>
-        <h3 style={cardTitle}>
-          <CreditCard size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />
-          결제 수단 및 약관
-        </h3>
-        {/* 이 div들은 항상 DOM에 존재해야 토스 SDK가 렌더링 오류를 내지 않습니다. */}
-        <div id="payment-method" style={{ marginBottom: 10 }} />
-        <div id="agreement" />
-      </div>
+      {/* ── 결제 수단 (전액 포인트가 아닐 때만 표시) ── */}
+      {!isFullPoint && (
+        <div style={card}>
+          <h3 style={cardTitle}>
+            <CreditCard size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />
+            결제 수단
+          </h3>
+          {/*
+            네이버페이 제거 → 3개 수단 (카드 / 카카오페이 / 토스)
+            flex row 일렬 배치 (이전 2×N 그리드에서 변경)
+          */}
+          <div style={methodRow}>
+            {PAYMENT_METHODS.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setPayMethod(m.id)}
+                style={{
+                  ...methodBtn,
+                  ...(payMethod === m.id ? methodBtnActive : {}),
+                }}
+              >
+                <Wallet size={20} style={{ marginBottom: 8 }} />
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 결제 버튼 */}
       <div style={{ marginTop: 16 }}>
         <button
           onClick={handlePay}
-          style={{ ...payBtn, opacity: (isFullPoint || ready) ? 1 : 0.6 }}
-          disabled={!isFullPoint && !ready}
+          style={{ ...payBtn, opacity: (isFullPoint || tossInstance) ? 1 : 0.6 }}
+          disabled={!isFullPoint && !tossInstance}
         >
           {isFullPoint
             ? '포인트로 전액 결제하기'

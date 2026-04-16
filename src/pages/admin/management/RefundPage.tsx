@@ -89,10 +89,12 @@ function RefundPage() {
     )
     if (!ok) return
 
-    await axios.post(`/api/payment/refund`,{
+    const {data} =  await axios.post(`/api/payment/refund`,{
       paymentKey: result.paymentKey,
       paymentId : result.bookingId
     })
+
+    //todo data 처리하면 완료
 
     setLoading(true)
     // TODO: POST /api/admin/refund { bookingId: result.bookingId }
