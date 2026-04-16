@@ -1,5 +1,7 @@
 /**
  * PaymentPage.tsx — 결제 처리
+ * https://docs.tosspayments.com/guides/v2/payment-widget/integration?frontend=react&backend=java
+ * npm install @tosspayments/tosspayments-sdk
  *
  * 흐름:
  *  1. 진입 시 [포인트 적립 모달] 자동 팝업
@@ -7,40 +9,30 @@
  *      - "괜찮아요"       → 모달 닫고 바로 결제 수단 선택
  *  2. [회원 인증 모달]
  *      - 전화번호 입력(표시: 010-1111-2222, 저장: 01011112222) → 인증번호 발송
- *      - POST /api/sms { toPhone, content } 로 실제 SMS 발송
- *      - 6자리 코드는 프론트에서 생성 후 상태로 보관 → 사용자 입력값과 비교
- *      - 인증번호 확인 완료 → GET /api/admin/member/{phone} 포인트 조회
- *      - 모달 자동 닫기 + 포인트 사용 섹션 표시
+ *      - 인증번호 확인 완료 → 모달 자동 닫기 + 포인트 사용 섹션 표시
  *      - 건너뛰기 → wantPoints = false
  *  3. 결제 수단: 카드 / 카카오페이 / 토스 — 일렬 배치
  *  4. 전액 포인트 결제 시 결제 수단 선택 생략
  *
  * state 수신: movieId, movieTitle, schedule, persons, totalPersons,
- *             selectedSeats, selectedSeatObjects, totalAmount, theater, seatPolicy
+ *             selectedSeats, selectedSeatObjects, totalAmount, theater
  * TODO: POST /api/bookings/pay 연동
  */
-import { useState } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Phone, CheckCircle, Coins,
-  CreditCard, Wallet, Info, Gift, X, Loader
+  CreditCard, Wallet, Info, Gift, X
 } from 'lucide-react'
+import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 import { PERSON_TYPES, PAYMENT_METHODS, SEAT_PRICES, SEAT_TYPE_LABEL } from '../../api/mockData'
-import apiClient, { type MemberDTO, type SeatPolicyDTO } from '../../api/apiClient'
+import axios from 'axios';
+import { MemberDTO } from '../../api/typeData'
 
 /** 포인트 적립률 5% */
 const POINT_RATE = 0.05
 
-/**
- * 6자리 랜덤 인증번호 생성 유틸
- * Math.random 대신 crypto.getRandomValues 사용 (더 안전)
- */
-function generateVerifyCode(): string {
-  const arr = new Uint32Array(1)
-  crypto.getRandomValues(arr)
-  // 0~999999 범위로 변환 후 6자리 0패딩
-  return String(arr[0] % 1_000_000).padStart(6, '0')
-}
+
 
 /**
  * 전화번호 포맷 유틸
@@ -55,26 +47,24 @@ function formatPhone(raw: string): string {
 }
 
 function PaymentPage() {
+  /**
+ * 더미 잔여 포인트 — TODO: GET /api/members/points?phone= 연동
+ * 인증 완료 후 포인트 사용 섹션에 표시됨
+ */
+  const [memberPoint, setMemberPoint] = useState(0);
+
   const navigate = useNavigate()
   const location = useLocation()
-  const state    = location.state ?? {}
+  const state = location.state ?? {}
 
   const {
     movieTitle, schedule,
-    persons = {},
+    persons = {}, totalPersons = 0,
     selectedSeats = [],
     selectedSeatObjects = [],
     totalAmount = 0,
-    seatPolicy,   // SeatPage에서 전달하는 실제 좌석 정책 (cost 포함)
-  } = state as {
-    movieTitle:          string
-    schedule:            { date?: string; startTime?: string; endTime?: string; theaterName?: string }
-    persons:             Record<string, number>
-    selectedSeats:       string[]
-    selectedSeatObjects: Array<{ id: string; seatType: string } | undefined>
-    totalAmount:         number
-    seatPolicy:          SeatPolicyDTO | undefined
-  }
+    theater,
+  } = state
 
   if (!schedule) {
     navigate('/')
@@ -82,19 +72,9 @@ function PaymentPage() {
   }
 
   // ── 금액 계산 ──
-  /**
-   * 좌석 단가 결정 우선순위:
-   *  1. SeatPage에서 전달한 seatPolicy.cost (실제 API 데이터)
-   *  2. mockData SEAT_PRICES (fallback — seatPolicy 없을 때)
-   */
-  const getSeatUnitPrice = (seatType: string): number => {
-    if (seatPolicy?.cost) return seatPolicy.cost
-    return SEAT_PRICES[seatType as keyof typeof SEAT_PRICES] ?? SEAT_PRICES.NORMAL
-  }
-
-  // 좌석 단가 합산
+  // 좌석 단가 합산 (좌석 타입별 단가 × 수량)
   const seatPriceTotal = selectedSeatObjects.reduce((acc, seat) => {
-    return acc + getSeatUnitPrice(seat?.seatType ?? 'NORMAL')
+    return acc + (SEAT_PRICES[seat?.seatType] ?? SEAT_PRICES.NORMAL)
   }, 0)
   // 인원 유형별 할인 합산
   const discountTotal = PERSON_TYPES.reduce((acc, { type, discount }) => {
@@ -110,7 +90,7 @@ function PaymentPage() {
   // ──────────────────────────────────────────────────
   const [showPointModal, setShowPointModal] = useState(true)
   const [showPhoneModal, setShowPhoneModal] = useState(false)
-  const [wantPoints,     setWantPoints]     = useState<boolean | null>(null)
+  const [wantPoints, setWantPoints] = useState<boolean | null>(null)
 
   /**
    * 포인트 모달 — "네, 적립할게요" 클릭
@@ -136,20 +116,11 @@ function PaymentPage() {
 
   // ── 회원 인증 상태 ──
   // phoneRaw: 숫자만 저장 (01011112222 형식) — API 전송용
-  const [phoneRaw,       setPhoneRaw]       = useState('')
-  const [verifyCode,     setVerifyCode]      = useState('')   // 사용자 입력 코드
-  const [generatedCode,  setGeneratedCode]   = useState('')   // 프론트에서 생성한 실제 코드
-  const [isVerified,     setIsVerified]      = useState(false)
-  const [verifyError,    setVerifyError]     = useState('')
-  const [codeSent,       setCodeSent]        = useState(false)
-  const [smsSending,     setSmsSending]      = useState(false) // SMS 발송 중 로딩 상태
-
-  /**
-   * 포인트 잔액 — 인증 완료 후 API에서 실제 값 로드
-   * null: 아직 조회 안 함 / number: 조회 완료 잔액
-   */
-  const [userPoints,     setUserPoints]      = useState<number | null>(null)
-  const [pointsLoading,  setPointsLoading]   = useState(false)
+  const [phoneRaw, setPhoneRaw] = useState('')
+  const [verifyCode, setVerifyCode] = useState('')
+  const [isVerified, setIsVerified] = useState(false)
+  const [verifyError, setVerifyError] = useState('')
+  const [codeSent, setCodeSent] = useState(false)
 
   /**
    * 전화번호 input onChange
@@ -160,91 +131,45 @@ function PaymentPage() {
     setPhoneRaw(raw)
   }
 
-  /**
-   * 인증번호 발송
-   * 1. 6자리 코드 생성 (프론트)
-   * 2. POST /api/sms { toPhone: phoneRaw, content: "인증번호: XXXXXX" } 호출
-   * 3. 서버가 실제 SMS 발송 → 사용자 폰에 수신
-   * 4. 코드는 state에 보관 → 사용자 입력값과 비교
-   */
-  const handleSendCode = async () => {
+  /** 인증번호 발송 — TODO: POST /api/auth/send-code 연동 */
+  const handleSendCode = () => {
     if (phoneRaw.length < 10) {
       setVerifyError('올바른 휴대폰 번호를 입력해 주세요.')
       return
     }
-
-    setSmsSending(true)
+    setCodeSent(true)
     setVerifyError('')
-
-    // 6자리 코드 생성
-    const code = generateVerifyCode()
-    setGeneratedCode(code)
-
-    try {
-      // POST /api/sms — Nurigo SMS 서비스를 통해 실제 문자 발송
-      // toPhone: 숫자만 (01011112222 형식), content: 발송할 문자 내용
-      await apiClient.post('/sms', {
-        toPhone:  phoneRaw,
-        content:  `[CineOS] 인증번호: ${code}`,
-      })
-      setCodeSent(true)
-      console.log(`[PaymentPage] SMS 발송 완료 → ${phoneRaw}`)
-    } catch (e) {
-      console.error('[PaymentPage] SMS 발송 실패', e)
-      // 발송 실패해도 코드는 state에 있으므로 콘솔 확인 가능 (개발용)
-      // 실서비스에서는 더 엄격한 처리 필요
-      setVerifyError('SMS 발송에 실패했습니다. 다시 시도해 주세요.')
-      setGeneratedCode('')
-    } finally {
-      setSmsSending(false)
-    }
   }
 
   /**
-   * 인증번호 확인
-   * 사용자 입력 코드와 state에 저장된 생성 코드 비교
-   * 성공 시:
-   *   1. isVerified = true
-   *   2. GET /api/admin/member/{phone} 로 실제 포인트 잔액 조회
-   *   3. 모달 자동 닫기
+   * 인증번호 확인 — TODO: POST /api/auth/verify-code 연동
+   * 성공 시 모달 자동 닫기
    */
   const handleVerify = async () => {
-    // 생성된 코드가 없으면 먼저 SMS를 보내야 함
-    if (!generatedCode) {
-      setVerifyError('먼저 인증번호를 발송해 주세요.')
-      return
+    if (verifyCode === '1') {
+
+      try {
+        const { data } = await axios.get<MemberDTO>(`/api/admin/member/${phoneRaw}`)
+        console.log(data);
+        setMemberPoint(data.point)
+        setIsVerified(true)
+        setVerifyError('')
+        setShowPhoneModal(false) // 인증 완료 → 모달 자동 닫기
+      } catch (error) { //db에 등록된 내용이 없다는 뜻. 그러므로 인증 실패
+        console.error("❌ 존재하지 않는 대상 :", error);
+        //신규 멤버 등록을 해야지.
+        const { data } = await axios.post<MemberDTO>(`/api/admin/member/${phoneRaw}`)
+        console.log(data);
+        setMemberPoint(data.point)
+        setIsVerified(true)
+        setVerifyError('')
+        setShowPhoneModal(false) // 인증 완료 → 모달 자동 닫기
+      }
+
+
+    } else {
+      setVerifyError('인증번호가 올바르지 않습니다. (테스트: 123456)')
     }
-
-    if (verifyCode !== generatedCode) {
-      setVerifyError('인증번호가 올바르지 않습니다. 다시 확인해 주세요.')
-      return
-    }
-
-    // 인증 성공 — 포인트 조회
-    setVerifyError('')
-    setPointsLoading(true)
-
-    try {
-      /**
-       * GET /api/admin/member/{phone}
-       * phone 경로 파라미터: 숫자만 (01011112222 형식)
-       * 응답: MemberDTO { phone, point, createAt }
-       *
-       * 신규 회원이면 404 응답 가능 → catch에서 0포인트로 처리
-       */
-      const res = await apiClient.get<MemberDTO>(`/admin/member/${phoneRaw}`)
-      setUserPoints(res.data.point)
-      console.log('[PaymentPage] 포인트 조회 완료:', res.data.point)
-    } catch (e) {
-      console.warn('[PaymentPage] 포인트 조회 실패 (신규 회원이거나 오류)', e)
-      // 신규 회원 또는 조회 실패 시 0 처리
-      setUserPoints(0)
-    } finally {
-      setPointsLoading(false)
-    }
-
-    setIsVerified(true)
-    setShowPhoneModal(false)  // 인증 완료 → 모달 자동 닫기
   }
 
   /**
@@ -256,25 +181,19 @@ function PaymentPage() {
     setShowPhoneModal(false)
     setCodeSent(false)
     setVerifyError('')
-    setGeneratedCode('')
   }
 
   // ── 포인트 사용 상태 ──
   const [pointInput, setPointInput] = useState('')
-  const [pointUsed,  setPointUsed]  = useState(0)
-
-  /**
-   * 표시용 포인트 잔액
-   * - 인증 완료 후 API 조회한 실제 값 사용
-   * - 조회 전 또는 실패 시 0 표시
-   */
-  const displayPoints = userPoints ?? 0
+  const [pointUsed, setPointUsed] = useState(0)
 
   // ── 결제 수단 ──
   const [payMethod, setPayMethod] = useState('CARD')
 
   // 최종 결제 금액
-  const finalAmount = Math.max(totalAmount - pointUsed, 0)
+  const finalAmount = useMemo(() => {
+    return Math.max(normalPrice - pointUsed, 0);
+  }, [normalPrice, pointUsed]);
   const pointEarned = Math.floor(finalAmount * POINT_RATE)
   const isFullPoint = finalAmount === 0
 
@@ -283,23 +202,156 @@ function PaymentPage() {
     const p = Number(pointInput)
     if (!p || p <= 0) return
     setPointUsed(Math.min(p, totalAmount))
+    // finalAmount(Math.max(normalPrice - Math.min(p, totalAmount), 0))
   }
 
   /** 결제 완료 → 결과 페이지로 이동 */
-  const handlePay = () => {
-    navigate('/payment/result', {
-      state: {
-        ...state,
-        pointUsed,
-        pointEarned,
-        finalAmount,
-        payMethod: isFullPoint ? 'POINT' : payMethod,
-        // API 전송 시에는 phoneRaw (01011112222) 사용
-        phone: phoneRaw,
-        bookingId: `BK${Date.now()}`,
-      },
-    })
-  }
+  // const handlePay = () => {
+  //   navigate('/payment/result', {
+  //     state: {
+  //       ...state,
+  //       pointUsed,
+  //       pointEarned,
+  //       finalAmount,
+  //       payMethod: isFullPoint ? 'POINT' : payMethod,
+  //       // API 전송 시에는 phoneRaw (01011112222) 사용
+  //       phone: phoneRaw,
+  //       bookingId: `BK${Date.now()}`,
+  //     },
+  //   })
+  // }
+
+  // ── 토스 위젯 전용 상태 추가 ──
+  const clientKey = "test_ck_eqRGgYO1r5MyEOZWJX4nrQnN2Eya"; //테스트키
+  const customerKey = "fbAUhfT1MpEwaLbEuEzvc"; // 테스트키
+  const [tossInstance, setTossInstance] = useState<any>(null); // widgets 대신 tossInstance 사용
+
+  // 2. SDK 초기화 (위젯이 아닌 일반 SDK 로드)
+  useEffect(() => {
+    async function initSDK() {
+      try {
+        const tossPayments = await loadTossPayments(clientKey);
+        setTossInstance(tossPayments);
+      } catch (error) {
+        console.error("SDK 초기화 실패:", error);
+      }
+    }
+    initSDK();
+  }, []);
+
+
+  /** 최종 결제 요청 함수 (토스 위젯 방식 적용) */
+  const handlePay = async () => {
+    // 1. 데이터 저장 로직 (생략 - 기존과 동일)
+    const pendingBooking = {
+      movieTitle,
+      schedule,
+      selectedSeats,
+      selectedSeatObjects,
+      persons,
+      totalPersons,
+      totalAmount,
+      pointUsed,
+      pointEarned,
+      finalAmount,
+      phone: phoneRaw,
+      theater,
+      payMethod: isFullPoint ? 'POINT' : 'CARD', // 결제 타입을 미리 지정.
+      timestamp: Date.now() // 혹시 모를 유효기간 체크용
+    };
+    localStorage.setItem('pending_booking_data', JSON.stringify(pendingBooking));
+  
+    if (isFullPoint) {
+      navigate(`/payment/result?orderId=${crypto.randomUUID()}&amount=0&paymentKey=point`);
+      return;
+    }
+  
+    if (!tossInstance) return;
+  
+    try {
+      // [v2 Standard 핵심]
+      // 1단계: payment 인스턴스 생성
+      const payment = tossInstance.payment({ customerKey });
+  
+      // 2단계: 통합 requestPayment 메서드 호출
+      // 여기서 method를 'CARD'로 지정하면 카드 결제창이 뜹니다.
+      await payment.requestPayment({
+        method: "CARD", // 'CARD', 'TRANSFER', 'VIRTUAL_ACCOUNT' 등
+        amount: {
+          currency: "KRW",
+          value: finalAmount,
+        },
+        orderId: crypto.randomUUID(),
+        orderName: `${movieTitle} 예매 (${totalPersons}명)`,
+        successUrl: window.location.origin + "/payment/result",
+        failUrl: window.location.origin + "/payment",
+        customerMobilePhone: phoneRaw,
+      });
+    } catch (error) {
+      console.error("결제 요청 에러:", error);
+    }
+  };
+
+
+  // --- [웹소켓 관련 로직 통합 시작] ---
+  const socketRef = useRef<WebSocket | null>(null);
+
+  //ws 기능 추가
+  useEffect(() => {
+    if (!schedule?.scheduleId) {
+      console.warn("스케줄 정보가 없어 소켓 연결을 중단합니다.");
+      return;
+    }
+
+    const schedId = schedule.scheduleId;
+    let uId = localStorage.getItem('ws_user_id');
+    if (!uId) {
+      uId = crypto.randomUUID();
+      localStorage.setItem('ws_user_id', uId);
+    }
+
+    // 1. 기존 소켓 정리
+    if (socketRef.current) {
+      socketRef.current.close();
+    }
+
+    // 2. 새 소켓 생성
+    const socketUrl = `ws://localhost:8080/ws/seats?userId=${uId}&scheduleId=${schedId}`;
+    console.log("연결 시도:", socketUrl);
+    const socket = new WebSocket(socketUrl);
+    socketRef.current = socket;
+
+    socket.onopen = () => {
+      console.log("✅ 웹소켓 연결 성공");
+    };
+
+    //메세지를 받음.
+    socket.onmessage = (event) => {
+      try {
+        const response = JSON.parse(event.data);
+      } catch (e) {
+        console.error("데이터 파싱 에러:", e);
+      }
+    };
+
+    socket.onclose = (event) => {
+      console.log(`🔌 연결 종료: 코드=${event.code}, 사유=${event.reason}`);
+    };
+
+    socket.onerror = (err) => {
+      console.error("❌ 소켓 에러 발생:", err);
+    };
+
+    // 3. [핵심 수정] Cleanup 함수: 컴포넌트가 사라질 때만 실행됨
+    return () => {
+      if (socketRef.current) {
+        console.log("🔌 컴포넌트 언마운트 - 소켓 닫기");
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+    };
+
+  }, [schedule?.scheduleId]); // 스케줄 ID가 바뀔 때만 재실행
 
   return (
     <div style={pageWrap}>
@@ -371,18 +423,13 @@ function PaymentPage() {
                 placeholder="010-0000-0000"
                 style={{ ...inputStyle, flex: 1 }}
                 maxLength={13}                   /* 010-1111-2222 = 13자 */
-                disabled={codeSent}              /* 발송 후 번호 변경 불가 */
               />
               <button
                 onClick={handleSendCode}
-                disabled={codeSent || smsSending}
-                style={{ ...smallBtn, opacity: (codeSent || smsSending) ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}
+                disabled={codeSent}
+                style={{ ...smallBtn, opacity: codeSent ? 0.6 : 1 }}
               >
-                {/* 발송 중: 로딩 아이콘 표시 */}
-                {smsSending
-                  ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> 발송 중...</>
-                  : codeSent ? '발송됨' : '인증번호 발송'
-                }
+                {codeSent ? '발송됨' : '인증번호 발송'}
               </button>
             </div>
 
@@ -392,21 +439,12 @@ function PaymentPage() {
                 <input
                   type="text"
                   value={verifyCode}
-                  onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onChange={(e) => setVerifyCode(e.target.value)}
                   placeholder="인증번호 6자리"
                   style={{ ...inputStyle, flex: 1 }}
                   maxLength={6}
                 />
-                <button
-                  onClick={handleVerify}
-                  disabled={pointsLoading}
-                  style={{ ...smallBtn, opacity: pointsLoading ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}
-                >
-                  {pointsLoading
-                    ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> 조회 중</>
-                    : '확인'
-                  }
-                </button>
+                <button onClick={handleVerify} style={smallBtn}>확인</button>
               </div>
             )}
 
@@ -415,13 +453,11 @@ function PaymentPage() {
               <p style={{ color: '#e03c3c', fontSize: 13, marginBottom: 8 }}>{verifyError}</p>
             )}
 
-            {/* SMS 발송 성공 안내 */}
-            {codeSent && !verifyError && (
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
-                <Info size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                입력하신 번호로 인증번호를 발송했습니다.
-              </p>
-            )}
+            {/* 테스트 안내 */}
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
+              <Info size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+              테스트 인증번호: 123456
+            </p>
 
             {/* 건너뛰기 버튼 */}
             <button onClick={handlePhoneModalSkip} style={modalBtnNo}>
@@ -459,7 +495,7 @@ function PaymentPage() {
         </div>
         {discountTotal > 0 && (
           <div style={{ ...priceRow, color: '#00ad74' }}>
-            <span>할인</span>
+            <span>인원 할인</span>
             <span>−{discountTotal.toLocaleString()}원</span>
           </div>
         )}
@@ -473,8 +509,8 @@ function PaymentPage() {
             })
             return Object.entries(byType).map(([type, cnt]) => (
               <div key={type} style={{ ...priceRow, fontSize: 13, color: 'var(--text-muted)' }}>
-                <span>{SEAT_TYPE_LABEL[type as keyof typeof SEAT_TYPE_LABEL] ?? '일반'} {cnt}석</span>
-                <span>{(getSeatUnitPrice(type) * (cnt as number)).toLocaleString()}원</span>
+                <span>{SEAT_TYPE_LABEL[type] ?? '일반'} {cnt}석</span>
+                <span>{((SEAT_PRICES[type] ?? SEAT_PRICES.NORMAL) * cnt).toLocaleString()}원</span>
               </div>
             ))
           })()}
@@ -520,8 +556,10 @@ function PaymentPage() {
             포인트 사용
           </h3>
           {/* 인증 완료 안내 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14,
-                        color: '#00ad74', fontSize: 14 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14,
+            color: '#00ad74', fontSize: 14
+          }}>
             <CheckCircle size={16} />
             <span>
               {formatPhone(phoneRaw)} 인증 완료
@@ -531,14 +569,16 @@ function PaymentPage() {
           <div style={pointBalanceBox}>
             <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>잔여 포인트</span>
             <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-brand-default)' }}>
-              {displayPoints.toLocaleString()}P
+              {memberPoint.toLocaleString()}P
             </span>
           </div>
 
           {pointUsed > 0 ? (
             /* 포인트 적용 완료 상태 */
-            <div style={{ color: '#00ad74', fontSize: 15, fontWeight: 600,
-                          display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              color: '#00ad74', fontSize: 15, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 8
+            }}>
               <CheckCircle size={18} />
               {pointUsed.toLocaleString()}P 적용 완료
               <button
@@ -558,14 +598,16 @@ function PaymentPage() {
                 placeholder="사용할 포인트 입력"
                 style={inputStyle}
                 min={0}
-                max={displayPoints}
+                max={memberPoint}
               />
               {/* 전액 사용: 잔여 포인트와 결제 금액 중 작은 값으로 자동 입력 */}
               <button
-                onClick={() => setPointInput(String(Math.min(displayPoints, totalAmount)))}
-                style={{ ...smallBtn, background: 'var(--bg-surface)',
-                          border: '1px solid var(--color-brand-default)',
-                          color: 'var(--color-brand-default)' }}
+                onClick={() => setPointInput(String(Math.min(memberPoint, totalAmount)))}
+                style={{
+                  ...smallBtn, background: 'var(--bg-surface)',
+                  border: '1px solid var(--color-brand-default)',
+                  color: 'var(--color-brand-default)'
+                }}
               >
                 전액
               </button>
@@ -604,16 +646,20 @@ function PaymentPage() {
         </div>
       )}
 
-      {/* ── 결제 버튼 ── */}
+      {/* 결제 버튼 */}
       <div style={{ marginTop: 16 }}>
-        <button onClick={handlePay} style={payBtn}>
+        <button
+          onClick={handlePay}
+          style={{ ...payBtn, opacity: (isFullPoint || tossInstance) ? 1 : 0.6 }}
+          disabled={!isFullPoint && !tossInstance}
+        >
           {isFullPoint
-            ? '포인트로 결제하기'
+            ? '포인트로 전액 결제하기'
             : `${finalAmount.toLocaleString()}원 결제하기`}
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 /* ── 스타일 ── */
@@ -673,14 +719,14 @@ const pointCtaBtn: React.CSSProperties = {
   fontFamily: 'inherit',
 }
 
-const pageWrap  = { maxWidth: 680, margin: '0 auto', padding: '32px 40px 80px' }
+const pageWrap = { maxWidth: 680, margin: '0 auto', padding: '32px 40px 80px' }
 const pageTitle = { fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 24 }
-const card      = { background: 'var(--bg-surface)', borderRadius: 16, padding: '22px 24px', marginBottom: 18 }
+const card = { background: 'var(--bg-surface)', borderRadius: 16, padding: '22px 24px', marginBottom: 18 }
 const cardTitle = { fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }
-const dl        = { display: 'grid', gridTemplateColumns: '64px 1fr', gap: '10px 14px' }
-const dt        = { color: 'var(--text-muted)', fontSize: 14, fontWeight: 600 }
-const dd        = { color: 'var(--text-secondary)', fontSize: 14, margin: 0 }
-const priceRow  = {
+const dl = { display: 'grid', gridTemplateColumns: '64px 1fr', gap: '10px 14px' }
+const dt = { color: 'var(--text-muted)', fontSize: 14, fontWeight: 600 }
+const dd = { color: 'var(--text-secondary)', fontSize: 14, margin: 0 }
+const priceRow = {
   display: 'flex', justifyContent: 'space-between',
   fontSize: 16, color: 'var(--text-secondary)', marginBottom: 8,
 }
@@ -691,7 +737,7 @@ const inputStyle = {
   borderRadius: 10, color: 'var(--text-primary)',
   fontSize: 16, outline: 'none', boxSizing: 'border-box' as const,
 }
-const smallBtn  = {
+const smallBtn = {
   padding: '14px 20px',
   background: 'var(--color-brand-default)', color: 'var(--primitive-neutral-900)',
   border: 'none', borderRadius: 10,
@@ -716,7 +762,7 @@ const pointBalanceBox = {
 const methodRow = {
   display: 'flex', gap: 12,
 }
-const methodBtn  = {
+const methodBtn = {
   display: 'flex', flexDirection: 'column' as const,
   alignItems: 'center', justifyContent: 'center',
   flex: 1, padding: '22px 0',
@@ -731,7 +777,7 @@ const methodBtnActive = {
   background: 'rgba(255,184,0,0.08)',
   fontWeight: 700,
 }
-const payBtn    = {
+const payBtn = {
   display: 'block', width: '100%', padding: '24px 0',
   background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',
   border: 'none', borderRadius: 16,

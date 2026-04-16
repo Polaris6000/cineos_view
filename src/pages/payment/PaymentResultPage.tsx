@@ -14,13 +14,14 @@
  * state 수신: PaymentPage 에서 넘겨받은 전체 예매 정보
  *   + phone (인증한 전화번호 raw 숫자, 없으면 '')
  */
-import { useState, useEffect } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   CheckCircle, Gift, Ticket, Printer,
   Smartphone, X, Info
 } from 'lucide-react'
 import { PERSON_TYPES, PAYMENT_METHODS } from '../../api/mockData'
+import axios from 'axios';
 
 /**
  * 전화번호 포맷 유틸 (PaymentPage 와 동일)
@@ -34,39 +35,99 @@ function formatPhone(raw: string): string {
 }
 
 function PaymentResultPage() {
-  const location = useLocation()
+
   const navigate = useNavigate()
-  const state    = location.state ?? {}
+  const [searchParams] = useSearchParams()
 
-  const {
-    bookingId, movieTitle, schedule, selectedSeats, persons = {},
-    finalAmount, pointUsed, pointEarned,
-    payMethod, totalAmount,
-    phone: authPhone = '', // PaymentPage 에서 인증한 전화번호 (raw 숫자)
-  } = state
-
-  if (!bookingId) {
-    navigate('/')
-    return null
-  }
-
-  // 결제 수단 레이블
-  const methodLabel = payMethod === 'POINT'
-    ? '포인트 전액'
-    : PAYMENT_METHODS.find((m) => m.id === payMethod)?.label ?? payMethod
-
-  // ──────────────────────────────────────────────────
-  // [완료 모달] 상태
-  // showDoneModal: 영수증 출력 or 모바일 발송 완료 후 표시
-  // countdown    : 5..4..3..2..1 → 0 되면 홈 이동
-  // ──────────────────────────────────────────────────
+  // 1. 상태 선언 (초기값 null)
+  const [bookingData, setBookingData] = useState<any>(
+    () => {
+      const saved = localStorage.getItem('pending_booking_data');
+      return saved ? JSON.parse(saved) : null;
+    }
+  )
   const [showDoneModal, setShowDoneModal] = useState(false)
-  const [countdown,     setCountdown]     = useState(5)
+  const [countdown, setCountdown] = useState(5)
+  const [showMobileModal, setShowMobileModal] = useState(false)
+  const [mobilePhoneRaw, setMobilePhoneRaw] = useState('')
+  const [mobileSending, setMobileSending] = useState(false)
+  const hasConfirmed = useRef(false); // 실행 여부를 체크할 변수
 
-  /** 완료 모달이 열리면 5초 카운트다운 시작 → 0 되면 홈으로 자동 이동 */
+
+  // 2. 데이터 복원 로직 (useEffect는 렌더링 후에 실행됨)
+  // 2. useEffect 내부 수정
+useEffect(() => {
+  if (hasConfirmed.current) return;
+
+  const paymentKey = searchParams.get('paymentKey');
+  const orderId = searchParams.get('orderId');
+  const amount = searchParams.get('amount');
+  
+  // 이미 상태(bookingData)에 값이 있으므로, 서버 승인 로직만 집중합니다.
+  if (bookingData && paymentKey && orderId && amount) {
+    hasConfirmed.current = true;
+
+    const confirmPaymentOnServer = async () => {
+      try {
+        await axios.post('/api/payment/confirm', {
+          payType : payMethod,
+
+          //ReservationDTO 형태
+          orderId, //id로 이용
+          phone : bookingData.phone,
+          scheduleId: bookingData.schedule,
+          seats:bookingData.selectedSeats,
+          //createAt : 서버 시간으로 사용
+          //returned : 기본값 false
+
+          //PaymentDTO 형태
+          //id는 동일하게 이용
+          amount, //cost
+          // createAt, : 서버 시간으로 사용
+          // status, : 초기값은 당연히 pay임
+          usePoint : bookingData.pointUsed,
+
+          bonusPolicyId : 1, // 이건 어떻게할 것인가? >> 종속?
+          couponNum : 'testcoupon01', //이것도;;
+          // reservationId, //이건 id와 동일함.
+
+          paymentKey,
+        });
+        
+        // 승인 성공 시 최종 데이터로 업데이트 (예: 서버에서 준 결제시각 등 반영)
+        setBookingData((prev: any) => ({
+          ...prev,
+          bookingId: orderId,
+          paymentKey
+        }));
+
+        if (socketRef.current) {
+          console.log("✅ 서버 저장 완료 - 웹소켓 연결을 정상적으로 종료합니다.");
+          socketRef.current.close(1000, "Payment Completed"); // 1000은 정상 종료 코드
+          socketRef.current = null;
+        }
+
+        localStorage.removeItem('pending_booking_data');
+        localStorage.removeItem('ws_user_id');
+
+      } catch (error) {
+        console.error("결제 승인 실패:", error);
+        alert("결제 승인 중 오류가 발생했습니다.");
+        navigate('/movie/list');
+      }
+    };
+
+    confirmPaymentOnServer();
+  }
+  // 포인트 전액 결제인 경우 승인 요청 없이 즉시 삭제
+  else if (bookingData?.payMethod === 'POINT') {
+    localStorage.removeItem('pending_booking_data');
+  }
+}, [searchParams, bookingData, navigate]);
+
+  // 3. 카운트다운 로직
   useEffect(() => {
     if (!showDoneModal) return
-    // 매 1초마다 countdown 감소
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -77,17 +138,22 @@ function PaymentResultPage() {
         return prev - 1
       })
     }, 1000)
-    return () => clearInterval(timer) // 언마운트 시 클리어
+    return () => clearInterval(timer)
   }, [showDoneModal, navigate])
 
-  // ──────────────────────────────────────────────────
-  // [모바일 영수증 발송 모달] 상태
-  // 인증된 전화번호가 없거나 변경하고 싶을 때 표시
-  // ──────────────────────────────────────────────────
-  const [showMobileModal, setShowMobileModal] = useState(false)
-  // 모바일 모달에서 입력하는 전화번호 (raw 숫자)
-  const [mobilePhoneRaw,  setMobilePhoneRaw]  = useState(authPhone)
-  const [mobileSending,   setMobileSending]   = useState(false)
+
+  // 5. 데이터가 확실히 있을 때 변수 추출 (순서 중요!)
+  const {
+    bookingId, movieTitle, schedule, selectedSeats, persons = {},
+    finalAmount, pointUsed, pointEarned,
+    payMethod, totalAmount,
+    phone: authPhone = '',
+  } = bookingData
+
+  // 결제 수단 레이블
+  const methodLabel = payMethod === 'POINT'
+    ? '포인트 전액'
+    : PAYMENT_METHODS.find((m) => m.id === payMethod)?.label ?? payMethod
 
   /**
    * [영수증 출력] 버튼 클릭
@@ -290,6 +356,69 @@ function PaymentResultPage() {
       setShowDoneModal(true)
     }, 800)
   }
+
+// --- [웹소켓 관련 로직 통합 시작] ---
+const socketRef = useRef<WebSocket | null>(null);
+
+//ws 기능 추가
+useEffect(() => {
+  if (!schedule?.scheduleId) {
+    console.warn("스케줄 정보가 없어 소켓 연결을 중단합니다.");
+    return;
+  }
+
+  const schedId = schedule.scheduleId;
+  let uId = localStorage.getItem('ws_user_id');
+  if (!uId) {
+    uId = crypto.randomUUID();
+    localStorage.setItem('ws_user_id', uId);
+  }
+
+  // 1. 기존 소켓 정리
+  if (socketRef.current) {
+    socketRef.current.close();
+  }
+
+  // 2. 새 소켓 생성
+  const socketUrl = `ws://localhost:8080/ws/seats?scheduleId=${schedId}&userId=${uId}`;
+  console.log("연결 시도:", socketUrl);
+
+  const socket = new WebSocket(socketUrl);
+  socketRef.current = socket;
+
+  socket.onopen = () => {
+    console.log("✅ 웹소켓 연결 성공");
+    
+  };
+
+  socket.onclose = (event) => {
+    console.log(`🔌 연결 종료: 코드=${event.code}, 사유=${event.reason}`);
+  };
+
+  socket.onerror = (err) => {
+    console.error("❌ 소켓 에러 발생:", err);
+  };
+
+  // 3. [핵심 수정] Cleanup 함수: 컴포넌트가 사라질 때만 실행됨
+  return () => {
+    if (socketRef.current) {
+      console.log("🔌 컴포넌트 언마운트 - 소켓 닫기");
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+  };
+
+}, [schedule?.scheduleId]); // 스케줄 ID가 바뀔 때만 재실행
+
+  // 이 아래에 있는 코드들은 bookingData가 null이 아님이 보장된 상태에서만 실행됩니다.
+  if (!bookingData) {
+    return (
+      <div style={{ ...pageWrap, paddingTop: 100 }}>
+        <p>결제 정보를 확인하고 있습니다...</p>
+      </div>
+    )
+  }
+
 
   return (
     <div style={pageWrap}>
