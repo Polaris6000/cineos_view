@@ -14,19 +14,26 @@
  *
  * FHD(1080×1920) 세로형 키오스크 기준 레이아웃
  */
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, X, Film } from 'lucide-react'
 import {
-  NOW_PLAYING, UPCOMING,
-  GENRE_OPTIONS, RATING_OPTIONS, THEATER_TYPE_OPTIONS,
-  MOCK_SCHEDULES, MOCK_THEATERS,
+  GENRE_OPTIONS, RATING_OPTIONS, THEATER_TYPE_OPTIONS
 } from '../../api/mockData'
+
+import axios from 'axios'
+import {
+  Movie, MovieDTO, mapToMovie,
+  Schedule, ScheduleDTO, mapToSchedule,
+  Theater, TheaterDTO, mapToTheater,
+  today
+
+} from '../../api/typeData'
 import styles from './MovieListPage.module.css'
 
 /** 등급 → 표시 텍스트 (카드용 짧은 형식) */
 const RATING_LABEL = {
-  ALL:  '전체관람가',
+  ALL: '전체관람가',
   '12': '12세',
   '15': '15세',
   '19': '청불',
@@ -47,14 +54,89 @@ function MovieListPage() {
   const [activeTab, setActiveTab] = useState('now')
 
   // 필터 상태
-  const [selectedGenre,       setSelectedGenre]       = useState('전체')
-  const [selectedRating,      setSelectedRating]      = useState('')
+  const [selectedGenre, setSelectedGenre] = useState('전체')
+  const [selectedRating, setSelectedRating] = useState('')
   // 상영관 타입 필터: 'ALL' | 'NORMAL' | 'RECLINER'
   const [selectedTheaterType, setSelectedTheaterType] = useState('ALL')
-  const [searchQuery,         setSearchQuery]         = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+
+
+
+  //영화에 대한 정보를 저장.
+  const [nowMovies, setNowMovies] = useState<Movie[]>([]); //현재 상영중인 영화
+  const [commingMovies, setCommingMovies] = useState<Movie[]>([]); // 상영 예정인 영화
+  
+  const [schedules, setSchedule] = useState<Schedule[]>([]);
+  const [theaters, setTheater] = useState<Theater[]>([]);
+
+
+  //이부분을 get호출로 변경
+  useEffect(() => {
+    const axiosMovies = async () => {
+      try {
+        const { data } = await axios.get<MovieDTO[]>('/api/movie/readAll')
+        const formattedMovies = data.map((dto) => mapToMovie(dto))
+
+        console.log("변환된 데이터:", formattedMovies); // 화면 확인
+        console.log("today : ",today);
+        
+
+        setNowMovies(formattedMovies.filter((movie) => movie.startAt <= today && movie.endAt >= today))
+        setCommingMovies(formattedMovies.filter((movie) =>  movie.startAt > today ))
+
+      } catch (error) {
+        console.error("❌ 영화 로딩 중 에러:", error);
+      }
+    };
+
+    axiosMovies();
+  }, []); // 빈 배열: 페이지 처음 들어올 때만 실행
+
+  //스케쥴 정보를 가져오기 위해서 사용
+  useEffect(() => {
+    const axiosSchedule = async () => {
+        try {
+            const { data } = await axios.get<ScheduleDTO[]>('/api/admin/schedule/DTOlist')
+            console.log("스케쥴 정보", data);
+
+
+            const formattedSchedule = data.map((dto) => mapToSchedule(dto))
+            // console.log("변환된 데이터:", formattedSchedule); // 화면 확인
+
+            setSchedule(formattedSchedule);
+
+        } catch (error) {
+            console.error("❌ 스케쥴 로딩 중 에러:", error);
+        }
+    };
+
+    axiosSchedule();
+}, []); //첫 로딩에 사용
+
+//영화관 정보를 가져오기 위해서 사용
+useEffect(() => {
+    const axiosTheater = async () => {
+        try {
+            const { data } = await axios.get<TheaterDTO[]>('/api/admin/theater/dtoAll')
+            console.log("영화관 정보 : ", data);
+
+
+            const formattedTheater = data.map((dto) => mapToTheater(dto))
+
+            // console.log("변환된 데이터:", formattedTheater); // 화면 확인
+
+            setTheater(formattedTheater)
+
+        } catch (error) {
+            console.error("❌ 영화관 로딩 중 에러:", error);
+        }
+    };
+
+    axiosTheater();
+}, []); //첫 로딩에 사용
 
   // 탭에 따라 기본 목록 결정
-  const baseList = activeTab === 'now' ? NOW_PLAYING : UPCOMING
+  const baseList = activeTab === 'now' ? nowMovies : commingMovies
 
   /**
    * 영화의 오늘 상영 일정에 해당하는 상영관 타입을 반환
@@ -63,14 +145,14 @@ function MovieListPage() {
    * - 일반 상영관이 하나라도 있으면 NORMAL 포함
    */
   const getMovieTheaterTypes = (movieId: number): Set<string> => {
-    const today     = new Date().toISOString().slice(0, 10)
-    const schedules = (MOCK_SCHEDULES[movieId] ?? []).filter((s) => s.date === today)
-    const types     = new Set<string>()
-    schedules.forEach((s) => {
-      const theater = MOCK_THEATERS.find((t) => t.id === s.theaterId)
+    const today = new Date().toISOString().slice(0, 10)
+    const todaySchedules = (schedules).filter((s) => s.movieId === movieId && s.date === today)
+    const types = new Set<string>()
+    todaySchedules.forEach((s) => {
+      const theater = theaters.find((t) => t.id === s.theaterId)
       if (!theater) return
       if (theater.hasRecliner) types.add('RECLINER')
-      else                      types.add('NORMAL')
+      else types.add('NORMAL')
     })
     return types
   }
@@ -95,7 +177,7 @@ function MovieListPage() {
       if (searchQuery.trim() && !movie.title.includes(searchQuery.trim())) return false
       return true
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseList, selectedGenre, selectedRating, selectedTheaterType, searchQuery])
 
   /** 탭 전환 시 필터 초기화 */

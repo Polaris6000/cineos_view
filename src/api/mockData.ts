@@ -27,8 +27,8 @@ export interface Movie {
  * - RECLINER: 리클라이너 상영관 (hasRecliner: true)
  */
 export const THEATER_TYPE_OPTIONS = [
-  { label: '전체',            value: 'ALL'      },
-  { label: '일반상영관',      value: 'NORMAL'   },
+  { label: '전체', value: 'ALL' },
+  { label: '일반상영관', value: 'NORMAL' },
   { label: '리클라이너 상영관', value: 'RECLINER' },
 ] as const;
 
@@ -206,16 +206,16 @@ export const RATING_OPTIONS = [
    청소년 할인: 2000원
    ─────────────────────────────────────────────────── */
 export const SEAT_PRICES = {
-  NORMAL:   5000,
+  NORMAL: 5000,
   RECLINER: 10000,
-  COUPLE:   15000,
+  COUPLE: 15000,
 }
 
 /** 좌석 타입 → 표시 레이블 */
 export const SEAT_TYPE_LABEL = {
-  NORMAL:   '일반석',
+  NORMAL: '일반석',
   RECLINER: '리클라이너석',
-  COUPLE:   '커플석',
+  COUPLE: '커플석',
 }
 
 /* ───────────────────────────────────────────────────
@@ -226,8 +226,8 @@ export const MOCK_THEATERS = [
     id: 1,
     name: '1관',
     totalSeats: 150,
-    rows: 10,
-    cols: 15,
+    rows: 5,
+    cols: 8,
     basePrice: 14000,
     hasRecliner: false,
     hasCouple: true,
@@ -237,8 +237,8 @@ export const MOCK_THEATERS = [
     id: 2,
     name: '2관',
     totalSeats: 120,
-    rows: 10,
-    cols: 12,
+    rows: 6,
+    cols: 9,
     basePrice: 14000,
     hasRecliner: false,
     hasCouple: true, // 마지막 행 커플석 있음
@@ -248,7 +248,7 @@ export const MOCK_THEATERS = [
     id: 3,
     name: '3관',
     totalSeats: 80,
-    rows: 8,
+    rows: 7,
     cols: 10,
     basePrice: 14000,
     hasRecliner: false,
@@ -259,8 +259,8 @@ export const MOCK_THEATERS = [
     id: 4,
     name: '4관',
     totalSeats: 100,
-    rows: 10,
-    cols: 10,
+    rows: 8,
+    cols: 11,
     basePrice: 14000,
     hasRecliner: true,
     hasCouple: false,
@@ -344,14 +344,14 @@ export interface Seat {
  *
  * sold_out 처리: 결정론적 해시 ((r*7 + c*3 + theaterId*13) % 17)
  */
-export function generateSeats(theater: Theater): Seat[] {
-  const { id, rows, cols, hasRecliner } = theater;
+export function generateSeats(theater: Theater, soldOutSeats: string[] = []): Seat[] {
+  const { rows, cols, hasRecliner } = theater;
   const rowLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const seats: Seat[] = [];
 
-  for (let r = 0; r < rows; r++) {
-    const isLastRow = r === rows - 1;
+  const soldOutSet = new Set(soldOutSeats);
 
+  for (let r = 0; r < rows; r++) {
     for (let c = 1; c <= cols; c++) {
       const seatId = `${rowLabels[r]}${c}`;
 
@@ -361,33 +361,14 @@ export function generateSeats(theater: Theater): Seat[] {
       if (hasRecliner) {
         // 리클라이너관(4관): 전 좌석 RECLINER
         seatType = 'RECLINER';
-      } else if (isLastRow) {
-        // 일반관 마지막 행: 전 좌석 COUPLE
-        seatType = 'COUPLE';
       }
+      // } else if (isLastRow) {
+      //   // 일반관 마지막 행: 전 좌석 COUPLE
+      //   seatType = 'COUPLE';
+      // }
 
       /* ── 좌석 상태 결정 ── */
-      let status: Seat['status'] = 'empty';
-
-      // 상영관별 disabled 처리 (휠체어·통로 공간)
-      if (id === 2) {
-        // 2관: B~F행(r=1~5) 좌우 끝 1열 disabled
-        if ((c === 1 || c === cols) && r >= 1 && r <= 5) {
-          status = 'disabled';
-        }
-      } else if (id === 3) {
-        // 3관: C·D행(r=2,3) 1번 좌석 disabled (휠체어 공간)
-        if (c === 1 && (r === 2 || r === 3)) {
-          status = 'disabled';
-        }
-      }
-
-      // 결정론적 sold_out (같은 입력 → 항상 같은 결과)
-      if (status === 'empty') {
-        const hash = (r * 7 + c * 3 + id * 13) % 17;
-        const threshold = seatType === 'COUPLE' ? 2 : 5;
-        if (hash < threshold) status = 'sold_out';
-      }
+      const status: Seat['status'] = soldOutSet.has(seatId) ? 'sold_out' : 'empty';
 
       seats.push({ id: seatId, row: rowLabels[r], col: c, status, seatType });
     }
@@ -400,12 +381,12 @@ export function generateSeats(theater: Theater): Seat[] {
    6. 가격 정책 (PricingPolicyDTO)
    ─────────────────────────────────────────────────── */
 export const MOCK_POLICIES = [
-  { id: 1, name: '일반 성인',  type: 'ADULT',    discount: 0,    description: '기본 성인 요금' },
-  { id: 2, name: '청소년 할인', type: 'TEEN',     discount: 2000, description: '만 13~18세, 학생증 지참' },
-  { id: 3, name: '경로 우대',  type: 'SENIOR',   discount: 3000, description: '만 65세 이상, 신분증 지참' },
+  { id: 1, name: '일반 성인', type: 'ADULT', discount: 0, description: '기본 성인 요금' },
+  { id: 2, name: '청소년 할인', type: 'TEEN', discount: 2000, description: '만 13~18세, 학생증 지참' },
+  { id: 3, name: '경로 우대', type: 'SENIOR', discount: 3000, description: '만 65세 이상, 신분증 지참' },
   { id: 4, name: '장애인 할인', type: 'DISABLED', discount: 4000, description: '장애인복지카드 지참' },
-  { id: 5, name: '조조 할인',  type: 'MORNING',  discount: 3000, description: '오전 11시 이전 첫 회차' },
-  { id: 6, name: '문화의 날',  type: 'CULTURE',  discount: 2000, description: '매월 마지막 수요일' },
+  { id: 5, name: '조조 할인', type: 'MORNING', discount: 3000, description: '오전 11시 이전 첫 회차' },
+  { id: 6, name: '문화의 날', type: 'CULTURE', discount: 2000, description: '매월 마지막 수요일' },
 ]
 
 /* ───────────────────────────────────────────────────
@@ -531,9 +512,9 @@ export const MOCK_BOOKINGS = [
    9. 인원 유형 / 결제 수단
    ─────────────────────────────────────────────────── */
 export const PERSON_TYPES = [
-  { type: 'ADULT',    label: '성인',   discount: 0 },
-  { type: 'TEEN',     label: '청소년', discount: 2000 }, // 청소년 2000원 할인
-  { type: 'SENIOR',   label: '경로',   discount: 3000 },
+  { type: 'ADULT', label: '성인', discount: 0 },
+  { type: 'TEEN', label: '청소년', discount: 2000 }, // 청소년 2000원 할인
+  { type: 'SENIOR', label: '경로', discount: 3000 },
   { type: 'DISABLED', label: '장애인', discount: 4000 },
 ]
 
@@ -541,7 +522,7 @@ export const PERSON_TYPES = [
  * 결제 수단 — 현금·네이버페이 제거, 카드 및 간편결제만 지원
  */
 export const PAYMENT_METHODS = [
-  { id: 'CARD',   label: '신용/체크카드' },
-  { id: 'KAKAO',  label: '카카오페이' },
-  { id: 'TOSS',   label: '토스' },
+  { id: 'CARD', label: '신용/체크카드' },
+  { id: 'KAKAO', label: '카카오페이' },
+  { id: 'TOSS', label: '토스' },
 ] as const; // 값을 읽기 전용 상수로 고정

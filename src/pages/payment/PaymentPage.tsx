@@ -1,5 +1,7 @@
 /**
  * PaymentPage.tsx — 결제 처리
+ * https://docs.tosspayments.com/guides/v2/payment-widget/integration?frontend=react&backend=java
+ * npm install @tosspayments/tosspayments-sdk
  *
  * 흐름:
  *  1. 진입 시 [포인트 적립 모달] 자동 팝업
@@ -16,22 +18,21 @@
  *             selectedSeats, selectedSeatObjects, totalAmount, theater
  * TODO: POST /api/bookings/pay 연동
  */
-import { useState } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Phone, CheckCircle, Coins,
   CreditCard, Wallet, Info, Gift, X
 } from 'lucide-react'
+import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 import { PERSON_TYPES, PAYMENT_METHODS, SEAT_PRICES, SEAT_TYPE_LABEL } from '../../api/mockData'
+import axios from 'axios';
+import {MemberDTO} from '../../api/typeData'
 
 /** 포인트 적립률 5% */
 const POINT_RATE = 0.05
 
-/**
- * 더미 잔여 포인트 — TODO: GET /api/members/points?phone= 연동
- * 인증 완료 후 포인트 사용 섹션에 표시됨
- */
-const MOCK_USER_POINTS = 3_500
+
 
 /**
  * 전화번호 포맷 유틸
@@ -46,9 +47,15 @@ function formatPhone(raw: string): string {
 }
 
 function PaymentPage() {
+  /**
+ * 더미 잔여 포인트 — TODO: GET /api/members/points?phone= 연동
+ * 인증 완료 후 포인트 사용 섹션에 표시됨
+ */
+  const [memberPoint, setMemberPoint] = useState(0);
+
   const navigate = useNavigate()
   const location = useLocation()
-  const state    = location.state ?? {}
+  const state = location.state ?? {}
 
   const {
     movieTitle, schedule,
@@ -83,7 +90,7 @@ function PaymentPage() {
   // ──────────────────────────────────────────────────
   const [showPointModal, setShowPointModal] = useState(true)
   const [showPhoneModal, setShowPhoneModal] = useState(false)
-  const [wantPoints,     setWantPoints]     = useState<boolean | null>(null)
+  const [wantPoints, setWantPoints] = useState<boolean | null>(null)
 
   /**
    * 포인트 모달 — "네, 적립할게요" 클릭
@@ -109,11 +116,11 @@ function PaymentPage() {
 
   // ── 회원 인증 상태 ──
   // phoneRaw: 숫자만 저장 (01011112222 형식) — API 전송용
-  const [phoneRaw,    setPhoneRaw]    = useState('')
-  const [verifyCode,  setVerifyCode]  = useState('')
-  const [isVerified,  setIsVerified]  = useState(false)
+  const [phoneRaw, setPhoneRaw] = useState('')
+  const [verifyCode, setVerifyCode] = useState('')
+  const [isVerified, setIsVerified] = useState(false)
   const [verifyError, setVerifyError] = useState('')
-  const [codeSent,    setCodeSent]    = useState(false)
+  const [codeSent, setCodeSent] = useState(false)
 
   /**
    * 전화번호 input onChange
@@ -138,11 +145,28 @@ function PaymentPage() {
    * 인증번호 확인 — TODO: POST /api/auth/verify-code 연동
    * 성공 시 모달 자동 닫기
    */
-  const handleVerify = () => {
-    if (verifyCode === '123456') {
-      setIsVerified(true)
-      setShowPhoneModal(false) // 인증 완료 → 모달 자동 닫기
-      setVerifyError('')
+  const handleVerify = async () => {
+    if (verifyCode === '1') {
+
+      try {
+        const { data } = await axios.get<MemberDTO>(`/api/admin/member/${phoneRaw}`)
+        console.log(data);
+        setMemberPoint(data.point)
+        setIsVerified(true)
+        setVerifyError('')
+        setShowPhoneModal(false) // 인증 완료 → 모달 자동 닫기
+      } catch (error) { //db에 등록된 내용이 없다는 뜻. 그러므로 인증 실패
+        console.error("❌ 존재하지 않는 대상 :", error);
+        //신규 멤버 등록을 해야지.
+        const { data } = await axios.post<MemberDTO>(`/api/admin/member/${phoneRaw}`)
+        console.log(data);
+        setMemberPoint(data.point)
+        setIsVerified(true)
+        setVerifyError('')
+        setShowPhoneModal(false) // 인증 완료 → 모달 자동 닫기
+      } 
+
+
     } else {
       setVerifyError('인증번호가 올바르지 않습니다. (테스트: 123456)')
     }
@@ -161,13 +185,15 @@ function PaymentPage() {
 
   // ── 포인트 사용 상태 ──
   const [pointInput, setPointInput] = useState('')
-  const [pointUsed,  setPointUsed]  = useState(0)
+  const [pointUsed, setPointUsed] = useState(0)
 
   // ── 결제 수단 ──
   const [payMethod, setPayMethod] = useState('CARD')
 
   // 최종 결제 금액
-  const finalAmount = Math.max(totalAmount - pointUsed, 0)
+  const finalAmount = useMemo(() => {
+    return Math.max(normalPrice - pointUsed, 0);
+  }, [normalPrice, pointUsed]);
   const pointEarned = Math.floor(finalAmount * POINT_RATE)
   const isFullPoint = finalAmount === 0
 
@@ -176,23 +202,214 @@ function PaymentPage() {
     const p = Number(pointInput)
     if (!p || p <= 0) return
     setPointUsed(Math.min(p, totalAmount))
+    // finalAmount(Math.max(normalPrice - Math.min(p, totalAmount), 0))
   }
 
   /** 결제 완료 → 결과 페이지로 이동 */
-  const handlePay = () => {
-    navigate('/payment/result', {
-      state: {
-        ...state,
-        pointUsed,
-        pointEarned,
-        finalAmount,
-        payMethod: isFullPoint ? 'POINT' : payMethod,
-        // API 전송 시에는 phoneRaw (01011112222) 사용
-        phone: phoneRaw,
-        bookingId: `BK${Date.now()}`,
-      },
-    })
+  // const handlePay = () => {
+  //   navigate('/payment/result', {
+  //     state: {
+  //       ...state,
+  //       pointUsed,
+  //       pointEarned,
+  //       finalAmount,
+  //       payMethod: isFullPoint ? 'POINT' : payMethod,
+  //       // API 전송 시에는 phoneRaw (01011112222) 사용
+  //       phone: phoneRaw,
+  //       bookingId: `BK${Date.now()}`,
+  //     },
+  //   })
+  // }
+
+  // ── 토스 위젯 전용 상태 추가 ──
+  const clientKey = "test_ck_eqRGgYO1r5MyEOZWJX4nrQnN2Eya"; //테스트키
+  const customerKey = "fbAUhfT1MpEwaLbEuEzvc"; // 테스트키
+  const [widgets, setWidgets] = useState<any>(null);
+  const [ready, setReady] = useState(false);
+  const renderCountRef = useRef(false); // [추가] 중복 렌더링 방지용
+
+  // 2. 위젯 초기화 Effect (조립용)
+  useEffect(() => {
+    async function initWidgets() {
+      try {
+        const tossPayments = await loadTossPayments(clientKey);
+        const widgetsInstance = tossPayments.widgets({ customerKey });
+        setWidgets(widgetsInstance);
+      } catch (error) {
+        console.error("위젯 초기화 실패:", error);
+      }
+    }
+    initWidgets();
+  }, []);
+
+  // 2. 위젯 UI 렌더링 (최초 1회만 수행)
+  useEffect(() => {
+    async function renderWidgets() {
+      if (!widgets || renderCountRef.current) return;
+
+      // 초기 금액 설정
+      await widgets.setAmount({
+        currency: "KRW",
+        value: finalAmount,
+      });
+
+      // UI 렌더링
+      await Promise.all([
+        widgets.renderPaymentMethods({
+          selector: "#payment-method",
+          variantKey: "DEFAULT",
+        }),
+        widgets.renderAgreement({
+          selector: "#agreement",
+          variantKey: "AGREEMENT",
+        }),
+      ]);
+
+      renderCountRef.current = true;
+      setReady(true);
+    }
+
+    renderWidgets();
+  }, [widgets]); // finalAmount나 pointUsed를 넣지 않습니다.
+
+  // 3. [중요] 금액만 업데이트 (반응성 핵심)
+  // 포인트 사용 등으로 finalAmount가 바뀔 때 렌더링 없이 금액만 동기화합니다.
+  useEffect(() => {
+    if (ready && widgets) {
+      // 0원일 때는 토스 위젯 업데이트를 시도하지 않거나 예외처리
+      if (finalAmount > 0) {
+        widgets.setAmount({
+          currency: "KRW",
+          value: finalAmount,
+        }).catch(err => console.error("금액 업데이트 실패:", err));
+      }
+    }
+  }, [finalAmount, ready, widgets]);
+
+  // 4. 결제 영역 노출 제어 (JSX에서 처리)
+  // 재렌더링을 막기 위해 DOM 요소는 항상 유지하되, 포인트 전액 결제 시 시각적으로만 가립니다.
+  const paymentControlStyle: React.CSSProperties = {
+    display: isFullPoint ? 'none' : 'block',
+    opacity: ready ? 1 : 0.5,
+    transition: 'opacity 0.2s ease-in-out'
+  };
+
+  /** 최종 결제 요청 함수 (토스 위젯 방식 적용) */
+  const handlePay = async () => {
+    //가장먼저 결제하려는 데이터 임시 저장
+    const pendingBooking = {
+      movieTitle,
+      schedule,
+      selectedSeats,
+      selectedSeatObjects,
+      persons,
+      totalPersons,
+      totalAmount,
+      pointUsed,
+      pointEarned,
+      finalAmount,
+      phone: phoneRaw,
+      theater,
+      payMethod: 'CARD', // 결제 타입을 미리 지정.
+      timestamp: Date.now() // 혹시 모를 유효기간 체크용
+    };
+  
+    
+
+
+    if (isFullPoint) {
+      // 포인트 전액 결제 시에는 토스 위젯 없이 기존 로직(navigate)으로 처리
+      console.log("포인트 전액 결제를 진행합니다.");
+      pendingBooking.payMethod = 'POINT' //결제타입을 변경
+      localStorage.setItem('pending_booking_data', JSON.stringify(pendingBooking));
+      
+      //결제 정보에 대한 값을 설정
+      const paymentKey = "point";
+      const orderId = crypto.randomUUID()
+      const amount = finalAmount;
+      
+      navigate(`/payment/result?orderId=${orderId}&amount=${amount}&paymentKey=${paymentKey}`);
+      return;
+    }
+
+    // localStorage는 문자열만 저장 가능하므로 JSON.stringify 필수!
+    localStorage.setItem('pending_booking_data', JSON.stringify(pendingBooking));
+
+    if (!ready) return;
+
+    try {
+      await widgets.requestPayment({
+        orderId: `${crypto.randomUUID()}`,
+        orderName: `${movieTitle} 예매 (${totalPersons}명)`,
+        successUrl: window.location.origin + "/payment/result", // 성공 경로
+        failUrl: window.location.origin + "/payment", //실패경로. 실패시 다시 원래 자리로
+        customerMobilePhone: phoneRaw,
+      });
+    } catch (error) {
+      console.error(error);
+    }
   }
+
+
+  // --- [웹소켓 관련 로직 통합 시작] ---
+  const socketRef = useRef<WebSocket | null>(null);
+
+  //ws 기능 추가
+  useEffect(() => {
+    if (!schedule?.scheduleId) {
+      console.warn("스케줄 정보가 없어 소켓 연결을 중단합니다.");
+      return;
+    }
+
+    const schedId = schedule.scheduleId;
+    let uId = localStorage.getItem('ws_user_id');
+    if (!uId) {
+      uId = crypto.randomUUID();
+      localStorage.setItem('ws_user_id', uId);
+    }
+
+    // 1. 기존 소켓 정리
+    if (socketRef.current) {
+      socketRef.current.close();
+    }
+
+    // 2. 새 소켓 생성
+    const socketUrl = `ws://localhost:8080/ws/seats?userId=${uId}&scheduleId=${schedId}`;
+    console.log("연결 시도:", socketUrl);
+    const socket = new WebSocket(socketUrl);
+    socketRef.current = socket;
+
+    socket.onopen = () => {
+      console.log("✅ 웹소켓 연결 성공");
+    };
+
+    //메세지를 받음.
+    socket.onmessage = (event) => {
+      try {
+        const response = JSON.parse(event.data);
+      } catch (e) {
+        console.error("데이터 파싱 에러:", e);
+      }
+    };
+
+    socket.onclose = (event) => {
+      console.log(`🔌 연결 종료: 코드=${event.code}, 사유=${event.reason}`);
+    };
+
+    socket.onerror = (err) => {
+      console.error("❌ 소켓 에러 발생:", err);
+    };
+
+    // 3. [핵심 수정] Cleanup 함수: 컴포넌트가 사라질 때만 실행됨
+    return () => {
+      if (socketRef.current) {
+        console.log("🔌 컴포넌트 언마운트 - 소켓 닫기");
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+    };
+
+  }, [schedule?.scheduleId]); // 스케줄 ID가 바뀔 때만 재실행
 
   return (
     <div style={pageWrap}>
@@ -397,8 +614,10 @@ function PaymentPage() {
             포인트 사용
           </h3>
           {/* 인증 완료 안내 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14,
-                        color: '#00ad74', fontSize: 14 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14,
+            color: '#00ad74', fontSize: 14
+          }}>
             <CheckCircle size={16} />
             <span>
               {formatPhone(phoneRaw)} 인증 완료
@@ -408,14 +627,16 @@ function PaymentPage() {
           <div style={pointBalanceBox}>
             <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>잔여 포인트</span>
             <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-brand-default)' }}>
-              {MOCK_USER_POINTS.toLocaleString()}P
+              {memberPoint.toLocaleString()}P
             </span>
           </div>
 
           {pointUsed > 0 ? (
             /* 포인트 적용 완료 상태 */
-            <div style={{ color: '#00ad74', fontSize: 15, fontWeight: 600,
-                          display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              color: '#00ad74', fontSize: 15, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 8
+            }}>
               <CheckCircle size={18} />
               {pointUsed.toLocaleString()}P 적용 완료
               <button
@@ -435,14 +656,16 @@ function PaymentPage() {
                 placeholder="사용할 포인트 입력"
                 style={inputStyle}
                 min={0}
-                max={MOCK_USER_POINTS}
+                max={memberPoint}
               />
               {/* 전액 사용: 잔여 포인트와 결제 금액 중 작은 값으로 자동 입력 */}
               <button
-                onClick={() => setPointInput(String(Math.min(MOCK_USER_POINTS, totalAmount)))}
-                style={{ ...smallBtn, background: 'var(--bg-surface)',
-                          border: '1px solid var(--color-brand-default)',
-                          color: 'var(--color-brand-default)' }}
+                onClick={() => setPointInput(String(Math.min(memberPoint, totalAmount)))}
+                style={{
+                  ...smallBtn, background: 'var(--bg-surface)',
+                  border: '1px solid var(--color-brand-default)',
+                  color: 'var(--color-brand-default)'
+                }}
               >
                 전액
               </button>
@@ -452,45 +675,31 @@ function PaymentPage() {
         </div>
       )}
 
-      {/* ── 결제 수단 (전액 포인트가 아닐 때만 표시) ── */}
-      {!isFullPoint && (
-        <div style={card}>
-          <h3 style={cardTitle}>
-            <CreditCard size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />
-            결제 수단
-          </h3>
-          {/*
-            네이버페이 제거 → 3개 수단 (카드 / 카카오페이 / 토스)
-            flex row 일렬 배치 (이전 2×N 그리드에서 변경)
-          */}
-          <div style={methodRow}>
-            {PAYMENT_METHODS.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => setPayMethod(m.id)}
-                style={{
-                  ...methodBtn,
-                  ...(payMethod === m.id ? methodBtnActive : {}),
-                }}
-              >
-                <Wallet size={20} style={{ marginBottom: 8 }} />
-                {m.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* ── [조립된 영역] 결제 수단 (전액 포인트가 아닐 때만 표시) ── */}
+      <div style={{ ...card, ...paymentControlStyle }}>
+        <h3 style={cardTitle}>
+          <CreditCard size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />
+          결제 수단 및 약관
+        </h3>
+        {/* 이 div들은 항상 DOM에 존재해야 토스 SDK가 렌더링 오류를 내지 않습니다. */}
+        <div id="payment-method" style={{ marginBottom: 10 }} />
+        <div id="agreement" />
+      </div>
 
-      {/* ── 결제 버튼 ── */}
+      {/* 결제 버튼 */}
       <div style={{ marginTop: 16 }}>
-        <button onClick={handlePay} style={payBtn}>
+        <button
+          onClick={handlePay}
+          style={{ ...payBtn, opacity: (isFullPoint || ready) ? 1 : 0.6 }}
+          disabled={!isFullPoint && !ready}
+        >
           {isFullPoint
-            ? '포인트로 결제하기'
+            ? '포인트로 전액 결제하기'
             : `${finalAmount.toLocaleString()}원 결제하기`}
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 /* ── 스타일 ── */
@@ -550,14 +759,14 @@ const pointCtaBtn: React.CSSProperties = {
   fontFamily: 'inherit',
 }
 
-const pageWrap  = { maxWidth: 680, margin: '0 auto', padding: '32px 40px 80px' }
+const pageWrap = { maxWidth: 680, margin: '0 auto', padding: '32px 40px 80px' }
 const pageTitle = { fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 24 }
-const card      = { background: 'var(--bg-surface)', borderRadius: 16, padding: '22px 24px', marginBottom: 18 }
+const card = { background: 'var(--bg-surface)', borderRadius: 16, padding: '22px 24px', marginBottom: 18 }
 const cardTitle = { fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }
-const dl        = { display: 'grid', gridTemplateColumns: '64px 1fr', gap: '10px 14px' }
-const dt        = { color: 'var(--text-muted)', fontSize: 14, fontWeight: 600 }
-const dd        = { color: 'var(--text-secondary)', fontSize: 14, margin: 0 }
-const priceRow  = {
+const dl = { display: 'grid', gridTemplateColumns: '64px 1fr', gap: '10px 14px' }
+const dt = { color: 'var(--text-muted)', fontSize: 14, fontWeight: 600 }
+const dd = { color: 'var(--text-secondary)', fontSize: 14, margin: 0 }
+const priceRow = {
   display: 'flex', justifyContent: 'space-between',
   fontSize: 16, color: 'var(--text-secondary)', marginBottom: 8,
 }
@@ -568,7 +777,7 @@ const inputStyle = {
   borderRadius: 10, color: 'var(--text-primary)',
   fontSize: 16, outline: 'none', boxSizing: 'border-box' as const,
 }
-const smallBtn  = {
+const smallBtn = {
   padding: '14px 20px',
   background: 'var(--color-brand-default)', color: 'var(--primitive-neutral-900)',
   border: 'none', borderRadius: 10,
@@ -593,7 +802,7 @@ const pointBalanceBox = {
 const methodRow = {
   display: 'flex', gap: 12,
 }
-const methodBtn  = {
+const methodBtn = {
   display: 'flex', flexDirection: 'column' as const,
   alignItems: 'center', justifyContent: 'center',
   flex: 1, padding: '22px 0',
@@ -608,7 +817,7 @@ const methodBtnActive = {
   background: 'rgba(255,184,0,0.08)',
   fontWeight: 700,
 }
-const payBtn    = {
+const payBtn = {
   display: 'block', width: '100%', padding: '24px 0',
   background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',
   border: 'none', borderRadius: 16,

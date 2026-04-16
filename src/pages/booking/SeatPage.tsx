@@ -16,19 +16,26 @@
  * state 수신: movieId, movieTitle, schedule, persons, totalPersons
  * TODO: GET /api/seats?scheduleId= 연동 + WebSocket STOMP 구독
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Info, CreditCard } from 'lucide-react'
-import { MOCK_THEATERS, SEAT_PRICES, SEAT_TYPE_LABEL, PERSON_TYPES } from '../../api/mockData'
+import { SEAT_PRICES, SEAT_TYPE_LABEL, PERSON_TYPES } from '../../api/mockData'
 // store에서 좌석 배치 가져오기 — 어드민 SeatEditPage에서 저장한 내용 반영
 import { getSeatLayout } from '../../store/seatLayoutStore'
+import axios from 'axios'
+import { SocketSeat } from '../../api/typeData'
+
 
 function SeatPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const state    = location.state ?? {}
+  const state = location.state ?? {}
 
-  const { movieTitle, schedule, persons = {}, totalPersons = 0 } = state
+  const { movieTitle, schedule, theater, persons = {}, totalPersons = 0 } = state
+  const [reservationSeats, setReservationSeats] = useState<string[]>([]) //db에 저장된 예약 좌석
+  const [tempSeats, setTempSeats] = useState<string[]>([]) //웹소켓에 임시 저장된 예약 좌석
+  // 1. 이동 상태를 기록할 Ref 추가
+  const isNavigatingToPayment = useRef(false);
 
   // state 없으면 홈으로
   if (!schedule) {
@@ -36,8 +43,21 @@ function SeatPage() {
     return null
   }
 
-  // 해당 상영관 정보 조회
-  const theater = MOCK_THEATERS.find((t) => t.id === schedule.theaterId) ?? MOCK_THEATERS[0]
+  // 정보를 가져옴
+  useEffect(() => {
+    const axiosReservations = async () => {
+      try {
+        const { data } = await axios.get<string[]>(`/api/reservation/seatCount/schedule/${schedule.scheduleId}`)
+        console.log(data);
+        setReservationSeats(data)
+
+      } catch (error) {
+        console.error("❌ 영화 로딩 중 에러:", error);
+      }
+    };
+
+    axiosReservations();
+  }, []); // 빈 배열: 페이지 처음 들어올 때만 실행
 
   /**
    * 좌석 목록 생성
@@ -47,13 +67,21 @@ function SeatPage() {
    */
   // store에서 최신 좌석 배치 가져오기 — 읽기 전용 (상태 변경 없음)
   const seats = useMemo(
-    () => getSeatLayout(theater.id),
-    [theater.id]
+    () => {
+      const totalUsingSeat = [...reservationSeats, ...tempSeats]
+      return getSeatLayout(theater.id, totalUsingSeat)
+    },
+    [theater.id, reservationSeats, tempSeats]
   )
 
   // 내가 선택한 좌석 id 목록
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const selectedIdsRef = useRef<string[]>([]); // 최신 상태를 담을 Ref 추가
 
+  // selectedIds가 바뀔 때마다 Ref 업데이트
+useEffect(() => {
+  selectedIdsRef.current = selectedIds;
+}, [selectedIds]);
   /**
    * 좌석 클릭 처리 (개별 토글 방식)
    *
@@ -64,19 +92,27 @@ function SeatPage() {
    *     → 아니면 선택 목록에 추가
    */
   const handleSeatClick = (seat) => {
-    if (seat.status === 'sold_out' || seat.status === 'disabled') return
+    if (seat.status === 'sold_out' || seat.status === 'disabled') return;
 
-    if (selectedIds.includes(seat.id)) {
-      // 이미 선택된 좌석 → 선택 해제
-      setSelectedIds((prev) => prev.filter((id) => id !== seat.id))
-      return
-    }
+  let nextIds;
+  if (selectedIds.includes(seat.id)) {
+    nextIds = selectedIds.filter((id) => id !== seat.id);
+  } else {
+    if (selectedIds.length >= totalPersons) return;
+    nextIds = [...selectedIds, seat.id];
+  }
 
-    // 인원 수 초과 시 선택 불가
-    if (selectedIds.length >= totalPersons) return
+  setSelectedIds(nextIds);
 
-    // 선택 목록에 추가
-    setSelectedIds((prev) => [...prev, seat.id])
+    // [추가] 클릭할 때마다 서버에 즉시 점유 정보 전송
+  if (socketRef.current?.readyState === WebSocket.OPEN) {
+    socketRef.current.send(JSON.stringify({
+      userId: localStorage.getItem('ws_user_id'),
+      scheduleId: schedule.scheduleId,
+      seats: nextIds,
+      action: 'RESERVE'
+    }));
+  }
   }
 
   /**
@@ -122,6 +158,9 @@ function SeatPage() {
   /** 결제 페이지로 이동 */
   const handlePayment = () => {
     if (!isReady) return
+    // 결제 페이지로 이동 중임을 표시 (Cleanup 함수에서 RELEASE를 막기 위함)
+    isNavigatingToPayment.current = true;
+
     navigate('/payment', {
       state: {
         ...state,
@@ -147,8 +186,8 @@ function SeatPage() {
     if (sorted.length < 5) {
       return { left: sorted, middle: [], right: [] }
     }
-    const left   = sorted.slice(0, 2)
-    const right  = sorted.slice(sorted.length - 2)
+    const left = sorted.slice(0, 2)
+    const right = sorted.slice(sorted.length - 2)
     const middle = sorted.slice(2, sorted.length - 2)
     return { left, middle, right }
   }
@@ -169,6 +208,116 @@ function SeatPage() {
     })
     return byType
   }, [selectedIds, seats])
+
+  // --- [웹소켓 관련 로직 통합 시작] ---
+  const socketRef = useRef<WebSocket | null>(null);
+
+  //ws 기능 추가
+  useEffect(() => {
+    if (!schedule?.scheduleId) {
+      console.warn("스케줄 정보가 없어 소켓 연결을 중단합니다.");
+      return;
+    }
+
+    const scheduleId = schedule.scheduleId;
+    let uId = localStorage.getItem('ws_user_id');
+    if (!uId) {
+      uId = crypto.randomUUID();
+      localStorage.setItem('ws_user_id', uId);
+    }
+
+    // 1. 기존 소켓 정리
+    if (socketRef.current) {
+      socketRef.current.close();
+    }
+
+    // 2. 새 소켓 생성
+    const socketUrl = `ws://localhost:8080/ws/seats?userId=${uId}&page=selection&scheduleId=${scheduleId}`;
+    console.log("연결 시도:", socketUrl);
+
+    const socket = new WebSocket(socketUrl);
+    socketRef.current = socket;
+
+    socket.onopen = () => {
+      const data: SocketSeat = {
+        userId: uId!,
+        scheduleId: scheduleId,
+        seats: [],
+        action: "GET"
+      }
+      socket.send(JSON.stringify(data))
+      console.log("✅ 웹소켓 연결 성공");
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const response = JSON.parse(event.data);
+        const myId = localStorage.getItem('ws_user_id');
+  
+        if (response.action === "INIT_SELECTION") {
+          if (response.seats && response.seats.length > 0) {
+            setSelectedIds(response.seats);
+            // Ref도 즉시 업데이트하여 다음 메시지 처리에 대비
+            selectedIdsRef.current = response.seats;
+          }
+          return;
+        }
+  
+        if (response.action === "UPDATE_OCCUPANCY" || response.scheduleId === schedule.scheduleId) {
+          // [핵심 수정] Ref를 사용하여 내 좌석은 제외하고 tempSeats 설정
+          const othersSeats = response.seats.filter((s: string) => !selectedIdsRef.current.includes(s));
+          setTempSeats(othersSeats);
+        }
+      } catch (e) {
+        console.error("데이터 파싱 에러:", e);
+      }
+    };
+
+    socket.onclose = (event) => {
+      console.log(`🔌 연결 종료: 코드=${event.code}, 사유=${event.reason}`);
+    };
+
+    socket.onerror = (err) => {
+      console.error("❌ 소켓 에러 발생:", err);
+    };
+
+    // 3. [핵심 수정] Cleanup 함수: 컴포넌트가 사라질 때만 실행됨
+    return () => {
+      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+        // [핵심] 결제 페이지 이동이 아닐 때(뒤로가기, 탭 닫기 등)만 RELEASE 전송
+        if (!isNavigatingToPayment.current) {
+          console.log("🔌 단순 이탈 - RELEASE 전송");
+          const releasePayload = {
+            userId: uId!,
+            scheduleId: scheduleId,
+            seats: [],
+            action: 'RELEASE'
+          };
+          socketRef.current.send(JSON.stringify(releasePayload));
+        } else {
+          console.log("💳 결제 이동 - 점유 유지 (RELEASE 건너뜀)");
+        }
+        
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+    };
+  }, [schedule?.scheduleId]);
+
+  // 남이 내가 선택한 좌석을 가로챘을 때 처리
+  useEffect(() => {
+    // 1. 내가 선택한 좌석 중, 남이 점유한 좌석(tempSeats)에 포함된 것이 있는지 확인
+    const intercepted = selectedIds.filter(id => tempSeats.includes(id));
+
+    if (intercepted.length > 0) {
+      // 2. 겹치는 좌석이 있다면, 해당 좌석을 제외하고 다시 설정
+      setSelectedIds((prev) => prev.filter(id => !tempSeats.includes(id)));
+
+      // 3. 사용자에게 알림 (UX 경험 향상)
+      alert(`선택하신 좌석 [${intercepted.join(', ')}]은 다른 사용자가 먼저 선택 중입니다.`);
+    }
+  }, [tempSeats]); // tempSeats가 서버로부터 업데이트될 때마다 체크
+
 
   return (
     <div style={pageWrap}>
@@ -198,11 +347,11 @@ function SeatPage() {
       {/* ── 좌석 타입 범례 ── */}
       <div style={legend}>
         {[
-          { label: '일반석',     color: 'var(--color-seat-empty)',    border: 'var(--color-seat-empty-border)' },
-          { label: '선택됨',     color: 'var(--color-seat-selected)', border: 'var(--color-brand-hover)' },
-          { label: '매진',       color: 'var(--color-seat-sold-out)', border: 'transparent' },
-          { label: '리클라이너', color: '#1a5c3a',                    border: '#00ad74' },
-          { label: '커플석',     color: '#5c1a2a',                    border: '#e03c3c' },
+          { label: '일반석', color: 'var(--color-seat-empty)', border: 'var(--color-seat-empty-border)' },
+          { label: '선택됨', color: 'var(--color-seat-selected)', border: 'var(--color-brand-hover)' },
+          { label: '매진', color: 'var(--color-seat-sold-out)', border: 'transparent' },
+          { label: '리클라이너', color: '#1a5c3a', border: '#00ad74' },
+          { label: '커플석', color: '#5c1a2a', border: '#e03c3c' },
         ].map(({ label, color, border }) => (
           <div key={label} style={legendItem}>
             <div style={{ ...seatBase, background: color, border: `1px solid ${border}`, width: 22, height: 22 }} />
@@ -351,49 +500,49 @@ function getSeatStyle(seat, selectedIds) {
   if (selectedIds.includes(seat.id)) {
     return { background: 'var(--color-seat-selected)', border: '1px solid var(--color-brand-hover)', cursor: 'pointer' }
   }
-  if (seat.status === 'sold_out')  return { background: 'var(--color-seat-sold-out)',  border: '1px solid transparent', cursor: 'not-allowed' }
-  if (seat.status === 'disabled')  return { background: 'var(--color-seat-disabled)',  border: '1px solid transparent', cursor: 'not-allowed', opacity: 0.5 }
+  if (seat.status === 'sold_out') return { background: 'var(--color-seat-sold-out)', border: '1px solid transparent', cursor: 'not-allowed' }
+  if (seat.status === 'disabled') return { background: 'var(--color-seat-disabled)', border: '1px solid transparent', cursor: 'not-allowed', opacity: 0.5 }
 
   // 빈 자리: 좌석 타입별 색상
   switch (seat.seatType) {
     case 'RECLINER': return { background: '#1a5c3a', border: '1px solid #00ad74', cursor: 'pointer' }
-    case 'COUPLE':   return { background: '#5c1a2a', border: '1px solid #e03c3c', cursor: 'pointer' }
-    default:         return { background: 'var(--color-seat-empty)', border: '1px solid var(--color-seat-empty-border)', cursor: 'pointer' }
+    case 'COUPLE': return { background: '#5c1a2a', border: '1px solid #e03c3c', cursor: 'pointer' }
+    default: return { background: 'var(--color-seat-empty)', border: '1px solid var(--color-seat-empty-border)', cursor: 'pointer' }
   }
 }
 
 /* ── 스타일 ── */
-const pageWrap  = { maxWidth: 960, margin: '0 auto', padding: '32px 40px 80px' }
-const backBtn   = {
+const pageWrap = { maxWidth: 960, margin: '0 auto', padding: '32px 40px 80px' }
+const backBtn = {
   display: 'flex', alignItems: 'center', gap: 6,
   background: 'none', border: 'none',
   color: 'var(--text-secondary)', fontSize: 16,
   cursor: 'pointer', padding: '10px 0', marginBottom: 16,
 }
 const pageTitle = { fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }
-const subInfo   = { color: 'var(--text-secondary)', fontSize: 15, marginBottom: 4 }
+const subInfo = { color: 'var(--text-secondary)', fontSize: 15, marginBottom: 4 }
 
 const screenWrap = { textAlign: 'center', margin: '24px 0 16px' }
-const screen     = {
+const screen = {
   display: 'inline-block', width: '70%', maxWidth: 500, padding: '10px 0',
   background: 'var(--bg-surface)', border: '2px solid var(--border-default)',
   borderRadius: '50% 50% 0 0 / 20px 20px 0 0',
   color: 'var(--text-muted)', fontSize: 13, letterSpacing: 4,
 }
 
-const legend     = { display: 'flex', gap: 16, justifyContent: 'center', marginBottom: 20, flexWrap: 'wrap' }
+const legend = { display: 'flex', gap: 16, justifyContent: 'center', marginBottom: 20, flexWrap: 'wrap' }
 const legendItem = { display: 'flex', alignItems: 'center', gap: 6 }
 
 /* 그리드 외부: 가로 스크롤 + 중앙 정렬 */
-const gridOuter  = { overflowX: 'auto', paddingBottom: 8, display: 'flex', justifyContent: 'center' }
+const gridOuter = { overflowX: 'auto', paddingBottom: 8, display: 'flex', justifyContent: 'center' }
 /* 그리드 내부: 열 방향 플렉스 */
 const gridScroll = { display: 'inline-flex', flexDirection: 'column', gap: 7, minWidth: 'fit-content' }
 /* 한 행 전체 래퍼 */
-const rowWrap    = { display: 'flex', alignItems: 'center', gap: 6 }
+const rowWrap = { display: 'flex', alignItems: 'center', gap: 6 }
 /* 열 번호 헤더 행 */
 const colHeaderRow = { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }
 /* 행 라벨 (A, B, C …) */
-const rowLabel   = {
+const rowLabel = {
   width: 22, textAlign: 'center', fontSize: 12,
   color: 'var(--text-muted)', flexShrink: 0, fontWeight: 600,
 }
@@ -403,12 +552,12 @@ const colNumLabel = {
   color: 'var(--text-muted)', flexShrink: 0,
 }
 /* 통로 간격 */
-const aisleGap   = { display: 'inline-block', width: 20, flexShrink: 0 }
+const aisleGap = { display: 'inline-block', width: 20, flexShrink: 0 }
 /* 좌석 그룹 */
-const colWrap    = { display: 'flex', gap: 6 }
+const colWrap = { display: 'flex', gap: 6 }
 
 /* 좌석 기본 스타일 */
-const seatBase   = {
+const seatBase = {
   width: 32, height: 32, borderRadius: 6, border: 'none',
   flexShrink: 0, transition: 'all 0.1s',
 }
@@ -418,18 +567,18 @@ const selectedBox = {
   background: 'var(--bg-surface)',
   border: '1px solid var(--border-default)', borderRadius: 14,
 }
-const seatTag     = {
+const seatTag = {
   padding: '4px 12px', background: 'rgba(255,184,0,0.15)',
   border: '1px solid var(--color-brand-default)',
   borderRadius: 8, fontSize: 14, color: 'var(--color-brand-default)', fontWeight: 700,
 }
 
 /* 결제 버튼 영역 */
-const nextArea  = {
+const nextArea = {
   marginTop: 16, padding: '24px 0 0',
   borderTop: '1px solid var(--border-subtle)',
 }
-const hintBox   = {
+const hintBox = {
   display: 'flex', alignItems: 'center',
   padding: '14px 20px', marginBottom: 16,
   background: 'var(--bg-surface)',
@@ -443,7 +592,7 @@ const amountBox = {
   border: '1px solid var(--color-brand-default)',
   borderRadius: 12,
 }
-const nextBtn   = {
+const nextBtn = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
   width: '100%', padding: '24px 0',
   background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',

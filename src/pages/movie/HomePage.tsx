@@ -8,7 +8,9 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { NOW_PLAYING } from '../../api/mockData'
+
+import axios from 'axios'
+import {Movie, MovieDTO, mapToMovie} from '../../api/typeData'
 import styles from './HomePage.module.css'
 
 /** 슬라이드 자동 전환 간격 (ms) */
@@ -37,7 +39,26 @@ function HomePage() {
   // 슬라이드 자동 전환 타이머 ref
   const slideTimerRef = useRef(null)
 
-  const movies = NOW_PLAYING
+  //영화에 대한 정보를 저장.
+  const [movies, setMovies] = useState<Movie[]>([]);
+
+  //이부분을 get호출로 변경
+  useEffect(() => {
+    const axiosMovies = async () => {
+        try {
+            const { data } = await axios.get<MovieDTO[]>('/api/movie/all')
+            const formattedMovies = data.map((dto) => mapToMovie(dto))
+
+            console.log("변환된 데이터:", formattedMovies); // 화면 확인
+
+            setMovies(formattedMovies)
+        } catch (error) {
+            console.error("❌ 영화 로딩 중 에러:", error);
+        }
+    };
+
+    axiosMovies();
+}, []); // 빈 배열: 페이지 처음 들어올 때만 실행
 
   /**
    * 다음 슬라이드로 이동

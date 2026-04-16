@@ -17,10 +17,19 @@
  *  - STEP 번호 재정렬 (1: 시간 선택, 2: 인원 선택)
  * TODO: GET /api/schedules?movieId=&date= 연동
  */
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect} from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Film, Clock, Users, ChevronDown, ChevronUp, Info } from 'lucide-react'
-import { MOCK_SCHEDULES, MOCK_MOVIES, PERSON_TYPES } from '../../api/mockData'
+import { PERSON_TYPES } from '../../api/mockData'
+
+import axios from 'axios'
+
+import {
+Movie, MovieDTO, mapToMovie,
+Schedule, ScheduleDTO, mapToSchedule,
+ReservationDetailesDTO,
+Theater, mapToTheater
+} from '../../api/typeData'
 
 /** 날짜 포맷: "03/29(토)" */
 function fmtDateLabel(dateStr: string) {
@@ -44,8 +53,91 @@ function SchedulePage() {
     return null
   }
 
-  const movie    = MOCK_MOVIES.find((m) => m.id === movieId)
-  const allSched = MOCK_SCHEDULES[movieId] ?? []
+  const [movie, setMovie] = useState<Movie>(); //현재 영화
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [theater, setTheater] = useState<Theater>();
+
+  //영화 정보를 가져옴
+  useEffect(() => {
+    const axiosMovies = async () => {
+      try {
+        const { data } = await axios.get<MovieDTO>(`/api/movie/${movieId}/readOne`)
+        const formattedMovies = mapToMovie(data)
+        
+        console.log("변환된 데이터:", formattedMovies); // 화면 확인
+
+        setMovie(formattedMovies)
+      } catch (error) {
+        console.error("❌ 영화 로딩 중 에러:", error);
+      }
+    };
+
+    axiosMovies();
+  }, []); // 빈 배열: 페이지 처음 들어올 때만 실행
+
+
+  useEffect(() => {
+    const axiosSchedule = async () => {
+      try {
+        const { data } = await axios.get<ScheduleDTO[]>('/api/admin/schedule/DTOlist')
+
+        console.log("스케쥴 정보", data);
+
+
+        const formattedSchedule = data.map((dto) => mapToSchedule(dto)).filter(schedule => schedule.movieId === movieId)
+        const formattedTheater = mapToTheater(data.filter(schedule => schedule.movieId === movieId)[0].theater)
+        // console.log("변환된 데이터:", formattedSchedule); // 화면 확인
+
+        setSchedules(formattedSchedule);
+        setTheater(formattedTheater)
+
+      } catch (error) {
+        console.error("❌ 스케쥴 로딩 중 에러:", error);
+      }
+    };
+
+    axiosSchedule();
+  }, []); //첫 로딩에 사용
+
+  //스케쥴에 남은 좌석에 대한 표기
+  useEffect(() => {
+    const axiosReservation = async () => {
+      if (!movieId) return;
+      try {
+        // 1. 예약 상세 데이터 가져오기 (List<reservationDetailesDTO>)
+        const { data } = await axios.get<ReservationDetailesDTO[]>(`/api/reservation/seatCount/movie/${movieId}`);
+
+        // 2. [가공] 스케줄별로 예약된 총 좌석 수 계산 (O(N))
+        // 결과 예시: { "101": 5, "102": 3 } (ID 101번 스케줄에 총 5석 예약됨)
+        const reservedMap = data
+          .filter(res => !res.returned)
+          .reduce((acc, curr) => {
+            const schedId = curr.schedule.scheduleId;
+            const seatCount = curr.seats.length; // 해당 예약 건의 좌석 수
+
+            acc[schedId] = (acc[schedId] || 0) + seatCount;
+            return acc;
+          }, {} as Record<number, number>);
+
+        // 3. [끼워넣기] 기존 schedules 상태 업데이트
+        setSchedules(prevSchedules =>
+          prevSchedules.map(sched => ({
+            ...sched,
+            // 전체 좌석 - 가공한 맵에서 찾은 예약 수
+            availableSeats: sched.totalSeats - (reservedMap[sched.scheduleId] ?? 0)
+          }))
+        );
+
+      } catch (error) {
+        console.error("❌ 예약 데이터 가공 중 에러:", error);
+      }
+    };
+
+    if (schedules.length > 0) {
+      axiosReservation();
+    }
+  }, [movieId, schedules.length]); // schedules 전체를 넣으면 무한루프 위험이 있어 length 권장
+
 
   // 오늘 날짜 고정 (당일 예매만 가능)
   const today = new Date().toISOString().slice(0, 10)
@@ -58,8 +150,8 @@ function SchedulePage() {
 
   // 오늘 날짜의 상영 목록만 표시
   const daySchedules = useMemo(
-    () => allSched.filter((s) => s.date === today),
-    [allSched, today]
+    () => schedules.filter((s) => s.date === today),
+    [schedules, today]
   )
 
   /** 인원 수 변경 (+/-) */
@@ -97,6 +189,7 @@ function SchedulePage() {
         movieId,
         movieTitle: movieTitle ?? movie?.title,
         schedule: selectedSched,
+        theater:theater,
         persons,
         totalPersons,
       },

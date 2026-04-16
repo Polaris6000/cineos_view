@@ -14,6 +14,8 @@
 import { useState } from 'react'
 import { CheckCircle } from 'lucide-react'
 import { MOCK_BOOKINGS } from '../../../api/mockData'
+import axios from 'axios'
+import {mapToBooking, PaymentDTO, BookingDTO} from '../../../api/typeData'
 
 /** MOCK_BOOKINGS 항목 타입 */
 type Booking = typeof MOCK_BOOKINGS[number]
@@ -31,7 +33,7 @@ function canRefundByTime(date: string, startTime: string): boolean {
 
 function RefundPage() {
   const [query,    setQuery]    = useState('')                     // 예매번호 검색어
-  const [result,   setResult]   = useState<Booking | null>(null)  // 조회된 예매
+  const [result,   setResult]   = useState<BookingDTO>()           // 조회된 예매
   const [error,    setError]    = useState('')
   const [refunded, setRefunded] = useState(false)                 // 방금 환불 처리됐으면 true
   const [loading,  setLoading]  = useState(false)
@@ -48,28 +50,49 @@ function RefundPage() {
     }
 
     setLoading(true)
-    // TODO: GET /api/admin/bookings?bookingId=query
-    await new Promise((r) => setTimeout(r, 500))
+    try{
+      const {data} = await axios.get<PaymentDTO>(`/api/payment/read/${query}`)
+      const formatedBooking = mapToBooking(data);
+      console.log(formatedBooking);
+      setResult(formatedBooking)
+    }catch{
+      console.log("error 발생");
+      setError('해당 예매 정보를 찾을 수 없습니다.')
+    }
 
-    // 예매번호로만 검색
-    const found = MOCK_BOOKINGS.find((b) => b.bookingId === query.trim())
     setLoading(false)
 
-    if (!found) {
-      setError('해당 예매 정보를 찾을 수 없습니다.')
-    } else {
-      setResult(found)
-    }
+
+
+    // await new Promise((r) => setTimeout(r, 500))
+
+    // // 예매번호로만 검색
+    // const found = MOCK_BOOKINGS.find((b) => b.bookingId === query.trim())
+    // setLoading(false)
+
+    // if (!found) {
+    //   setError('해당 예매 정보를 찾을 수 없습니다.')
+    // } else {
+    //   setResult(found)
+    // }
   }
 
   /** 환불 처리 */
   const handleRefund = async () => {
+
+//서버로 요청 날리기...
+
     if (!result) return
     const ok = window.confirm(
       `예매번호 ${result.bookingId} 를 환불 처리하시겠습니까?\n` +
       `환불 금액: ${result.totalAmount.toLocaleString()}원\n\n계속 진행하시겠습니까?`
     )
     if (!ok) return
+
+    await axios.post(`/api/payment/refund`,{
+      paymentKey: result.paymentKey,
+      paymentId : result.bookingId
+    })
 
     setLoading(true)
     // TODO: POST /api/admin/refund { bookingId: result.bookingId }
@@ -81,7 +104,8 @@ function RefundPage() {
   // ── 파생 상태 계산 ──
   // 배지·버튼 표시에 쓰이는 값들을 result가 있을 때만 계산
   const isRefunded  = result ? (result.status === 'REFUNDED' || refunded) : false
-  const canRefund   = result ? canRefundByTime(result.date, result.startTime) : false
+  // const canRefund   = result ? canRefundByTime(result.date, result.startTime) : false
+  const canRefund   = true
 
   return (
     <div style={{ maxWidth: 680 }}>
