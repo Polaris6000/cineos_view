@@ -78,6 +78,7 @@ function AdminLoginPage() {
           <p style={hintTitle}>개발 테스트 계정</p>
           <p style={hintLine}>admin / 1234 — 최고관리자 (모든 기능)</p>
           <p style={hintLine}>staff01 / 1111 — 일반관리자 (운영만)</p>
+          <p style={hintLine}>staff02 / 2222 — 일반관리자 (운영만)</p>
         </div>
       )}
 
