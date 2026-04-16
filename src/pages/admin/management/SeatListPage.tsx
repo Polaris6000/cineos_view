@@ -38,7 +38,8 @@ function SeatListPage() {
   const theater = MOCK_THEATERS.find((t) => t.id === theaterId)
 
   // store에서 좌석 배치 가져오기 — 어드민 편집 내용 반영 (없으면 기본 배치)
-  const seats = theater ? getSeatLayout(theater.id) : []
+  // getSeatLayout(theaterId, soldOutSeats) — 두 번째 인자: 예약완료 좌석 ID 배열 (없으면 빈 배열)
+  const seats = theater ? getSeatLayout(theater.id, []) : []
 
   /* ── 통계 계산 ── */
   // 상태별 (disabled 없음)

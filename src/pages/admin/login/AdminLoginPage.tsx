@@ -49,8 +49,8 @@ function AdminLoginPage() {
     setLoading(true)
 
     // AuthContext.login() 호출 — 공백 제거된 값으로 비교, 성공: true, 실패: false 반환
-    // rememberMe: true → localStorage 유지, false → sessionStorage(탭 닫으면 소멸)
-    const ok = await login(trimId, trimPw, rememberMe)
+    // rememberMe는 현재 AuthContext.login에 파라미터로 미구현 — 추후 추가 시 시그니처도 수정 필요
+    const ok = await login(trimId, trimPw)
 
     if (ok) {
       // 로그인 성공 → 원래 접근하려던 페이지(또는 대시보드)로 이동

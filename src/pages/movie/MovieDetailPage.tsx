@@ -1,5 +1,5 @@
 /**
- * MovieDetailPage.tsx — 상영작 상세
+ * MovieDetailPage.tsx — 상영작 상세 (UC-02)
  *
  * API 연동:
  *  - GET /api/movie/{id}                     → 영화 단일 조회
@@ -11,26 +11,16 @@
  *  - ScheduleDTO 필드 정합: id / no / startAt / endAt / activation
  *  - theaterName(no) 사용 ("X관")
  */
-import { useState, useEffect } from 'react'
-import axios from 'axios'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Clock, Film, CalendarDays, Tag } from 'lucide-react'
-// import { MOCK_MOVIES, MOCK_SCHEDULES } from '../../api/mockData'
-import {
-  Movie, MovieDTO, mapToMovie,
-  Schedule, ScheduleDTO, mapToSchedule,
-  ReservationDetailesDTO
-} from '../../api/typeData'
-// import { number } from 'framer-motion'
-
 import { useState, useEffect } from 'react'
 import apiClient, { type MovieDTO, type ScheduleDTO, resolvePosterUrl, theaterName } from '../../api/apiClient'
 
 /** 관람등급 → 표시 텍스트·색상 */
-const RATING_INFO = {
-  ALL: { label: '전체관람가', color: '#4caf50' },
-  '12': { label: '12세 이상', color: '#2a88c8' },
-  '15': { label: '15세 이상', color: '#ffb800' },
+const RATING_INFO: Record<string, { label: string; color: string }> = {
+  ALL:  { label: '전체관람가',      color: '#4caf50' },
+  '12': { label: '12세 이상',       color: '#2a88c8' },
+  '15': { label: '15세 이상',       color: '#ffb800' },
   '19': { label: '청소년 관람불가', color: '#e03c3c' },
 }
 
@@ -44,11 +34,6 @@ function formatRuntime(minutes: number | undefined | null) {
 
 function MovieDetailPage() {
   const { id } = useParams<{ id: string }>()
-
-  const [movie, setMovie] = useState<Movie>(); //단일 영화
-  const [schedules, setSchedules] = useState<Schedule[]>([]);
-
-  const { id } = useParams()
   const navigate = useNavigate()
   const today = new Date().toLocaleDateString('en-CA')
 
@@ -58,15 +43,9 @@ function MovieDetailPage() {
 
   /** 오늘 상영 스케줄 (activation=true & startAt 날짜 = 오늘) */
   const [todaySchedules, setTodaySchedules] = useState<ScheduleDTO[]>([])
-  // TODO: useEffect 안에서 GET /api/movies/:id 호출로 교체
 
   /** 당일 스케줄 없음 모달 표시 여부 */
   const [showNoScheduleModal, setShowNoScheduleModal] = useState(false)
-  // 오늘 상영 일정 및 잔여 좌석 합산
-  const movieSchedule = schedules.filter(s => s.movieId === Number(id))
-  const today = new Date(new Date().getTime() +9 * 60 * 60 * 1000).toISOString().slice(0, 10)
-  const todaySchedules = movieSchedule.filter((s) => s.date === today)
-  const totalAvailable = todaySchedules.reduce((acc, s) => acc + s.availableSeats, 0)
 
   /* ── 영화 단일 조회 ── */
   useEffect(() => {
@@ -110,89 +89,6 @@ function MovieDetailPage() {
   }
 
   if (error || !movie) {
-  //이부분을 get호출로 변경
-  useEffect(() => {
-    const axiosMovies = async () => {
-      try {
-        const { data } = await axios.get<MovieDTO>(`/api/movie/${id}/readOne`)
-        const formattedMovies = mapToMovie(data)
-
-        // console.log("변환된 영화 데이터:", formattedMovies); // 화면 확인
-
-        setMovie(formattedMovies)
-      } catch (error) {
-        console.error("❌ 영화 로딩 중 에러:", error);
-      }
-    };
-
-    axiosMovies();
-  }, []); // 빈 배열: 페이지 처음 들어올 때만 실행
-
-  useEffect(() => {
-    const axiosSchedule = async () => {
-      try {
-        const { data } = await axios.get<ScheduleDTO[]>('/api/admin/schedule/DTOlist')
-        // console.log("스케쥴 정보", data);
-
-
-        const formattedSchedule = data.map((dto) => mapToSchedule(dto))
-        console.log("변환된 스케쥴 데이터:", formattedSchedule); // 화면 확인
-
-        setSchedules(formattedSchedule);
-
-      } catch (error) {
-        console.error("❌ 스케쥴 로딩 중 에러:", error);
-      }
-    };
-
-    axiosSchedule();
-  }, []); //첫 로딩에 사용
-
-  useEffect(() => {
-    const axiosReservation = async () => {
-      if (!id) return;
-      try {
-        const { data } = await axios.get<ReservationDetailesDTO[]>(`/api/reservation/seatCount/movie/${id}`);
-
-        // 1. [가공] 스케줄 ID별로 '예약된 좌석 수'의 합계를 구함
-        const reservedCountMap = data
-          .filter(res => !res.returned) // 반납되지 않은 예약만
-          .reduce((acc, curr) => {
-            const schedId = curr.schedule.id;
-            const seatCount = curr.seats.length;
-
-            console.log("스케쥴 번호 : ", schedId," 예약 좌석 수 : ", seatCount);
-
-
-            // 초기값 0을 보장한 뒤 더해줌
-            acc[schedId] = (acc[schedId] || 0) + seatCount;
-            return acc;
-          }, {} as Record<number, number>);
-
-        // 2. [업데이트] 기존 schedules를 돌면서 남은 좌석 계산
-        setSchedules(prevSchedules =>
-          prevSchedules.map(sched => {
-            const reserved = reservedCountMap[sched.scheduleId] ?? 0;
-            return {
-              ...sched,
-              // 전체 좌석에서 예약된 좌석 수만큼 차감
-              availableSeats: (sched.totalSeats || 0) - reserved
-            };
-          })
-        );
-
-      } catch (error) {
-        console.error("❌ 예약 데이터 가공 중 에러:", error);
-      }
-    };
-
-    if (schedules.length > 0) {
-      axiosReservation();
-    }
-  }, [id, schedules.length]); // length를 의존성에 넣어 무한 루프 방지
-
-
-  if (!movie) {
     return (
       <div style={notFoundWrap}>
         <Film size={64} color="var(--text-muted)" />
@@ -207,7 +103,6 @@ function MovieDetailPage() {
   }
 
   const rating = RATING_INFO[movie.rating] ?? RATING_INFO['ALL']
-  const isSoldOut = movie.endAt !== null && totalAvailable === 0
 
   /**
    * 영화 상태 판단

@@ -13,23 +13,8 @@
  */
 import { useState } from 'react'
 import { CheckCircle } from 'lucide-react'
-import { MOCK_BOOKINGS } from '../../../api/mockData'
 import axios from 'axios'
-import {mapToBooking, PaymentDTO, BookingDTO} from '../../../api/typeData'
-
-/** MOCK_BOOKINGS 항목 타입 */
-type Booking = typeof MOCK_BOOKINGS[number]
-
-/**
- * 환불 가능 여부 계산 — 상영 시작 시각 기준
- * 현재 시각이 상영 시작 전이면 true, 상영 시작 이후면 false
- * @param date      - 'YYYY-MM-DD' 형식
- * @param startTime - 'HH:MM' 형식
- */
-function canRefundByTime(date: string, startTime: string): boolean {
-  const showStart = new Date(`${date}T${startTime}:00`)
-  return new Date() < showStart
-}
+import { mapToBooking, PaymentDTO, BookingDTO } from '../../../api/typeData'
 
 function RefundPage() {
   const [query,    setQuery]    = useState('')                     // 예매번호 검색어
@@ -42,7 +27,7 @@ function RefundPage() {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setResult(null)
+    setResult(undefined)
     setRefunded(false)
     if (!query.trim()) {
       setError('예매번호를 입력해 주세요.')
@@ -89,12 +74,11 @@ function RefundPage() {
     )
     if (!ok) return
 
-    const {data} =  await axios.post(`/api/payment/refund`,{
+    // TODO: data 처리 — 현재 응답값 미사용 (환불 결과는 UI 상태로만 반영)
+    await axios.post(`/api/payment/refund`, {
       paymentKey: result.paymentKey,
-      paymentId : result.bookingId
+      paymentId : result.bookingId,
     })
-
-    //todo data 처리하면 완료
 
     setLoading(true)
     // TODO: POST /api/admin/refund { bookingId: result.bookingId }

@@ -5,6 +5,7 @@
  * TODO: GET /api/admin/stats/summary 연동
  */
 import { useNavigate } from 'react-router-dom'
+import type { CSSProperties } from 'react'
 import {
   Banknote, Ticket, TrendingUp, Film,
   CalendarDays, Calendar, BarChart2, Clock, Trophy,
@@ -101,13 +102,13 @@ function StatsDashboardPage() {
 const pageTitle   = { fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 24 }
 const cardGrid    = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
                       gap: 16, marginBottom: 24 }
-const summaryCard = { background: 'var(--bg-surface)', borderRadius: 12, padding: '20px 18px',
+const summaryCard: CSSProperties = { background: 'var(--bg-surface)', borderRadius: 12, padding: '20px 18px',
                       boxShadow: '0 1px 4px rgba(0,0,0,0.08)', display: 'flex',
                       flexDirection: 'column' }
 const topMovieCard= { background: 'var(--color-warning-bg)', border: '1px solid var(--color-brand-default)', borderRadius: 12,
                       padding: '16px 20px', marginBottom: 28 }
 const shortcutGrid= { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 12 }
-const shortcutBtn = { padding: '20px 12px', background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
+const shortcutBtn: CSSProperties = { padding: '20px 12px', background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
                       borderRadius: 12, display: 'flex', flexDirection: 'column',
                       alignItems: 'center', cursor: 'pointer', gap: 4,
                       boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }

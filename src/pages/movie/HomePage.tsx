@@ -1,27 +1,59 @@
 /**
- * HomePage.jsx — 키오스크 홈(스플래시) 화면
+ * HomePage.tsx — 키오스크 홈(스플래시) 화면
  * UC: 홈
  *
  * 동작:
- *  - 상영 중 영화를 풀스크린 슬라이드쇼로 표시 (5초 자동 전환)
+ *  - GET /api/movie/readAll → 상영 중 + 상영 예정 영화 모두 슬라이드쇼로 표시
+ *  - 프론트에서 endAt 기준으로 종료된 영화 제외
+ *  - 5초마다 자동 전환
  *  - 화면 어디든 터치 → /movie/list 이동
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-
-import axios from 'axios'
-import {Movie, MovieDTO, mapToMovie} from '../../api/typeData'
+import apiClient, { type MovieDTO, resolvePosterUrl } from '../../api/apiClient'
 import styles from './HomePage.module.css'
 
 /** 슬라이드 자동 전환 간격 (ms) */
-const SLIDE_INTERVAL = 5000
+const SLIDE_INTERVAL = 1000 * 5
 
-/** 등급 → 표시 텍스트 */
-const RATING_LABEL = {
-  ALL: '전체관람가',
+/** 등급 → 표시 텍스트 (백엔드 Rating @JsonValue 기준) */
+const RATING_LABEL: Record<string, string> = {
+  ALL:  '전체관람가',
   '12': '12세 이상',
   '15': '15세 이상',
   '19': '청소년 관람불가',
+}
+
+/** 홈용 슬라이드 데이터 타입 */
+interface SlideMovie {
+  id:        number
+  title:     string
+  genre:     string | null
+  rating:    string
+  posterUrl: string
+  startAt:   string
+  endAt:     string | null
+  /** 'NOW' = 상영 중, 'UPCOMING' = 상영 예정 */
+  status:    'NOW' | 'UPCOMING'
+}
+
+// toISOString()은 UTC 기준이라 한국(UTC+9) 자정 이전에 하루 전 날짜가 나옴
+// toLocaleDateString('en-CA')로 로컬 기준 YYYY-MM-DD 추출
+const TODAY = new Date().toLocaleDateString('en-CA')
+
+/** MovieDTO → 슬라이드 데이터 변환 */
+function toSlide(dto: MovieDTO): SlideMovie {
+  const startDate = dto.startAt?.slice(0, 10) ?? ''
+  return {
+    id:        dto.movieId,
+    title:     dto.title,
+    genre:     dto.genre,
+    rating:    dto.rating,
+    posterUrl: resolvePosterUrl(dto.posterPath),
+    startAt:   startDate,
+    endAt:     dto.endAt?.slice(0, 10) ?? null,
+    status:    startDate > TODAY ? 'UPCOMING' : 'NOW',
+  }
 }
 
 function HomePage() {
@@ -30,82 +62,82 @@ function HomePage() {
   // 현재 보여지는 슬라이드 인덱스
   const [currentIndex, setCurrentIndex] = useState(0)
 
-  // 관리자 버튼 탭 카운트 (0~5)
-  const [adminTapCount, setAdminTapCount] = useState(0)
-
-  // 관리자 탭 타임아웃 ref (clearTimeout 용)
-  const adminTimerRef = useRef(null)
+  // 슬라이드 데이터 (API)
+  const [movies, setMovies] = useState<SlideMovie[]>([])
+  const [loading, setLoading] = useState(true)
 
   // 슬라이드 자동 전환 타이머 ref
-  const slideTimerRef = useRef(null)
+  const slideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  //영화에 대한 정보를 저장.
-  const [movies, setMovies] = useState<Movie[]>([]);
-
-  //이부분을 get호출로 변경
+  /**
+   * 영화 목록 로드 — 상영 중 + 상영 예정 모두 표시
+   * GET /api/movie/admin/admin/readAll → 전체 영화 조회 후 프론트에서 종료된 영화 제외
+   */
   useEffect(() => {
-    const axiosMovies = async () => {
-        try {
-            const { data } = await axios.get<MovieDTO[]>('/api/movie/all')
-            const formattedMovies = data.map((dto) => mapToMovie(dto))
-
-            console.log("변환된 데이터:", formattedMovies); // 화면 확인
-
-            setMovies(formattedMovies)
-        } catch (error) {
-            console.error("❌ 영화 로딩 중 에러:", error);
-        }
-    };
-
-    axiosMovies();
-}, []); // 빈 배열: 페이지 처음 들어올 때만 실행
+    apiClient.get<MovieDTO[]>('/movie/admin/admin/readAll')
+      .then((res) => {
+        const slides = res.data
+          // 종료된 영화(endAt이 과거) 제외
+          .filter((m) => !m.endAt || m.endAt.slice(0, 10) >= TODAY)
+          .map(toSlide)
+        setMovies(slides)
+      })
+      .catch((err) => {
+        console.error('[HomePage] 영화 목록 로드 실패', err)
+        setMovies([])
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
   /**
    * 다음 슬라이드로 이동
    * useCallback으로 메모이제이션 → useEffect 의존성 배열에 안전하게 포함
    */
   const nextSlide = useCallback(() => {
-    setCurrentIndex(prev => (prev + 1) % movies.length)
+    setCurrentIndex((prev) => (prev + 1) % movies.length)
   }, [movies.length])
 
   /**
    * 슬라이드 자동 전환 타이머 설정
-   * 슬라이드가 바뀔 때마다 타이머 리셋
+   * movies 로드 완료 후, 2개 이상일 때만 동작
    */
   useEffect(() => {
-    if (movies.length <= 1) return // 1개 이하면 자동 전환 불필요
-
+    if (movies.length <= 1) return
     slideTimerRef.current = setInterval(nextSlide, SLIDE_INTERVAL)
-
-    // cleanup: 컴포넌트 언마운트 or 재실행 시 기존 타이머 제거
-    return () => clearInterval(slideTimerRef.current)
+    return () => {
+      if (slideTimerRef.current) clearInterval(slideTimerRef.current)
+    }
   }, [nextSlide, movies.length])
 
-  /**
-   * 화면 전체 클릭 → 영화 목록으로 이동
-   */
-  const handleScreenClick = () => {
-    navigate('/movie/list')
-  }
+  /** 화면 전체 클릭 → 영화 목록으로 이동 */
+  const handleScreenClick = () => navigate('/movie/list')
 
   /**
    * 특정 슬라이드로 직접 이동 (인디케이터 클릭)
    * 클릭 시 자동 전환 타이머 리셋
    */
-  const goToSlide = (index) => {
+  const goToSlide = (index: number) => {
     setCurrentIndex(index)
-    clearInterval(slideTimerRef.current)
+    if (slideTimerRef.current) clearInterval(slideTimerRef.current)
     slideTimerRef.current = setInterval(nextSlide, SLIDE_INTERVAL)
   }
 
-  // 컴포넌트 언마운트 시 타이머 정리
-  useEffect(() => {
-    return () => {
-      clearTimeout(adminTimerRef.current)
-    }
-  }, [])
+  // 로딩 중
+  if (loading) {
+    return (
+      <div className={styles.home} onClick={handleScreenClick}>
+        <div className={styles.logo}>
+          <img src="/logo_cineos.svg" alt="CineOS" />
+        </div>
+        <div className={styles.empty}>
+          <p className={styles.emptyTitle}>CineOS</p>
+          <p className={styles.emptySub}>상영 중인 영화를 불러오는 중...</p>
+        </div>
+      </div>
+    )
+  }
 
-  // 영화가 없을 때 빈 상태 UI
+  // 상영 중 영화 없을 때
   if (movies.length === 0) {
     return (
       <div className={styles.home} onClick={handleScreenClick}>
@@ -114,7 +146,7 @@ function HomePage() {
         </div>
         <div className={styles.empty}>
           <p className={styles.emptyTitle}>CineOS</p>
-          <p className={styles.emptySub}>현재 등록된 상영 영화가 없습니다.</p>
+          <p className={styles.emptySub}>현재 등록된 영화가 없습니다.</p>
           <p className={styles.cta}>화면을 터치하면 상영 목록으로 이동합니다.</p>
         </div>
       </div>
@@ -137,13 +169,11 @@ function HomePage() {
             className={`${styles.slide} ${index === currentIndex ? styles.slideActive : ''}`}
             aria-hidden={index !== currentIndex}
           >
-            {/* 배경: 그라디언트 + 포스터 이미지
-                posterUrl 없으면 placeholder-poster.jpg 로 폴백
-                onError: 이미지 로드 실패 시 숨겨서 그라디언트 배경 노출 */}
-            <div className={`${styles.slideBg} ${styles[`slideBg${(index % 6) + 1}`]}`}>
+            {/* 배경: 다크 + 포스터 이미지 */}
+            <div className={styles.slideBg}>
               <img
                 className={styles.slidePoster}
-                src={movie.posterUrl || '/placeholder-poster.jpg'}
+                src={movie.posterUrl}
                 alt=""
                 aria-hidden="true"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
@@ -155,15 +185,21 @@ function HomePage() {
 
             {/* 영화 정보 */}
             <div className={styles.slideContent}>
-              <span className={`${styles.ratingBadge} ${styles[`rating${movie.rating}`]}`}>
-                {RATING_LABEL[movie.rating] ?? movie.rating}
-              </span>
+              {/* 상태 배지 + 등급 배지 (가로 배치) */}
               <h1 className={styles.slideTitle}>{movie.title}</h1>
               <p className={styles.slideGenre}>{movie.genre}</p>
+              <div className={styles.badgeRow}>
+                <span className={`${styles.statusBadge} ${movie.status === 'UPCOMING' ? styles.statusUpcoming : styles.statusNow}`}>
+                  {movie.status === 'UPCOMING' ? '상영 예정' : '상영 중'}
+                </span>
+                <span className={`${styles.ratingBadge} ${styles[`rating${movie.rating}`]}`}>
+                  {RATING_LABEL[movie.rating] ?? movie.rating}
+                </span>
+              </div>
               <p className={styles.slidePeriod}>
                 {movie.endAt
                   ? `${movie.startAt} ~ ${movie.endAt}`
-                  : `${movie.startAt} 개봉 예정`}
+                  : `${movie.startAt} 개봉`}
               </p>
               <p className={styles.cta} aria-hidden="true">
                 화면을 터치하여 예매하기

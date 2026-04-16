@@ -2,6 +2,7 @@
  * StatsByDayPage.jsx — 요일별 통계 (UC-15)
  * TODO: GET /api/admin/stats/by-day 연동
  */
+import type { CSSProperties } from 'react'
 import { MOCK_DAY_STATS } from '../../../api/mockData'
 import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
@@ -91,9 +92,9 @@ const chartCard = { background: 'var(--bg-surface)', borderRadius: 12, padding: 
 const chartLabel= { fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }
 const tableWrap = { background: 'var(--bg-surface)', borderRadius: 12, overflow: 'hidden',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }
-const table     = { width: '100%', borderCollapse: 'collapse' }
+const table: CSSProperties     = { width: '100%', borderCollapse: 'collapse' }
 const thead     = { background: 'var(--bg-base)' }
-const th        = { padding: '12px 16px', textAlign: 'left', fontSize: 13,
+const th: CSSProperties        = { padding: '12px 16px', textAlign: 'left', fontSize: 13,
                     fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-default)' }
 const tr        = { borderBottom: '1px solid var(--border-subtle)' }
 const td        = { padding: '12px 16px', fontSize: 14, color: 'var(--text-primary)' }

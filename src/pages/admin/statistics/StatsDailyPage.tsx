@@ -7,6 +7,7 @@
  * TODO: GET /api/admin/stats/daily?from=&to= 연동
  */
 import { useState, useMemo } from 'react'
+import type { CSSProperties } from 'react'
 import { MOCK_DAILY_STATS } from '../../../api/mockData'
 import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
@@ -155,16 +156,16 @@ const pageTitle  = { fontSize: 22, fontWeight: 800, color: 'var(--text-primary)'
 const rangeRow   = { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }
 const dateInput  = { padding: '8px 12px', border: '1px solid var(--border-default)', borderRadius: 8,
                      fontSize: 14, color: 'var(--text-primary)', background: 'var(--input-bg)' }
-const summaryRow = { display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }
+const summaryRow: CSSProperties = { display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }
 const summaryCard= { flex: 1, minWidth: 150, background: 'var(--bg-surface)', borderRadius: 10,
                      padding: '14px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }
 const sLabel     = { fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }
 const sValue     = { fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }
 const chartWrap  = { background: 'var(--bg-surface)', borderRadius: 12, padding: 20, marginBottom: 20 }
 const chartLabel = { fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }
-const chartArea  = { display: 'flex', gap: 4, alignItems: 'flex-end',
+const chartArea: CSSProperties  = { display: 'flex', gap: 4, alignItems: 'flex-end',
                      height: 140, overflowX: 'auto' }
-const barCol     = { display: 'flex', flexDirection: 'column', alignItems: 'center',
+const barCol: CSSProperties     = { display: 'flex', flexDirection: 'column', alignItems: 'center',
                      gap: 4, flexShrink: 0, minWidth: 28 }
 const bar        = { width: 20, background: 'var(--color-brand-default)', borderRadius: '4px 4px 0 0',
                      transition: 'height 0.3s' }
@@ -172,13 +173,13 @@ const barLabel   = { fontSize: 10, color: 'var(--text-muted)', transform: 'rotat
                      whiteSpace: 'nowrap', marginTop: 6 }
 const tableWrap  = { background: 'var(--bg-surface)', borderRadius: 12, overflow: 'hidden',
                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }
-const table      = { width: '100%', borderCollapse: 'collapse' }
+const table: CSSProperties      = { width: '100%', borderCollapse: 'collapse' }
 const thead      = { background: 'var(--bg-base)' }
-const th         = { padding: '12px 16px', textAlign: 'left', fontSize: 13,
+const th: CSSProperties         = { padding: '12px 16px', textAlign: 'left', fontSize: 13,
                      fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-default)' }
 const tr         = { borderBottom: '1px solid var(--border-subtle)' }
 const td         = { padding: '11px 16px', fontSize: 14, color: 'var(--text-primary)' }
-const noData     = { padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }
+const noData: CSSProperties     = { padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }
 const pagination = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 16 }
 const pageBtn    = { padding: '8px 18px', background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
                      borderRadius: 8, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer',

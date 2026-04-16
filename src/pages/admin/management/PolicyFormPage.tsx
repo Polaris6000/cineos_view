@@ -2,7 +2,7 @@
  * PolicyFormPage.jsx — 가격 정책 등록
  * TODO: POST /api/admin/policies 연동
  */
-import { useState, useRef } from 'react'
+import { useState, useRef, type ReactNode, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle } from 'lucide-react'
 import apiClient from "../../../api/apiClient.ts";
@@ -19,7 +19,7 @@ interface DiscountPolicy {
   discountType: string // 할인유형
   discountValue: number // 할인값
   startAt: string // 시작일 (YYYY-MM-DD)
-  endAt: null // 만료일 (YYYY-MM-DD)
+  endAt: string | null // 만료일 (YYYY-MM-DD) — 무기한이면 null
   // activation: boolean // 만료여부 (생성이라 필요없음)
 
   description: string // TODO 설명이 DB에 존재하지않음
@@ -210,7 +210,15 @@ function PolicyFormPage() {
   )
 }
 
-function Field({ label, required, error, children }) {
+/** Field 컴포넌트 props 타입 정의 */
+interface FieldProps {
+  label: string
+  required?: boolean        // ✱ 표시 여부 (선택적)
+  error?: string            // 유효성 에러 메시지 (선택적)
+  children: ReactNode // 입력 요소를 children으로 전달
+}
+
+function Field({ label, required, error, children }: FieldProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
       <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
@@ -222,15 +230,15 @@ function Field({ label, required, error, children }) {
   )
 }
 
-const pageTitle: React.CSSProperties  = { fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 24 }
-const formStyle: React.CSSProperties  = { background: 'var(--bg-surface)', borderRadius: 12, padding: '24px',
+const pageTitle: CSSProperties  = { fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 24 }
+const formStyle: CSSProperties  = { background: 'var(--bg-surface)', borderRadius: 12, padding: '24px',
                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: 16 }
-const input: React.CSSProperties     = { padding: '10px 12px', border: '1px solid var(--border-default)', borderRadius: 8,
+const input: CSSProperties     = { padding: '10px 12px', border: '1px solid var(--border-default)', borderRadius: 8,
                      fontSize: 14, color: 'var(--text-primary)', background: 'var(--input-bg)',
                      width: '100%', boxSizing: 'border-box' }
-const cancelBtn: React.CSSProperties = { padding: '12px 24px', background: 'var(--bg-base)', border: '1px solid var(--border-default)',
+const cancelBtn: CSSProperties = { padding: '12px 24px', background: 'var(--bg-base)', border: '1px solid var(--border-default)',
                      borderRadius: 8, fontSize: 14, cursor: 'pointer', color: 'var(--text-secondary)' }
-const submitBtn: React.CSSProperties  = { flex: 1, padding: '12px 24px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
+const submitBtn: CSSProperties  = { flex: 1, padding: '12px 24px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
                      border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer' }
 
 export default PolicyFormPage

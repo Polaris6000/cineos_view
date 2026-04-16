@@ -2,6 +2,7 @@
  * StatsByHourPage.jsx — 시간대별 통계 (UC-16)
  * TODO: GET /api/admin/stats/by-hour 연동
  */
+import type { CSSProperties } from 'react'
 import { MOCK_HOUR_STATS } from '../../../api/mockData'
 import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
@@ -73,19 +74,19 @@ function StatsByHourPage() {
 }
 
 const pageTitle   = { fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }
-const chartCard   = { background: 'var(--bg-surface)', borderRadius: 12, padding: '20px 24px',
+const chartCard: CSSProperties = { background: 'var(--bg-surface)', borderRadius: 12, padding: '20px 24px',
                       marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 10 }
 const hourRow     = { display: 'flex', alignItems: 'center', gap: 12 }
 const hourLabel   = { width: 52, fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0 }
 const barBg       = { flex: 1, height: 20, background: 'var(--bg-base)', borderRadius: 4 }
-const ticketCount = { width: 52, fontSize: 13, color: 'var(--text-primary)', textAlign: 'right', flexShrink: 0 }
+const ticketCount: CSSProperties = { width: 52, fontSize: 13, color: 'var(--text-primary)', textAlign: 'right', flexShrink: 0 }
 const peakBadge   = { marginLeft: 6, padding: '2px 6px', background: 'var(--color-brand-default)',
                       borderRadius: 4, fontSize: 10, color: 'var(--btn-primary-text)', fontWeight: 700 }
 const tableWrap   = { background: 'var(--bg-surface)', borderRadius: 12, overflow: 'hidden',
                       boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }
-const table       = { width: '100%', borderCollapse: 'collapse' }
+const table: CSSProperties       = { width: '100%', borderCollapse: 'collapse' }
 const thead       = { background: 'var(--bg-base)' }
-const th          = { padding: '12px 16px', textAlign: 'left', fontSize: 13,
+const th: CSSProperties          = { padding: '12px 16px', textAlign: 'left', fontSize: 13,
                       fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-default)' }
 const tr          = { borderBottom: '1px solid var(--border-subtle)' }
 const td          = { padding: '12px 16px', fontSize: 14, color: 'var(--text-primary)' }

@@ -96,6 +96,9 @@ export interface TheaterDTO {
   no:          number
   policyId:    number              // seat_policy FK
   cleanupTime: number              // 분 단위
+  rows:        number              // 상영관 행 수 (백엔드 TheaterDTO 추가 필드)
+  cols:        number              // 상영관 열 수
+  hasRecliner: boolean             // 리클라이너 좌석 포함 여부
 }
 
 /** GET /api/admin/seat-policy/list, /api/admin/seat-policy/{no} 응답 */

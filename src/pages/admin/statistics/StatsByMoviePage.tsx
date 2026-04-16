@@ -3,6 +3,7 @@
  * TODO: GET /api/admin/stats/by-movie?from=&to= 연동
  */
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Ticket, Banknote } from 'lucide-react'
 import { MOCK_MOVIE_STATS } from '../../../api/mockData'
 import StatsTabNav from '../../../components/Stats/StatsTabNav'
@@ -57,7 +58,7 @@ function StatsByMoviePage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{m.title}</span>
                 <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700,
-                               background: RATING_COLOR[m.rating] ?? 'var(--text-secondary)', color: '#fff' }}>
+                               background: RATING_COLOR[m.rating as keyof typeof RATING_COLOR] ?? 'var(--text-secondary)', color: '#fff' }}>
                   {m.rating === 'ALL' ? '전체' : `${m.rating}세`}
                 </span>
               </div>
@@ -100,7 +101,7 @@ function StatsByMoviePage() {
                 <td style={td}>{m.title}</td>
                 <td style={td}>
                   <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700,
-                                 background: RATING_COLOR[m.rating] ?? 'var(--text-secondary)', color: '#fff' }}>
+                                 background: RATING_COLOR[m.rating as keyof typeof RATING_COLOR] ?? 'var(--text-secondary)', color: '#fff' }}>
                     {m.rating === 'ALL' ? '전체' : `${m.rating}세`}
                   </span>
                 </td>
@@ -127,9 +128,9 @@ const rankBadge  = { width: 32, height: 32, borderRadius: '50%', display: 'flex'
                      fontSize: 14, fontWeight: 800, flexShrink: 0 }
 const tableWrap  = { background: 'var(--bg-surface)', borderRadius: 12, overflow: 'hidden',
                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }
-const table      = { width: '100%', borderCollapse: 'collapse' }
+const table: CSSProperties      = { width: '100%', borderCollapse: 'collapse' }
 const thead      = { background: 'var(--bg-base)' }
-const th         = { padding: '12px 16px', textAlign: 'left', fontSize: 13,
+const th: CSSProperties         = { padding: '12px 16px', textAlign: 'left', fontSize: 13,
                      fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-default)' }
 const tr         = { borderBottom: '1px solid var(--border-subtle)' }
 const td         = { padding: '12px 16px', fontSize: 14, color: 'var(--text-primary)' }
