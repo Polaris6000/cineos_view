@@ -24,10 +24,10 @@ import {
   Phone, CheckCircle, Coins,
   CreditCard, Wallet, Info, Gift, X
 } from 'lucide-react'
-import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
+import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 import { PERSON_TYPES, PAYMENT_METHODS, SEAT_PRICES, SEAT_TYPE_LABEL } from '../../api/mockData'
-// apiClient 사용 (axios 직접 사용 금지 — baseURL '/api' + 인증 헤더 자동 처리)
-import apiClient, { type MemberDTO } from '../../api/apiClient'
+import axios from 'axios';
+import { MemberDTO } from '../../api/typeData'
 
 /** 포인트 적립률 5% */
 const POINT_RATE = 0.05
@@ -73,11 +73,9 @@ function PaymentPage() {
 
   // ── 금액 계산 ──
   // 좌석 단가 합산 (좌석 타입별 단가 × 수량)
-  // seat 타입은 { id: string, seatType: 'NORMAL' | 'RECLINER' } 구조
-  const seatPriceTotal = (selectedSeatObjects as { id: string; seatType: keyof typeof SEAT_PRICES }[])
-    .reduce((acc: number, seat) => {
-      return acc + (SEAT_PRICES[seat?.seatType] ?? SEAT_PRICES.NORMAL)
-    }, 0)
+  const seatPriceTotal = selectedSeatObjects.reduce((acc, seat) => {
+    return acc + (SEAT_PRICES[seat?.seatType] ?? SEAT_PRICES.NORMAL)
+  }, 0)
   // 인원 유형별 할인 합산
   const discountTotal = PERSON_TYPES.reduce((acc, { type, discount }) => {
     return acc + (persons[type] ?? 0) * discount
@@ -151,7 +149,7 @@ function PaymentPage() {
     if (verifyCode === '1') {
 
       try {
-        const { data } = await apiClient.get<MemberDTO>(`/admin/member/${phoneRaw}`)
+        const { data } = await axios.get<MemberDTO>(`/api/member/${phoneRaw}`)
         console.log(data);
         setMemberPoint(data.point)
         setIsVerified(true)
@@ -160,7 +158,7 @@ function PaymentPage() {
       } catch (error) { //db에 등록된 내용이 없다는 뜻. 그러므로 인증 실패
         console.error("❌ 존재하지 않는 대상 :", error);
         //신규 멤버 등록을 해야지.
-        const { data } = await apiClient.post<MemberDTO>(`/admin/member/${phoneRaw}`)
+        const { data } = await axios.post<MemberDTO>(`/api/member/${phoneRaw}`)
         console.log(data);
         setMemberPoint(data.point)
         setIsVerified(true)
@@ -330,8 +328,7 @@ function PaymentPage() {
     //메세지를 받음.
     socket.onmessage = (event) => {
       try {
-        // 현재 수신 데이터 처리 미구현 — JSON 파싱만 확인
-        JSON.parse(event.data);
+        const response = JSON.parse(event.data);
       } catch (e) {
         console.error("데이터 파싱 에러:", e);
       }
@@ -506,15 +503,14 @@ function PaymentPage() {
         <div style={{ marginTop: 8, marginBottom: 8 }}>
           {selectedSeatObjects.length > 0 && (() => {
             const byType: Record<string, number> = {}
-            // s: { seatType: 'NORMAL' | 'RECLINER', ... }
-            ;(selectedSeatObjects as { seatType?: string }[]).forEach((s) => {
+            selectedSeatObjects.forEach((s) => {
               const t = s?.seatType ?? 'NORMAL'
               byType[t] = (byType[t] ?? 0) + 1
             })
             return Object.entries(byType).map(([type, cnt]) => (
               <div key={type} style={{ ...priceRow, fontSize: 13, color: 'var(--text-muted)' }}>
-                <span>{(SEAT_TYPE_LABEL as Record<string, string>)[type] ?? '일반'} {cnt}석</span>
-                <span>{(((SEAT_PRICES as Record<string, number>)[type] ?? SEAT_PRICES.NORMAL) * cnt).toLocaleString()}원</span>
+                <span>{SEAT_TYPE_LABEL[type] ?? '일반'} {cnt}석</span>
+                <span>{((SEAT_PRICES[type] ?? SEAT_PRICES.NORMAL) * cnt).toLocaleString()}원</span>
               </div>
             ))
           })()}

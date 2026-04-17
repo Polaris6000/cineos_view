@@ -1,5 +1,5 @@
 /**
- * MovieListPage.tsx — 상영작 목록 페이지 (UC-01)
+ * MovieListPage.jsx — 상영작 목록 페이지 (UC-01)
  *
  * 기능:
  *  - 탭: 현재 상영 중 / 상영 예정 전환
@@ -8,219 +8,189 @@
  *  - 카드 그리드: 포스터 · 제목 · 장르 · 등급 배지 · 런타임
  *  - 카드 클릭 → UC-02 영화 상세 페이지로 이동
  *
- * API 연동:
- *  - 현재 상영 중 탭: GET /api/movie/admin/admin/readAll → startAt ≤ today AND endAt 없거나 ≥ today 필터링
- *  - 상영 예정 탭:    GET /api/movie/admin/admin/readAll → startAt > today 필터링
+ * 터치 키보드:
+ *  - 검색 input 포커스(터치) 시 useKeyboard().openKeyboard() 호출
+ *  - KeyboardContext 를 통해 전역 TouchKeyboard 컴포넌트가 하단에 표시됨
  *
  * FHD(1080×1920) 세로형 키오스크 기준 레이아웃
  */
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, X, Film } from 'lucide-react'
-import { RATING_OPTIONS } from '../../api/mockData'
-import apiClient, { type MovieDTO, type ScheduleDTO, type TheaterDTO, type SeatPolicyDTO, resolvePosterUrl } from '../../api/apiClient'
+import {
+  GENRE_OPTIONS, RATING_OPTIONS, THEATER_TYPE_OPTIONS
+} from '../../api/mockData'
+
+import axios from 'axios'
+import {
+  Movie, MovieDTO, mapToMovie,
+  Schedule, ScheduleDTO, mapToSchedule,
+  Theater, TheaterDTO, mapToTheater,
+  today
+
+} from '../../api/typeData'
 import styles from './MovieListPage.module.css'
 
-/** 상영관 종류 필터 옵션 */
-const THEATER_TYPE_OPTIONS = [
-  { value: '',          label: '전체' },
-  { value: 'NORMAL',    label: '일반 상영관' },
-  { value: 'RECLINER',  label: '리클라이너' },
-]
-
 /** 등급 → 표시 텍스트 (카드용 짧은 형식) */
-const RATING_LABEL: Record<string, string> = {
-  ALL:  '전체관람가',
-  '12': '12세 이상',
-  '15': '15세 이상',
-  '19': '청소년 관람불가',
+const RATING_LABEL = {
+  ALL: '전체관람가',
+  '12': '12세',
+  '15': '15세',
+  '19': '청불',
 }
 
 /** 런타임(분) → "2시간 46분" 형식 변환 */
-function formatRuntime(minutes: number | undefined) {
+function formatRuntime(minutes) {
   if (!minutes) return ''
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
   return h > 0 ? `${h}시간 ${m > 0 ? `${m}분` : ''}` : `${m}분`
 }
 
-/**
- * 백엔드 MovieDTO → 프론트 표시용 Movie 형식으로 변환
- * 필드명 차이: movieId→id, actors→cast, description→synopsis, posterPath→posterUrl
- */
-function toDisplayMovie(dto: MovieDTO) {
-  return {
-    id:        dto.movieId,
-    title:     dto.title,
-    genre:     dto.genre ?? '',
-    rating:    dto.rating,
-    runtime:   dto.runtime,
-    director:  dto.director ?? '',
-    cast:      dto.actors ?? '',
-    synopsis:  dto.description ?? '',
-    startAt:   dto.startAt,
-    endAt:     dto.endAt,
-    posterUrl: resolvePosterUrl(dto.posterPath),
-  }
-}
-
 function MovieListPage() {
   const navigate = useNavigate()
-  const today    = new Date().toLocaleDateString('en-CA')
 
   // 현재 활성 탭: 'now' | 'upcoming'
   const [activeTab, setActiveTab] = useState('now')
 
-  // API 데이터
-  const [nowPlaying, setNowPlaying] = useState<ReturnType<typeof toDisplayMovie>[]>([])
-  const [upcoming,   setUpcoming]   = useState<ReturnType<typeof toDisplayMovie>[]>([])
-  const [loading,    setLoading]    = useState(false)
-
   // 필터 상태
-  const [selectedGenre,       setSelectedGenre]       = useState('전체')
-  const [selectedRating,      setSelectedRating]      = useState('')
-  const [selectedTheaterType, setSelectedTheaterType] = useState('')
-  const [searchQuery,         setSearchQuery]         = useState('')
+  const [selectedGenre, setSelectedGenre] = useState('전체')
+  const [selectedRating, setSelectedRating] = useState('')
+  // 상영관 타입 필터: 'ALL' | 'NORMAL' | 'RECLINER'
+  const [selectedTheaterType, setSelectedTheaterType] = useState('ALL')
+  const [searchQuery, setSearchQuery] = useState('')
 
-  // movieId → 상영관 타입 Set (스케줄·상영관·정책 3개 API 조합)
-  const [movieTheaterTypes, setMovieTheaterTypes] = useState<Map<number, Set<string>>>(new Map())
 
-  /**
-   * /movie/readAll 단일 호출로 전체 영화를 받아 프론트에서 탭 분리
-   *
-   * [이전 구조의 문제점]
-   *  - Promise.all([/movie/all, /movie/readAll]) → 하나만 실패해도 전체 crash
-   *  - /movie/all 은 "오늘 스케줄 있는 영화"만 반환 → 스케줄 없으면 항상 빈 탭
-   *
-   * [현재 구조]
-   *  - /movie/readAll 한 번만 호출 → 실패해도 탭별로 빈 배열 표시 (앱 안 죽음)
-   *  - 현재 상영 중: startAt ≤ 오늘 AND (endAt 없음 OR endAt ≥ 오늘)
-   *  - 상영 예정:    startAt > 오늘
-   */
+
+  //영화에 대한 정보를 저장.
+  const [nowMovies, setNowMovies] = useState<Movie[]>([]); //현재 상영중인 영화
+  const [commingMovies, setCommingMovies] = useState<Movie[]>([]); // 상영 예정인 영화
+  
+  const [schedules, setSchedule] = useState<Schedule[]>([]);
+  const [theaters, setTheater] = useState<Theater[]>([]);
+
+
+  //이부분을 get호출로 변경
   useEffect(() => {
-    setLoading(true)
-    apiClient.get<MovieDTO[]>('/movie/admin/admin/readAll')
-      .then((res) => {
-        const all = res.data
+    const axiosMovies = async () => {
+      try {
+        const { data } = await axios.get<MovieDTO[]>('/api/movie/readAll')
+        const formattedMovies = data.map((dto) => mapToMovie(dto))
 
-        // 현재 상영 중:
-        //   개봉일(startAt)이 오늘 이전이고,
-        //   종료일(endAt)이 없거나 오늘 이후인 영화
-        //
-        //  비교 시 반드시 slice(0, 10) 사용!
-        // 백엔드가 LocalDateTime을 "2026-04-11T00:00:00.000Z" 형식으로 반환하므로
-        // 날짜 문자열 "2026-04-11" 과 직접 비교하면 "T" 접미사 때문에 항상 크게 나옴
-        // 예) "2026-04-11T00:00:00.000Z" > "2026-04-11" → true (오늘 개봉 영화가 upcoming으로 분류되는 버그)
-        const nowRaw = all.filter((m) => {
-          const startDate = m.startAt.slice(0, 10)
-          if (startDate > today) return false                        // 아직 개봉 안 함
-          if (m.endAt && m.endAt.slice(0, 10) < today) return false  // 이미 종료
-          return true
-        })
+        console.log("변환된 데이터:", formattedMovies); // 화면 확인
+        console.log("today : ",today);
+        
 
-        // 상영 예정: 개봉일(날짜 부분)이 오늘보다 미래인 영화
-        const upcomingRaw = all.filter((m) => m.startAt.slice(0, 10) > today)
+        setNowMovies(formattedMovies.filter((movie) => movie.startAt <= today && movie.endAt >= today))
+        setCommingMovies(formattedMovies.filter((movie) =>  movie.startAt > today ))
 
-        setNowPlaying(nowRaw.map(toDisplayMovie))
-        setUpcoming(upcomingRaw.map(toDisplayMovie))
-      })
-      .catch((err) => {
-        console.error('[MovieListPage] 영화 목록 로드 실패', err)
-        setNowPlaying([])
-        setUpcoming([])
-      })
-      .finally(() => setLoading(false))
-  // today는 마운트 시 고정값
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+      } catch (error) {
+        console.error("❌ 영화 로딩 중 에러:", error);
+      }
+    };
 
-  /**
-   * 상영관 종류 매핑 로드 (마운트 1회)
-   * schedule → theater(no→policyId) → seat_policy(name) 으로 movieId별 타입 결정
-   * 실패해도 상영관 필터 비활성화만 됨 (영화 목록 자체는 정상)
-   */
+    axiosMovies();
+  }, []); // 빈 배열: 페이지 처음 들어올 때만 실행
+
+  //스케쥴 정보를 가져오기 위해서 사용
   useEffect(() => {
-    Promise.all([
-      apiClient.get<ScheduleDTO[]>('/schedule/list'),
-      apiClient.get<TheaterDTO[]>('/theater/list'),
-      apiClient.get<SeatPolicyDTO[]>('/seat-policy/list'),
-    ]).then(([schedRes, theaterRes, policyRes]) => {
-      // policyId → 'NORMAL' | 'RECLINER'
-      const policyTypeMap = new Map<number, string>()
-      policyRes.data.forEach((p: SeatPolicyDTO) => {
-        policyTypeMap.set(p.policyId, p.name.includes('리클라이너') ? 'RECLINER' : 'NORMAL')
-      })
+    const axiosSchedule = async () => {
+        try {
+            const { data } = await axios.get<ScheduleDTO[]>('/api/schedule/DTOlist')
+            console.log("스케쥴 정보", data);
 
-      // theaterNo → 'NORMAL' | 'RECLINER'
-      const theaterTypeMap = new Map<number, string>()
-      theaterRes.data.forEach((t: TheaterDTO) => {
-        theaterTypeMap.set(t.no, policyTypeMap.get(t.policyId) ?? 'NORMAL')
-      })
 
-      // movieId → Set<theaterType> (활성 스케줄만)
-      const movieTypes = new Map<number, Set<string>>()
-      schedRes.data.forEach((s: ScheduleDTO) => {
-        if (!s.activation) return
-        const type = theaterTypeMap.get(s.no) ?? 'NORMAL'
-        if (!movieTypes.has(s.movieId)) movieTypes.set(s.movieId, new Set())
-        movieTypes.get(s.movieId)!.add(type)
-      })
+            const formattedSchedule = data.map((dto) => mapToSchedule(dto))
+            // console.log("변환된 데이터:", formattedSchedule); // 화면 확인
 
-      setMovieTheaterTypes(movieTypes)
-    }).catch((err) => {
-      console.warn('[MovieListPage] 상영관 타입 로드 실패 (상영관 필터 비활성화)', err)
-    })
-  }, [])
+            setSchedule(formattedSchedule);
+
+        } catch (error) {
+            console.error("❌ 스케쥴 로딩 중 에러:", error);
+        }
+    };
+
+    axiosSchedule();
+}, []); //첫 로딩에 사용
+
+//영화관 정보를 가져오기 위해서 사용
+useEffect(() => {
+    const axiosTheater = async () => {
+        try {
+            const { data } = await axios.get<TheaterDTO[]>('/api/theater/dtoAll')
+            console.log("영화관 정보 : ", data);
+
+
+            const formattedTheater = data.map((dto) => mapToTheater(dto))
+
+            // console.log("변환된 데이터:", formattedTheater); // 화면 확인
+
+            setTheater(formattedTheater)
+
+        } catch (error) {
+            console.error("❌ 영화관 로딩 중 에러:", error);
+        }
+    };
+
+    axiosTheater();
+}, []); //첫 로딩에 사용
 
   // 탭에 따라 기본 목록 결정
-  const baseList = activeTab === 'now' ? nowPlaying : upcoming
+  const baseList = activeTab === 'now' ? nowMovies : commingMovies
 
   /**
-   * 현재 탭 영화 목록 기준 장르 옵션 동적 생성
-   * 영화에 없는 장르는 표시하지 않음
+   * 영화의 오늘 상영 일정에 해당하는 상영관 타입을 반환
+   * - 해당 영화의 오늘 일정 → 상영관 id → MOCK_THEATERS 에서 hasRecliner 확인
+   * - 리클라이너 상영관이 하나라도 있으면 RECLINER 포함
+   * - 일반 상영관이 하나라도 있으면 NORMAL 포함
    */
-  const genreOptions = useMemo(() => {
-    const genres = new Set<string>()
-    baseList.forEach((m) => {
-      m.genre.split(',').forEach((g) => {
-        const t = g.trim()
-        if (t) genres.add(t)
-      })
+  const getMovieTheaterTypes = (movieId: number): Set<string> => {
+    const today = new Date().toISOString().slice(0, 10)
+    const todaySchedules = (schedules).filter((s) => s.movieId === movieId && s.date === today)
+    const types = new Set<string>()
+    todaySchedules.forEach((s) => {
+      const theater = theaters.find((t) => t.id === s.theaterId)
+      if (!theater) return
+      if (theater.hasRecliner) types.add('RECLINER')
+      else types.add('NORMAL')
     })
-    return ['전체', ...Array.from(genres).sort()]
-  }, [baseList])
+    return types
+  }
 
   /**
    * useMemo로 필터링 결과 메모이제이션
+   * baseList, 필터 상태가 바뀔 때만 재계산
    */
   const filteredMovies = useMemo(() => {
     return baseList.filter(movie => {
-      // 장르 필터 (동적)
+      // 장르 필터
       if (selectedGenre !== '전체' && !movie.genre.includes(selectedGenre)) return false
       // 등급 필터
       if (selectedRating && movie.rating !== selectedRating) return false
-      // 상영관 종류 필터
-      if (selectedTheaterType) {
-        const types = movieTheaterTypes.get(movie.id)
-        if (!types || !types.has(selectedTheaterType)) return false
+      // 상영관 타입 필터 (전체가 아닐 때만 적용)
+      if (selectedTheaterType !== 'ALL') {
+        const types = getMovieTheaterTypes(movie.id)
+        // 해당 타입의 상영관에서 상영 중인 영화만 통과
+        if (!types.has(selectedTheaterType)) return false
       }
       // 검색어 필터
       if (searchQuery.trim() && !movie.title.includes(searchQuery.trim())) return false
       return true
     })
-  }, [baseList, selectedGenre, selectedRating, selectedTheaterType, searchQuery, movieTheaterTypes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseList, selectedGenre, selectedRating, selectedTheaterType, searchQuery])
 
-  /** 탭 전환 시 필터 전체 초기화 */
-  const handleTabChange = (tab: string) => {
+  /** 탭 전환 시 필터 초기화 */
+  const handleTabChange = (tab) => {
     setActiveTab(tab)
     setSelectedGenre('전체')
     setSelectedRating('')
-    setSelectedTheaterType('')
+    setSelectedTheaterType('ALL')
     setSearchQuery('')
   }
 
   /** 카드 클릭 → 영화 상세 페이지 */
-  const handleCardClick = (movieId: number) => {
+  const handleCardClick = (movieId) => {
     navigate(`/movie/detail/${movieId}`)
   }
 
@@ -229,7 +199,7 @@ function MovieListPage() {
 
       {/* ── 페이지 헤더 ── */}
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>현장 예매</h1>
+        <h1 className={styles.pageTitle}>영화</h1>
       </div>
 
       {/* ── 탭: 현재 상영 중 / 상영 예정 ── */}
@@ -250,18 +220,18 @@ function MovieListPage() {
           className={`${styles.tab} ${activeTab === 'upcoming' ? styles.tabActive : ''}`}
           onClick={() => handleTabChange('upcoming')}
         >
-          상영 예정작
+          상영 예정
         </button>
       </div>
 
       {/* ── 필터 바 ── */}
       <section className={styles.filterBar} aria-label="필터 및 검색">
 
-        {/* 장르 필터 — 현재 탭 영화 목록 기준 동적 생성 */}
+        {/* 장르 필터 */}
         <div className={styles.filterRow}>
           <span className={styles.filterLabel}>장르</span>
           <div className={styles.chipGroup} role="group">
-            {genreOptions.map(genre => (
+            {GENRE_OPTIONS.map(genre => (
               <button
                 key={genre}
                 type="button"
@@ -269,23 +239,6 @@ function MovieListPage() {
                 onClick={() => setSelectedGenre(genre)}
               >
                 {genre}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 상영관 종류 필터 */}
-        <div className={styles.filterRow}>
-          <span className={styles.filterLabel}>상영관</span>
-          <div className={styles.chipGroup} role="group">
-            {THEATER_TYPE_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                type="button"
-                className={`${styles.chip} ${selectedTheaterType === opt.value ? styles.chipActive : ''}`}
-                onClick={() => setSelectedTheaterType(opt.value)}
-              >
-                {opt.label}
               </button>
             ))}
           </div>
@@ -301,6 +254,23 @@ function MovieListPage() {
                 type="button"
                 className={`${styles.chip} ${selectedRating === opt.value ? styles.chipActive : ''}`}
                 onClick={() => setSelectedRating(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 상영관 타입 필터: 일반상영관 / 리클라이너 상영관 */}
+        <div className={styles.filterRow}>
+          <span className={styles.filterLabel}>상영관</span>
+          <div className={styles.chipGroup} role="group">
+            {THEATER_TYPE_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`${styles.chip} ${selectedTheaterType === opt.value ? styles.chipActive : ''}`}
+                onClick={() => setSelectedTheaterType(opt.value)}
               >
                 {opt.label}
               </button>
@@ -340,13 +310,7 @@ function MovieListPage() {
 
       {/* ── 결과 영역 ── */}
       <section className={styles.resultArea} role="tabpanel" aria-live="polite">
-        {/* 로딩 표시 */}
-        {loading && (
-          <div className={styles.empty}>
-            <p className={styles.emptyText}>불러오는 중...</p>
-          </div>
-        )}
-        {!loading && filteredMovies.length === 0 && (
+        {filteredMovies.length === 0 ? (
           /* 빈 결과 */
           <div className={styles.empty}>
             <Film size={52} color="var(--text-muted)" />
@@ -358,8 +322,7 @@ function MovieListPage() {
                   : '상영 예정 영화가 없습니다.'}
             </p>
           </div>
-        )}
-        {!loading && filteredMovies.length > 0 && (
+        ) : (
           /* 영화 카드 그리드 */
           <ul className={styles.grid} aria-label="영화 목록">
             {filteredMovies.map(movie => (
@@ -378,7 +341,7 @@ function MovieListPage() {
                       className={styles.cardImg}
                       src={movie.posterUrl || '/placeholder-poster.jpg'}
                       alt={`${movie.title} 포스터`}
-                      onError={e => { (e.target as HTMLImageElement).src = '/placeholder-poster.jpg' }}
+                      onError={e => { e.target.src = '/placeholder-poster.jpg' }}
                     />
                   </div>
 
@@ -389,7 +352,7 @@ function MovieListPage() {
                       <span className={`${styles.badge} ${styles[`badge${movie.rating}`]}`}>
                         {RATING_LABEL[movie.rating] ?? movie.rating}
                       </span>
-                      <div className={styles.cardGenre}>{movie.genre}</div>
+                      <span className={styles.cardGenre}>{movie.genre}</span>
                     </div>
                     <p className={styles.cardRuntime}>{formatRuntime(movie.runtime)}</p>
                   </div>

@@ -1,31 +1,40 @@
 /**
- * MovieDetailPage.tsx — 상영작 상세 (UC-02)
+ * MovieDetailPage.jsx — 상영작 상세 (UC-02)
  *
- * API 연동:
- *  - GET /api/movie/{id}                     → 영화 단일 조회
- *  - GET /api/admin/schedule/{movieId}/movie → 해당 영화 전체 스케줄 (오늘 것만 필터)
+ * 동작:
+ *  - URL 파라미터 :id 로 영화 조회
+ *  - 포스터(없으면 placeholder-poster.jpg), 제목, 장르, 등급, 감독, 출연, 런타임, 줄거리 표시
+ *  - "예매하기" 클릭 → movieId 넘기며 /booking/schedule 이동
+ *  - 매진 시 버튼 비활성화, 상영 예정작은 예매 버튼 미표시
  *
- * 수정 이력:
- *  - axios 하드코딩 제거 → apiClient 사용
- *  - GET /api/movie/{id} 엔드포인트 백엔드 추가 대응
- *  - ScheduleDTO 필드 정합: id / no / startAt / endAt / activation
- *  - theaterName(no) 사용 ("X관")
+ * FHD(1080×1920) 세로형 키오스크 기준으로 레이아웃 설계
+ * 이모지 제거 → Lucide React 아이콘으로 대체
+ *
+ * TODO: GET /api/movies/:id 연동
  */
+import { useState, useEffect } from 'react'
+import axios from 'axios'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Clock, Film, CalendarDays, Tag } from 'lucide-react'
-import { useState, useEffect } from 'react'
-import apiClient, { type MovieDTO, type ScheduleDTO, resolvePosterUrl, theaterName } from '../../api/apiClient'
+// import { MOCK_MOVIES, MOCK_SCHEDULES } from '../../api/mockData'
+import {
+  Movie, MovieDTO, mapToMovie,
+  Schedule, ScheduleDTO, mapToSchedule,
+  ReservationDetailesDTO
+} from '../../api/typeData'
+// import { number } from 'framer-motion'
+
 
 /** 관람등급 → 표시 텍스트·색상 */
-const RATING_INFO: Record<string, { label: string; color: string }> = {
-  ALL:  { label: '전체관람가',      color: '#4caf50' },
-  '12': { label: '12세 이상',       color: '#2a88c8' },
-  '15': { label: '15세 이상',       color: '#ffb800' },
+const RATING_INFO = {
+  ALL: { label: '전체관람가', color: '#4caf50' },
+  '12': { label: '12세 이상', color: '#2a88c8' },
+  '15': { label: '15세 이상', color: '#ffb800' },
   '19': { label: '청소년 관람불가', color: '#e03c3c' },
 }
 
 /** 런타임(분) → "2시간 46분" 형식 변환 */
-function formatRuntime(minutes: number | undefined | null) {
+function formatRuntime(minutes) {
   if (!minutes) return ''
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
@@ -33,62 +42,104 @@ function formatRuntime(minutes: number | undefined | null) {
 }
 
 function MovieDetailPage() {
-  const { id } = useParams<{ id: string }>()
+
+  const [movie, setMovie] = useState<Movie>(); //단일 영화
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+
+  const { id } = useParams()
   const navigate = useNavigate()
-  const today = new Date().toLocaleDateString('en-CA')
 
-  const [movie,  setMovie]  = useState<MovieDTO | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState(false)
+  // TODO: useEffect 안에서 GET /api/movies/:id 호출로 교체
 
-  /** 오늘 상영 스케줄 (activation=true & startAt 날짜 = 오늘) */
-  const [todaySchedules, setTodaySchedules] = useState<ScheduleDTO[]>([])
+  // 오늘 상영 일정 및 잔여 좌석 합산
+  const movieSchedule = schedules.filter(s => s.movieId === Number(id))
+  const today = new Date(new Date().getTime() +9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const todaySchedules = movieSchedule.filter((s) => s.date === today)
+  const totalAvailable = todaySchedules.reduce((acc, s) => acc + s.availableSeats, 0)
 
-  /** 당일 스케줄 없음 모달 표시 여부 */
-  const [showNoScheduleModal, setShowNoScheduleModal] = useState(false)
-
-  /* ── 영화 단일 조회 ── */
+  //이부분을 get호출로 변경
   useEffect(() => {
-    if (!id) return
-    setLoading(true)
+    const axiosMovies = async () => {
+      try {
+        const { data } = await axios.get<MovieDTO>(`/api/movie/${id}/readOne`)
+        const formattedMovies = mapToMovie(data)
 
-    apiClient.get<MovieDTO>(`/movie/${id}/readOne`) // 백엔드에 새로 만든 경로 호출
-        .then((res) => {
-          setMovie(res.data); // 리스트가 아닌 단일 객체를 바로 설정
-        })
-        .catch((err) => {
-          console.error('[MovieDetailPage] 영화 조회 실패', err);
-          setError(true);
-        })
-        .finally(() => setLoading(false));
-  }, [id])
+        // console.log("변환된 영화 데이터:", formattedMovies); // 화면 확인
 
-  /* ── 스케줄 조회: GET /api/admin/schedule/{movieId}/movie ── */
+        setMovie(formattedMovies)
+      } catch (error) {
+        console.error("❌ 영화 로딩 중 에러:", error);
+      }
+    };
+
+    axiosMovies();
+  }, []); // 빈 배열: 페이지 처음 들어올 때만 실행
+
   useEffect(() => {
-    if (!id) return
-    apiClient.get<ScheduleDTO[]>(`/schedule/${id}/movie`)
-      .then((res) => {
-        // 오늘 날짜이고 활성화된 스케줄만 필터
-        const filtered = res.data.filter(
-          (s) => s.activation && s.startAt.slice(0, 10) === today
-        )
-        // 시작 시간 오름차순 정렬
-        filtered.sort((a, b) => a.startAt.localeCompare(b.startAt))
-        setTodaySchedules(filtered)
-      })
-      .catch((err) => console.error('[MovieDetailPage] 스케줄 조회 실패', err))
-  }, [id, today])
+    const axiosSchedule = async () => {
+      try {
+        const { data } = await axios.get<ScheduleDTO[]>('/api/schedule/DTOlist')
+        // console.log("스케쥴 정보", data);
 
-  /* ── 로딩 / 에러 / 없음 ── */
-  if (loading) {
-    return (
-      <div style={notFoundWrap}>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 16 }}>불러오는 중...</p>
-      </div>
-    )
-  }
 
-  if (error || !movie) {
+        const formattedSchedule = data.map((dto) => mapToSchedule(dto))
+        console.log("변환된 스케쥴 데이터:", formattedSchedule); // 화면 확인
+
+        setSchedules(formattedSchedule);
+
+      } catch (error) {
+        console.error("❌ 스케쥴 로딩 중 에러:", error);
+      }
+    };
+
+    axiosSchedule();
+  }, []); //첫 로딩에 사용
+
+  useEffect(() => {
+    const axiosReservation = async () => {
+      if (!id) return;
+      try {
+        const { data } = await axios.get<ReservationDetailesDTO[]>(`/api/reservation/seatCount/movie/${id}`);
+
+        // 1. [가공] 스케줄 ID별로 '예약된 좌석 수'의 합계를 구함
+        const reservedCountMap = data
+          .filter(res => !res.returned) // 반납되지 않은 예약만
+          .reduce((acc, curr) => {
+            const schedId = curr.schedule.id;
+            const seatCount = curr.seats.length;
+
+            console.log("스케쥴 번호 : ", schedId," 예약 좌석 수 : ", seatCount);
+            
+
+            // 초기값 0을 보장한 뒤 더해줌
+            acc[schedId] = (acc[schedId] || 0) + seatCount;
+            return acc;
+          }, {} as Record<number, number>);
+
+        // 2. [업데이트] 기존 schedules를 돌면서 남은 좌석 계산
+        setSchedules(prevSchedules =>
+          prevSchedules.map(sched => {
+            const reserved = reservedCountMap[sched.scheduleId] ?? 0;
+            return {
+              ...sched,
+              // 전체 좌석에서 예약된 좌석 수만큼 차감
+              availableSeats: (sched.totalSeats || 0) - reserved
+            };
+          })
+        );
+
+      } catch (error) {
+        console.error("❌ 예약 데이터 가공 중 에러:", error);
+      }
+    };
+
+    if (schedules.length > 0) {
+      axiosReservation();
+    }
+  }, [id, schedules.length]); // length를 의존성에 넣어 무한 루프 방지
+
+
+  if (!movie) {
     return (
       <div style={notFoundWrap}>
         <Film size={64} color="var(--text-muted)" />
@@ -103,33 +154,28 @@ function MovieDetailPage() {
   }
 
   const rating = RATING_INFO[movie.rating] ?? RATING_INFO['ALL']
+  const isSoldOut = movie.endAt !== null && totalAvailable === 0
 
   /**
-   * 영화 상태 판단
-   *  - endAt 없음 → 현재 상영 중 (또는 개봉 후 종료 미처리)
-   *  - startAt > today → 개봉 예정
+   * 예매하기 버튼 클릭 → SchedulePage 이동
+   * preSelectedSchedule 없으면 시간 선택부터 시작
    */
-  const isUpcoming = movie.startAt > today
-  const isEnded    = movie.endAt != null && movie.endAt.slice(0, 10) < today
-
-  /** 예매하기 클릭 → 당일 스케줄 있으면 이동, 없으면 모달 */
   const handleBook = () => {
-    if (todaySchedules.length === 0) {
-      setShowNoScheduleModal(true)
-      return
-    }
     navigate('/booking/schedule', {
-      state: { movieId: movie.movieId, movieTitle: movie.title },
+      state: { movieId: movie.id, movieTitle: movie.title },
     })
   }
 
-  /** 특정 시간 클릭 → SchedulePage로 해당 스케줄 pre-select */
-  const handleBookWithSchedule = (schedule: ScheduleDTO) => {
+  /**
+   * 특정 상영 시간 클릭 → SchedulePage 로 이동하면서 해당 스케줄 pre-select
+   * SchedulePage 에서 selectedSched 초기값으로 사용됨
+   */
+  const handleBookWithSchedule = (schedule) => {
     navigate('/booking/schedule', {
       state: {
-        movieId:             movie.movieId,
-        movieTitle:          movie.title,
-        preSelectedSchedule: schedule,
+        movieId: movie.id,
+        movieTitle: movie.title,
+        preSelectedSchedule: schedule, // 상세 페이지에서 선택한 시간 전달
       },
     })
   }
@@ -137,27 +183,7 @@ function MovieDetailPage() {
   return (
     <div style={pageWrap}>
 
-      {/* ── 당일 상영 없음 모달 ── */}
-      {showNoScheduleModal && (
-        <div style={modalOverlay}>
-          <div style={modalBox}>
-            <CalendarDays size={40} color="var(--color-brand-default)" style={{ marginBottom: 12 }} />
-            <p style={modalTitle}>오늘 상영 예정인 영화가 없습니다.</p>
-            <p style={modalSub}>키오스크에서는 당일 티켓만 예매 가능합니다.</p>
-            <button
-              style={modalBtn}
-              onClick={() => {
-                setShowNoScheduleModal(false)
-                navigate('/movie/list')
-              }}
-            >
-              영화 목록으로
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── 뒤로 가기 ── */}
+      {/* ── 뒤로 가기 버튼 ── */}
       <button onClick={() => navigate(-1)} style={backBtn}>
         <ChevronLeft size={20} />
         목록으로
@@ -166,222 +192,243 @@ function MovieDetailPage() {
       {/* ── 상단 카드: 포스터 + 정보 ── */}
       <div style={card}>
 
-        {/* 포스터 */}
+        {/* 포스터 영역 — posterUrl 없으면 placeholder-poster.jpg 사용 */}
         <div style={posterWrap}>
           <img
-            src={resolvePosterUrl(movie.posterPath)}
+            src={movie.posterUrl || '/placeholder-poster.jpg'}
             alt={`${movie.title} 포스터`}
             style={posterImg}
-            onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-poster.jpg' }}
+            onError={(e) => { e.target.src = '/placeholder-poster.jpg' }}
           />
+          {/* 관람등급 배지 */}
           <span style={{ ...ratingBadge, background: rating.color }}>{rating.label}</span>
         </div>
 
-        {/* 텍스트 정보 */}
+        {/* 정보 영역 */}
         <div style={info}>
           <h1 style={titleStyle}>{movie.title}</h1>
 
+          {/* 장르·런타임 태그 */}
           <div style={tagRow}>
-            {movie.genre && (
-              <span style={tag}>
+            {[movie.genre].map((t) => (
+              <span key={t} style={tag}>
                 <Tag size={12} style={{ marginRight: 4 }} />
-                {movie.genre}
+                {t}
               </span>
-            )}
+            ))}
             <span style={tag}>
               <Clock size={12} style={{ marginRight: 4 }} />
               {formatRuntime(movie.runtime)}
             </span>
           </div>
 
+          {/* 감독·출연·개봉 정보 */}
           <dl style={dl}>
-            {movie.director && <><dt style={dt}>감독</dt><dd style={dd}>{movie.director}</dd></>}
-            {movie.actors   && <><dt style={dt}>출연</dt><dd style={dd}>{movie.actors}</dd></>}
+            <dt style={dt}>감독</dt>
+            <dd style={dd}>{movie.director}</dd>
+            <dt style={dt}>출연</dt>
+            <dd style={dd}>{movie.cast}</dd>
             <dt style={dt}>개봉</dt>
-            <dd style={dd}>{movie.startAt?.slice(0, 10)}</dd>
+            <dd style={dd}>{movie.startAt}</dd>
             {movie.endAt && (
-              <><dt style={dt}>종영</dt><dd style={dd}>{movie.endAt.slice(0, 10)}</dd></>
+              <>
+                <dt style={dt}>종영</dt>
+                <dd style={dd}>{movie.endAt}</dd>
+              </>
             )}
           </dl>
 
-          {movie.description && (
-            <div style={synopsisBox}>
-              <p style={synopsisLabel}>줄거리</p>
-              <p style={synopsisText}>{movie.description}</p>
-            </div>
-          )}
+          {/* 줄거리 */}
+          <div style={synopsisBox}>
+            <p style={synopsisLabel}>줄거리</p>
+            <p style={synopsisText}>{movie.synopsis}</p>
+          </div>
+
+          {/* 잔여 좌석 (상영 중인 영화만) */}
+          {/* {movie.endAt && (
+            <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: 20 }}>
+              오늘 잔여 좌석:{' '}
+              <strong style={{ color: totalAvailable > 20 ? '#00ad74' : '#e03c3c', fontSize: 17 }}>
+                {totalAvailable}석
+              </strong>
+            </p>
+          )} */}
         </div>
       </div>
 
-      {/* ── 예매 버튼 / 배지 ── */}
+      {/* ── 예매 버튼 / 상영예정 배지 ── */}
+      {/* 키오스크 사용성 고려: 화면 하단에 크고 눌리기 쉬운 버튼으로 배치 */}
       <div style={actionArea}>
-        {isUpcoming ? (
+        {movie.endAt ? (
+          <button
+            onClick={handleBook}
+            disabled={isSoldOut}
+            style={{
+              ...bookBtn,
+              ...(isSoldOut
+                ? { background: 'var(--bg-surface)', color: 'var(--text-muted)', cursor: 'not-allowed' }
+                : {}),
+            }}
+          >
+            <Film size={22} />
+            {isSoldOut ? '매진' : '예매하기'}
+          </button>
+        ) : (
           <div style={upcomingBadge}>
             <CalendarDays size={20} />
-            <span>{movie.startAt?.slice(0, 10)} 개봉 예정</span>
+            <span>{movie.startAt} 개봉 예정</span>
           </div>
-        ) : isEnded ? (
-          <div style={upcomingBadge}>
-            <Film size={20} />
-            <span>상영 종료</span>
-          </div>
-        ) : (
-          <button onClick={handleBook} style={bookBtn}>
-            <Film size={22} />
-            예매하기
-          </button>
         )}
       </div>
 
       {/* ── 오늘 상영 시간표 ── */}
-      {!isUpcoming && !isEnded && todaySchedules.length > 0 && (
+      {movie.endAt && todaySchedules.length > 0 && (
         <div style={scheduleSection}>
           <h2 style={sectionTitle}>오늘 상영 시간표</h2>
           <div style={scheduleGrid}>
             {todaySchedules.map((s) => (
               <button
-                key={s.id}
-                onClick={() => handleBookWithSchedule(s)}
-                style={scheduleItem}
+                key={s.scheduleId}
+                onClick={() => handleBookWithSchedule(s)} /* 클릭한 시간 전달 */
+                disabled={s.availableSeats === 0}
+                style={{
+                  ...scheduleItem,
+                  opacity: s.availableSeats === 0 ? 0.4 : 1,
+                  cursor: s.availableSeats === 0 ? 'not-allowed' : 'pointer',
+                }}
               >
-                {/* 시작 시간 */}
                 <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-brand-default)', margin: 0 }}>
-                  {s.startAt.slice(11, 16)}
+                  {s.startTime}
                 </p>
-                {/* 종료 시간 · 상영관 */}
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
-                  ~ {s.endAt.slice(11, 16)} · {theaterName(s.no)}
+                  ~ {s.endTime} · {s.theaterName}
+                </p>
+                <p style={{
+                  fontSize: 13,
+                  color: s.availableSeats === 0 ? '#e03c3c' : '#00ad74',
+                  margin: '4px 0 0',
+                  fontWeight: 600,
+                }}>
+                  {s.availableSeats === 0 ? '매진' : `${s.availableSeats}석 남음`}
                 </p>
               </button>
             ))}
           </div>
         </div>
       )}
-
-      {/* 오늘 스케줄 없을 때 안내 */}
-      {!isUpcoming && !isEnded && todaySchedules.length === 0 && (
-        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 8 }}>
-          오늘 예정된 상영이 없습니다.
-        </p>
-      )}
     </div>
   )
 }
 
 /* ─────────────────── 스타일 ─────────────────── */
-const notFoundWrap: React.CSSProperties = {
+
+const notFoundWrap = {
   display: 'flex', flexDirection: 'column', alignItems: 'center',
   justifyContent: 'center', minHeight: 600, gap: 16,
 }
-const pageWrap: React.CSSProperties = {
+
+/* FHD 기준: 최대 너비 960px, 충분한 패딩 */
+const pageWrap = {
   maxWidth: 960, margin: '0 auto', padding: '32px 40px 80px',
 }
-const backBtn: React.CSSProperties = {
+
+const backBtn = {
   display: 'flex', alignItems: 'center', gap: 6,
   background: 'none', border: 'none',
   color: 'var(--text-secondary)', fontSize: 16,
   cursor: 'pointer', padding: '10px 0', marginBottom: 32,
 }
-const card: React.CSSProperties     = { display: 'flex', gap: 48, flexWrap: 'wrap' }
-const posterWrap: React.CSSProperties = { position: 'relative', flexShrink: 0, width: 300 }
-const posterImg: React.CSSProperties  = {
+
+const card = { display: 'flex', gap: 48, flexWrap: 'wrap' }
+
+const posterWrap = { position: 'relative', flexShrink: 0, width: 300 }
+
+const posterImg = {
   width: '100%', borderRadius: 16, display: 'block',
   objectFit: 'cover', aspectRatio: '2/3',
 }
-const ratingBadge: React.CSSProperties = {
+
+const ratingBadge = {
   position: 'absolute', top: 14, left: 14,
   padding: '5px 12px', borderRadius: 8,
   fontSize: 12, fontWeight: 700, color: '#fff',
 }
-const info: React.CSSProperties      = { flex: 1, minWidth: 320 }
-const titleStyle: React.CSSProperties = {
+
+const info = { flex: 1, minWidth: 320 }
+
+const titleStyle = {
   fontSize: 30, fontWeight: 800, color: 'var(--text-primary)',
   marginBottom: 16, lineHeight: 1.3,
 }
-const tagRow: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }
-const tag: React.CSSProperties    = {
+
+const tagRow = { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }
+
+const tag = {
   display: 'flex', alignItems: 'center',
   padding: '6px 14px', background: 'var(--bg-surface)',
   border: '1px solid var(--border-default)', borderRadius: 20,
   fontSize: 14, color: 'var(--text-secondary)',
 }
-const dl: React.CSSProperties = {
+
+const dl = {
   display: 'grid', gridTemplateColumns: '56px 1fr',
   gap: '10px 16px', marginBottom: 24,
 }
-const dt: React.CSSProperties = { color: 'var(--text-muted)', fontSize: 14, fontWeight: 600 }
-const dd: React.CSSProperties = { color: 'var(--text-secondary)', fontSize: 14, margin: 0 }
-const synopsisBox: React.CSSProperties = {
+const dt = { color: 'var(--text-muted)', fontSize: 14, fontWeight: 600 }
+const dd = { color: 'var(--text-secondary)', fontSize: 14, margin: 0 }
+
+const synopsisBox = {
   background: 'var(--bg-surface)', borderRadius: 12, padding: 20, marginBottom: 24,
 }
-const synopsisLabel: React.CSSProperties = {
+const synopsisLabel = {
   fontSize: 12, color: 'var(--text-muted)', fontWeight: 600,
   marginBottom: 10, letterSpacing: 1,
 }
-const synopsisText: React.CSSProperties = {
+const synopsisText = {
   fontSize: 16, color: 'var(--text-secondary)', lineHeight: 1.9, margin: 0,
 }
-const actionArea: React.CSSProperties = {
+
+/* 예매 버튼 영역 — 넓고 눌리기 쉽게 */
+const actionArea = {
   padding: '40px 0 32px',
   borderTop: '1px solid var(--border-subtle)',
   marginTop: 40, marginBottom: 40,
 }
-const bookBtn: React.CSSProperties = {
+
+const bookBtn = {
   display: 'flex', alignItems: 'center', justifyContent: 'center',
   gap: 12, width: '100%', padding: '28px 0',
   background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',
   border: 'none', borderRadius: 16,
   fontSize: 24, fontWeight: 800, cursor: 'pointer', letterSpacing: 1,
 }
-const upcomingBadge: React.CSSProperties = {
+
+const upcomingBadge = {
   display: 'flex', alignItems: 'center', justifyContent: 'center',
   gap: 10, padding: '24px 0',
   background: 'var(--bg-surface)', borderRadius: 16,
   color: 'var(--text-secondary)', fontSize: 18, fontWeight: 600,
 }
-const btnPrimary: React.CSSProperties = {
+
+const btnPrimary = {
   marginTop: 24, padding: '16px 32px',
   background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',
   border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer',
 }
-const scheduleSection: React.CSSProperties = {}
-const sectionTitle: React.CSSProperties = {
+
+const scheduleSection = {}
+const sectionTitle = {
   fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 20,
 }
-const scheduleGrid: React.CSSProperties = {
+const scheduleGrid = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
   gap: 16,
 }
-const scheduleItem: React.CSSProperties = {
+const scheduleItem = {
   padding: '18px 16px', background: 'var(--bg-surface)',
   border: '1px solid var(--border-default)', borderRadius: 14,
-  textAlign: 'center', color: 'var(--text-primary)', cursor: 'pointer',
-}
-
-/* ── 모달 스타일 ── */
-const modalOverlay: React.CSSProperties = {
-  position: 'fixed', inset: 0, zIndex: 999,
-  background: 'rgba(0,0,0,0.65)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-}
-const modalBox: React.CSSProperties = {
-  background: 'var(--bg-surface)', borderRadius: 20,
-  padding: '40px 36px', maxWidth: 360, width: '90%',
-  display: 'flex', flexDirection: 'column', alignItems: 'center',
-  textAlign: 'center', gap: 8,
-  boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
-}
-const modalTitle: React.CSSProperties = {
-  fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', margin: 0,
-}
-const modalSub: React.CSSProperties = {
-  fontSize: 14, color: 'var(--text-muted)', margin: '4px 0 16px',
-}
-const modalBtn: React.CSSProperties = {
-  width: '100%', padding: '14px 0',
-  background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
-  border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer',
+  textAlign: 'center', color: 'var(--text-primary)',
 }
 
 export default MovieDetailPage
