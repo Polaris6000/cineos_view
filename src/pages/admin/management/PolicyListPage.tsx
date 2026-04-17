@@ -55,50 +55,40 @@ function PolicyListPage() {
   const [loading, setLoading] = useState(true)
 
   /* ──────────────────────────────────────────
-     페이지네이션 상태 (할인 / 적립 정책 각각)
-     - /log 엔드포인트는 Page<T> 형태로 반환
-     - page 파라미터는 1-based (백엔드 defaultValue="1")
-  ────────────────────────────────────────── */
-  const [discountPage,       setDiscountPage]       = useState(1)
-  const [discountTotalPages, setDiscountTotalPages] = useState(1)
-  const [bonusPage,          setBonusPage]          = useState(1)
-  const [bonusTotalPages,    setBonusTotalPages]    = useState(1)
-
-  /* ──────────────────────────────────────────
      공통: 초기 데이터 로딩 (좌석 / 할인 / 적립)
-     - 할인·적립 정책은 /log (페이징) 엔드포인트 사용
-     - 좌석 정책은 비페이징 /list 그대로 사용
   ────────────────────────────────────────── */
   useEffect(() => {
     const fetchAllData = async () => {
       try {
         setLoading(true)
         const [seatRes, discountRes, bonusRes] = await Promise.all([
-          // 좌석 정책: 페이징 없는 단순 배열 반환
           apiClient.get('/admin/seat-policy/list'),
-          // 할인 정책: Page<DiscountPolicyDTO> 반환 (백엔드 /log 엔드포인트)
-          apiClient.get('/admin/discount-policy/log', { params: { page: 1 } }),
-          // 적립 정책: Page<BonusPolicyDTO> 반환 (백엔드 /log 엔드포인트)
-          apiClient.get('/admin/bonus-policy/log', { params: { page: 1 } }),
+          apiClient.get('/admin/discount-policy/list'),
+          apiClient.get('/admin/bonus-policy/list'),
         ])
 
         // 좌석 정책: { name: '일반'|'리클라이너', cost: number } 배열 → Record로 변환
-        const seatMap: Record<string, number> = {}
+        const seatMap: Record<string, { policyId: number; cost: number }> = {}
         seatRes.data.forEach((item: any) => {
-          if (item.name === '일반')      seatMap['NORMAL']   = item.cost
-          if (item.name === '리클라이너') seatMap['RECLINER'] = item.cost
+          if (item.name === '일반') {
+            seatMap['NORMAL'] = { policyId: item.policyId, cost: item.cost }
+          }
+          if (item.name === '리클라이너') {
+            seatMap['RECLINER'] = { policyId: item.policyId, cost: item.cost }
+          }
         })
 
-        setPrices(seatMap as Record<SeatType, number>)
-        setEditPrices(seatMap as Record<SeatType, number>)
+        setPrices(seatMap as Record<SeatType, { policyId: number; cost: number }>)
+        // editPrices는 입력값(숫자)만 관리하도록 기존 유지 가능하지만, 초기값 설정 방식만 변경
+        setEditPrices({
+          NORMAL: seatMap['NORMAL']?.cost || 0,
+          RECLINER: seatMap['RECLINER']?.cost || 0
+        })
 
-        // Page<T> 응답 구조: { content: [...], totalPages: N, ... }
-        // content가 없으면 배열 그대로 사용 (이전 버전 호환)
-        setDiscountPolicies(discountRes.data.content ?? discountRes.data)
-        setDiscountTotalPages(discountRes.data.totalPages ?? 1)
-
-        setBonusPolicies(bonusRes.data.content ?? bonusRes.data)
-        setBonusTotalPages(bonusRes.data.totalPages ?? 1)
+        // setPrices(seatMap as Record<SeatType, number>)
+        // setEditPrices(seatMap as Record<SeatType, number>)
+        setDiscountPolicies(discountRes.data)
+        setBonusPolicies(bonusRes.data)
       } catch (e) {
         console.error('데이터 로딩 중 에러 발생:', e)
       } finally {
@@ -108,62 +98,70 @@ function PolicyListPage() {
     void fetchAllData()
   }, [])
 
-  /**
-   * 할인 정책 페이지 변경 핸들러
-   * 새 페이지 번호로 /log 재요청
-   */
-  const fetchDiscountPage = async (page: number) => {
-    try {
-      const res = await apiClient.get('/admin/discount-policy/log', { params: { page } })
-      setDiscountPolicies(res.data.content ?? res.data)
-      setDiscountTotalPages(res.data.totalPages ?? 1)
-      setDiscountPage(page)
-    } catch (e) {
-      console.error('[PolicyListPage] 할인 정책 페이지 로드 실패:', e)
-    }
-  }
-
-  /**
-   * 적립 정책 페이지 변경 핸들러
-   * 새 페이지 번호로 /log 재요청
-   */
-  const fetchBonusPage = async (page: number) => {
-    try {
-      const res = await apiClient.get('/admin/bonus-policy/log', { params: { page } })
-      setBonusPolicies(res.data.content ?? res.data)
-      setBonusTotalPages(res.data.totalPages ?? 1)
-      setBonusPage(page)
-    } catch (e) {
-      console.error('[PolicyListPage] 적립 정책 페이지 로드 실패:', e)
-    }
-  }
-
   /* ══════════════════════════════
      1. 좌석 타입별 추가 요금
   ══════════════════════════════ */
-  const [prices,     setPrices]     = useState<Record<SeatType, number>>({ NORMAL: 0, RECLINER: 0 })
+  const [prices, setPrices] = useState<Record<SeatType, { policyId: number; cost: number }>>({
+    NORMAL: { policyId: 0, cost: 0 },
+    RECLINER: { policyId: 0, cost: 0 },
+  })
   const [editPrices, setEditPrices] = useState<Record<SeatType, number>>({ NORMAL: 0, RECLINER: 0 })
   const [seatEditing, setSeatEditing] = useState(false)
   const [seatSaving,  setSeatSaving]  = useState(false)
   const [seatMsg,     setSeatMsg]     = useState('')
 
-  const handleSeatEdit   = () => { setEditPrices({ ...prices }); setSeatEditing(true); setSeatMsg('') }
-  const handleSeatCancel = () => { setSeatEditing(false); setEditPrices({ ...prices }) }
+  const handleSeatEdit = () => {
+    setEditPrices({
+      NORMAL: prices.NORMAL.cost,
+      RECLINER: prices.RECLINER.cost,
+    });
+    setSeatEditing(true);
+    setSeatMsg('');
+  };
+
+  const handleSeatCancel = () => {
+    setSeatEditing(false);
+    setEditPrices({
+      NORMAL: prices.NORMAL.cost,
+      RECLINER: prices.RECLINER.cost,
+    });
+  };
 
   const handleSeatSave = async () => {
-    // 실제로 변경된 좌석 유형만 필터링하여 요청
-    const changedTargets: { name: string; cost: number }[] = []
-    if (prices.NORMAL   !== editPrices.NORMAL)   changedTargets.push({ name: '일반',      cost: editPrices.NORMAL })
-    if (prices.RECLINER !== editPrices.RECLINER) changedTargets.push({ name: '리클라이너', cost: editPrices.RECLINER })
+    const changedTargets: { policyId: number; name: string; cost: number }[] = []
+
+    // NORMAL 변경 체크
+    if (prices.NORMAL.cost !== editPrices.NORMAL) {
+      changedTargets.push({
+        policyId: prices.NORMAL.policyId, // 저장해둔 ID 사용
+        name: '일반',
+        cost: editPrices.NORMAL
+      })
+    }
+
+    // RECLINER 변경 체크
+    if (prices.RECLINER.cost !== editPrices.RECLINER) {
+      changedTargets.push({
+        policyId: prices.RECLINER.policyId, // 저장해둔 ID 사용
+        name: '리클라이너',
+        cost: editPrices.RECLINER
+      })
+    }
 
     if (changedTargets.length === 0) { setSeatEditing(false); return }
 
     setSeatSaving(true)
     try {
       for (const data of changedTargets) {
+        // 이제 data에 policyId가 포함되어 서버의 500 에러가 해결됩니다!
         await apiClient.patch('/admin/seat-policy', data)
       }
-      setPrices({ ...editPrices })
+
+      // 성공 후 상태 업데이트 (새 가격 반영)
+      setPrices({
+        NORMAL: { ...prices.NORMAL, cost: editPrices.NORMAL },
+        RECLINER: { ...prices.RECLINER, cost: editPrices.RECLINER }
+      })
       setSeatEditing(false)
       setSeatMsg('좌석 추가 요금이 저장되었습니다.')
     } catch (e) {
@@ -179,29 +177,6 @@ function PolicyListPage() {
   ══════════════════════════════ */
   const [discountPolicies, setDiscountPolicies] = useState<DiscountPolicy[]>([])
   const [discountMsg,      setDiscountMsg]      = useState('')
-
-  /**
-   * 할인 정책 종료지정
-   * PATCH /api/admin/discount-policy/{id}/finish
-   * → endAt 을 오늘 23:59:59 로 설정 (서비스단에서 처리)
-   */
-  const finishDiscountPolicy = async (id: number) => {
-    if (!window.confirm('이 정책의 만료일을 오늘 23:59:59로 지정하시겠습니까?\n경고: 해당 작업은 돌이킬 수 없습니다.')) return
-    try {
-      // apiClient 사용 (axios 직접 사용 금지 — baseURL '/api' + 인증 헤더 자동 포함)
-      await apiClient.patch(`/admin/discount-policy/${id}/finish`)
-      // 종료 성공 시 현재 페이지 재조회 (/log 페이징 엔드포인트 사용)
-      const res = await apiClient.get('/admin/discount-policy/log', { params: { page: discountPage } })
-      setDiscountPolicies(res.data.content ?? res.data)
-      setDiscountTotalPages(res.data.totalPages ?? 1)
-      setDiscountMsg('종료일이 오늘 23:59:59로 지정되었습니다.')
-    } catch (e) {
-      console.error('할인 정책 종료지정 실패:', e)
-      alert('종료지정에 실패했습니다. (이미 만료됐거나 비활성 상태일 수 있습니다.)')
-    } finally {
-      setTimeout(() => setDiscountMsg(''), 3000)
-    }
-  }
 
   /**
    * 할인 정책 활성화 토글
@@ -237,29 +212,6 @@ function PolicyListPage() {
   ══════════════════════════════ */
   const [bonusPolicies, setBonusPolicies] = useState<BonusPolicy[]>([])
   const [bonusMsg,      setBonusMsg]      = useState('')
-
-  /**
-   * 적립 정책 종료지정
-   * PATCH /api/admin/bonus-policy/{id}/finish
-   * → endAt 을 오늘 23:59:59 로 설정 (서비스단에서 처리)
-   */
-  const finishBonusPolicy = async (id: number) => {
-    if (!window.confirm('이 정책의 만료일을 오늘 23:59:59로 지정하시겠습니까?\n경고: 해당 작업은 돌이킬 수 없습니다.')) return
-    try {
-      // apiClient 사용 (axios 직접 사용 금지 — baseURL '/api' + 인증 헤더 자동 포함)
-      await apiClient.patch(`/admin/bonus-policy/${id}/finish`)
-      // 종료 성공 시 현재 페이지 재조회 (/log 페이징 엔드포인트 사용)
-      const res = await apiClient.get('/admin/bonus-policy/log', { params: { page: bonusPage } })
-      setBonusPolicies(res.data.content ?? res.data)
-      setBonusTotalPages(res.data.totalPages ?? 1)
-      setBonusMsg('종료일이 오늘 23:59:59로 지정되었습니다.')
-    } catch (e) {
-      console.error('적립 정책 종료지정 실패:', e)
-      alert('종료지정에 실패했습니다. (이미 만료됐거나 비활성 상태일 수 있습니다.)')
-    } finally {
-      setTimeout(() => setBonusMsg(''), 3000)
-    }
-  }
 
   /**
    * 적립 정책 활성화 토글
@@ -313,7 +265,7 @@ function PolicyListPage() {
           )}
         </div>
 
-        {seatMsg && <div style={saveMsgBox}>{seatMsg}</div>}
+        {seatMsg && <div style={saveMsgBox}>✅ {seatMsg}</div>}
 
         <div style={priceGrid}>
           {(['NORMAL', 'RECLINER'] as SeatType[]).map((type) => (
@@ -337,7 +289,7 @@ function PolicyListPage() {
                   </div>
                 ) : (
                   <p style={{ ...priceValue, color: SEAT_TYPE_COLOR[type] }}>
-                    +{(prices[type] ?? 0).toLocaleString()}원
+                    +{(prices[type] ?? 0).cost.toLocaleString()}원
                   </p>
                 )}
               </div>
@@ -363,7 +315,7 @@ function PolicyListPage() {
           </button>
         </div>
 
-        {discountMsg && <div style={saveMsgBox}>{discountMsg}</div>}
+        {discountMsg && <div style={saveMsgBox}>✅ {discountMsg}</div>}
 
         <div style={tableWrap}>
           <table style={table}>
@@ -442,26 +394,14 @@ function PolicyListPage() {
                       </span>
                     </td>
 
-                    {/* 관리 컬럼: 종료지정 + 활성화 on/off 토글 버튼 */}
+                    {/* 관리 컬럼: 활성화 on/off 토글 버튼만 */}
                     <td style={{ ...td, textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-                        {/* 활성 상태일 때만 종료지정 버튼 표시 */}
-                        {p.activation && (
-                          <button
-                            onClick={() => finishDiscountPolicy(p.id)}
-                            style={finishBtn}
-                            title="오늘 23:59:59로 만료일 지정"
-                          >
-                            종료지정
-                          </button>
-                        )}
-                        <button
-                          onClick={() => toggleDiscountActivation(p.id)}
-                          style={p.activation ? deactivateBtn : activateBtn}
-                        >
-                          {p.activation ? '비활성화' : '활성화'}
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => toggleDiscountActivation(p.id)}
+                        style={p.activation ? deactivateBtn : activateBtn}
+                      >
+                        {p.activation ? '비활성화' : '활성화'}
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -469,28 +409,6 @@ function PolicyListPage() {
             </tbody>
           </table>
         </div>
-
-        {/* ── 할인 정책 페이지네이션 ── */}
-        {/* discountTotalPages > 1 일 때만 표시 (단일 페이지면 불필요) */}
-        {discountTotalPages > 1 && (
-          <div style={paginationRow}>
-            <button
-              onClick={() => fetchDiscountPage(discountPage - 1)}
-              disabled={discountPage <= 1}
-              style={pageBtn}
-            >
-              ‹ 이전
-            </button>
-            <span style={pageInfo}>{discountPage} / {discountTotalPages}</span>
-            <button
-              onClick={() => fetchDiscountPage(discountPage + 1)}
-              disabled={discountPage >= discountTotalPages}
-              style={pageBtn}
-            >
-              다음 ›
-            </button>
-          </div>
-        )}
       </div>
 
       {/* ── 3. 적립 정책 ── */}
@@ -511,7 +429,7 @@ function PolicyListPage() {
           </button>
         </div>
 
-        {bonusMsg && <div style={saveMsgBox}>{bonusMsg}</div>}
+        {bonusMsg && <div style={saveMsgBox}>✅ {bonusMsg}</div>}
 
         <div style={tableWrap}>
           <table style={table}>
@@ -575,26 +493,14 @@ function PolicyListPage() {
                       </span>
                     </td>
 
-                    {/* 관리 컬럼: 종료지정 + 활성화 on/off 토글 버튼 */}
+                    {/* 관리 컬럼: 활성화 on/off 토글 버튼만 */}
                     <td style={{ ...td, textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-                        {/* 활성 상태일 때만 종료지정 버튼 표시 */}
-                        {p.activation && (
-                          <button
-                            onClick={() => finishBonusPolicy(p.id)}
-                            style={finishBtn}
-                            title="오늘 23:59:59로 만료일 지정"
-                          >
-                            종료지정
-                          </button>
-                        )}
-                        <button
-                          onClick={() => toggleBonusActivation(p.id)}
-                          style={p.activation ? deactivateBtn : activateBtn}
-                        >
-                          {p.activation ? '비활성화' : '활성화'}
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => toggleBonusActivation(p.id)}
+                        style={p.activation ? deactivateBtn : activateBtn}
+                      >
+                        {p.activation ? '비활성화' : '활성화'}
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -602,27 +508,6 @@ function PolicyListPage() {
             </tbody>
           </table>
         </div>
-
-        {/* ── 적립 정책 페이지네이션 ── */}
-        {bonusTotalPages > 1 && (
-          <div style={paginationRow}>
-            <button
-              onClick={() => fetchBonusPage(bonusPage - 1)}
-              disabled={bonusPage <= 1}
-              style={pageBtn}
-            >
-              ‹ 이전
-            </button>
-            <span style={pageInfo}>{bonusPage} / {bonusTotalPages}</span>
-            <button
-              onClick={() => fetchBonusPage(bonusPage + 1)}
-              disabled={bonusPage >= bonusTotalPages}
-              style={pageBtn}
-            >
-              다음 ›
-            </button>
-          </div>
-        )}
       </div>
 
     </div>
@@ -728,25 +613,4 @@ const deactivateBtn: React.CSSProperties = {
   padding: '6px 14px', background: 'var(--color-error-bg)', color: 'var(--color-error-text)',
   border: '1px solid var(--color-error-main)', borderRadius: 6, fontSize: 13, cursor: 'pointer',
 }
-/** 관리 컬럼: 종료지정 버튼 (활성 정책에만 표시 — 오늘 23:59:59로 endAt 지정) */
-const finishBtn: React.CSSProperties = {
-  padding: '6px 14px', background: '#fff7ed', color: '#c2410c',
-  border: '1px solid #c2410c', borderRadius: 6, fontSize: 13, cursor: 'pointer',
-}
-
-/** 페이지네이션 컨테이너 — 테이블 하단에 중앙 정렬 */
-const paginationRow: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  gap: 12, marginTop: 14,
-}
-/** 이전/다음 버튼 */
-const pageBtn: React.CSSProperties = {
-  padding: '6px 16px', background: 'var(--bg-base)',
-  border: '1px solid var(--border-default)', borderRadius: 6,
-  fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)',
-  cursor: 'pointer',
-}
-/** 페이지 번호 표시 텍스트 */
-const pageInfo = { fontSize: 13, color: 'var(--text-muted)', minWidth: 60, textAlign: 'center' as const }
-
 export default PolicyListPage

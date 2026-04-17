@@ -71,10 +71,10 @@ function HomePage() {
 
   /**
    * 영화 목록 로드 — 상영 중 + 상영 예정 모두 표시
-   * GET /api/movie/admin/admin/readAll → 전체 영화 조회 후 프론트에서 종료된 영화 제외
+   * GET /api/movie/readAll → 전체 영화 조회 후 프론트에서 종료된 영화 제외
    */
   useEffect(() => {
-    apiClient.get<MovieDTO[]>('/movie/admin/admin/readAll')
+    apiClient.get<MovieDTO[]>('/movie/all')
       .then((res) => {
         const slides = res.data
           // 종료된 영화(endAt이 과거) 제외
@@ -186,8 +186,6 @@ function HomePage() {
             {/* 영화 정보 */}
             <div className={styles.slideContent}>
               {/* 상태 배지 + 등급 배지 (가로 배치) */}
-              <h1 className={styles.slideTitle}>{movie.title}</h1>
-              <p className={styles.slideGenre}>{movie.genre}</p>
               <div className={styles.badgeRow}>
                 <span className={`${styles.statusBadge} ${movie.status === 'UPCOMING' ? styles.statusUpcoming : styles.statusNow}`}>
                   {movie.status === 'UPCOMING' ? '상영 예정' : '상영 중'}
@@ -196,6 +194,8 @@ function HomePage() {
                   {RATING_LABEL[movie.rating] ?? movie.rating}
                 </span>
               </div>
+              <h1 className={styles.slideTitle}>{movie.title}</h1>
+              <p className={styles.slideGenre}>{movie.genre}</p>
               <p className={styles.slidePeriod}>
                 {movie.endAt
                   ? `${movie.startAt} ~ ${movie.endAt}`
