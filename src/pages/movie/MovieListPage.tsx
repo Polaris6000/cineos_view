@@ -96,7 +96,7 @@ function MovieListPage() {
   useEffect(() => {
     const axiosSchedule = async () => {
         try {
-            const { data } = await axios.get<ScheduleDTO[]>('/api/admin/schedule/DTOlist')
+            const { data } = await axios.get<ScheduleDTO[]>('/api/schedule/DTOlist')
             console.log("스케쥴 정보", data);
 
 
@@ -117,7 +117,7 @@ function MovieListPage() {
 useEffect(() => {
     const axiosTheater = async () => {
         try {
-            const { data } = await axios.get<TheaterDTO[]>('/api/admin/theater/dtoAll')
+            const { data } = await axios.get<TheaterDTO[]>('/api/theater/dtoAll')
             console.log("영화관 정보 : ", data);
 
 

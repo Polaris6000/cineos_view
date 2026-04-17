@@ -79,7 +79,7 @@ function SchedulePage() {
   useEffect(() => {
     const axiosSchedule = async () => {
       try {
-        const { data } = await axios.get<ScheduleDTO[]>('/api/admin/schedule/DTOlist')
+        const { data } = await axios.get<ScheduleDTO[]>('/api/schedule/DTOlist')
 
         console.log("스케쥴 정보", data);
 

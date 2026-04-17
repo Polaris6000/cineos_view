@@ -149,7 +149,7 @@ function PaymentPage() {
     if (verifyCode === '1') {
 
       try {
-        const { data } = await axios.get<MemberDTO>(`/api/admin/member/${phoneRaw}`)
+        const { data } = await axios.get<MemberDTO>(`/api/member/${phoneRaw}`)
         console.log(data);
         setMemberPoint(data.point)
         setIsVerified(true)
@@ -158,7 +158,7 @@ function PaymentPage() {
       } catch (error) { //db에 등록된 내용이 없다는 뜻. 그러므로 인증 실패
         console.error("❌ 존재하지 않는 대상 :", error);
         //신규 멤버 등록을 해야지.
-        const { data } = await axios.post<MemberDTO>(`/api/admin/member/${phoneRaw}`)
+        const { data } = await axios.post<MemberDTO>(`/api/member/${phoneRaw}`)
         console.log(data);
         setMemberPoint(data.point)
         setIsVerified(true)
