@@ -68,14 +68,25 @@ function PolicyListPage() {
         ])
 
         // 좌석 정책: { name: '일반'|'리클라이너', cost: number } 배열 → Record로 변환
-        const seatMap: Record<string, number> = {}
+        const seatMap: Record<string, { policyId: number; cost: number }> = {}
         seatRes.data.forEach((item: any) => {
-          if (item.name === '일반')      seatMap['NORMAL']   = item.cost
-          if (item.name === '리클라이너') seatMap['RECLINER'] = item.cost
+          if (item.name === '일반') {
+            seatMap['NORMAL'] = { policyId: item.policyId, cost: item.cost }
+          }
+          if (item.name === '리클라이너') {
+            seatMap['RECLINER'] = { policyId: item.policyId, cost: item.cost }
+          }
         })
 
-        setPrices(seatMap as Record<SeatType, number>)
-        setEditPrices(seatMap as Record<SeatType, number>)
+        setPrices(seatMap as Record<SeatType, { policyId: number; cost: number }>)
+        // editPrices는 입력값(숫자)만 관리하도록 기존 유지 가능하지만, 초기값 설정 방식만 변경
+        setEditPrices({
+          NORMAL: seatMap['NORMAL']?.cost || 0,
+          RECLINER: seatMap['RECLINER']?.cost || 0
+        })
+
+        // setPrices(seatMap as Record<SeatType, number>)
+        // setEditPrices(seatMap as Record<SeatType, number>)
         setDiscountPolicies(discountRes.data)
         setBonusPolicies(bonusRes.data)
       } catch (e) {
@@ -90,29 +101,67 @@ function PolicyListPage() {
   /* ══════════════════════════════
      1. 좌석 타입별 추가 요금
   ══════════════════════════════ */
-  const [prices,     setPrices]     = useState<Record<SeatType, number>>({ NORMAL: 0, RECLINER: 0 })
+  const [prices, setPrices] = useState<Record<SeatType, { policyId: number; cost: number }>>({
+    NORMAL: { policyId: 0, cost: 0 },
+    RECLINER: { policyId: 0, cost: 0 },
+  })
   const [editPrices, setEditPrices] = useState<Record<SeatType, number>>({ NORMAL: 0, RECLINER: 0 })
   const [seatEditing, setSeatEditing] = useState(false)
   const [seatSaving,  setSeatSaving]  = useState(false)
   const [seatMsg,     setSeatMsg]     = useState('')
 
-  const handleSeatEdit   = () => { setEditPrices({ ...prices }); setSeatEditing(true); setSeatMsg('') }
-  const handleSeatCancel = () => { setSeatEditing(false); setEditPrices({ ...prices }) }
+  const handleSeatEdit = () => {
+    setEditPrices({
+      NORMAL: prices.NORMAL.cost,
+      RECLINER: prices.RECLINER.cost,
+    });
+    setSeatEditing(true);
+    setSeatMsg('');
+  };
+
+  const handleSeatCancel = () => {
+    setSeatEditing(false);
+    setEditPrices({
+      NORMAL: prices.NORMAL.cost,
+      RECLINER: prices.RECLINER.cost,
+    });
+  };
 
   const handleSeatSave = async () => {
-    // 실제로 변경된 좌석 유형만 필터링하여 요청
-    const changedTargets: { name: string; cost: number }[] = []
-    if (prices.NORMAL   !== editPrices.NORMAL)   changedTargets.push({ name: '일반',      cost: editPrices.NORMAL })
-    if (prices.RECLINER !== editPrices.RECLINER) changedTargets.push({ name: '리클라이너', cost: editPrices.RECLINER })
+    const changedTargets: { policyId: number; name: string; cost: number }[] = []
+
+    // NORMAL 변경 체크
+    if (prices.NORMAL.cost !== editPrices.NORMAL) {
+      changedTargets.push({
+        policyId: prices.NORMAL.policyId, // 저장해둔 ID 사용
+        name: '일반',
+        cost: editPrices.NORMAL
+      })
+    }
+
+    // RECLINER 변경 체크
+    if (prices.RECLINER.cost !== editPrices.RECLINER) {
+      changedTargets.push({
+        policyId: prices.RECLINER.policyId, // 저장해둔 ID 사용
+        name: '리클라이너',
+        cost: editPrices.RECLINER
+      })
+    }
 
     if (changedTargets.length === 0) { setSeatEditing(false); return }
 
     setSeatSaving(true)
     try {
       for (const data of changedTargets) {
+        // 이제 data에 policyId가 포함되어 서버의 500 에러가 해결됩니다!
         await apiClient.patch('/admin/seat-policy', data)
       }
-      setPrices({ ...editPrices })
+
+      // 성공 후 상태 업데이트 (새 가격 반영)
+      setPrices({
+        NORMAL: { ...prices.NORMAL, cost: editPrices.NORMAL },
+        RECLINER: { ...prices.RECLINER, cost: editPrices.RECLINER }
+      })
       setSeatEditing(false)
       setSeatMsg('좌석 추가 요금이 저장되었습니다.')
     } catch (e) {
@@ -240,7 +289,7 @@ function PolicyListPage() {
                   </div>
                 ) : (
                   <p style={{ ...priceValue, color: SEAT_TYPE_COLOR[type] }}>
-                    +{(prices[type] ?? 0).toLocaleString()}원
+                    +{(prices[type] ?? 0).cost.toLocaleString()}원
                   </p>
                 )}
               </div>

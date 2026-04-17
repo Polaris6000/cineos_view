@@ -99,7 +99,7 @@ function MovieListPage() {
    */
   useEffect(() => {
     setLoading(true)
-    apiClient.get<MovieDTO[]>('/movie/readAll')
+    apiClient.get<MovieDTO[]>('/movie/all')
       .then((res) => {
         const all = res.data
 

@@ -74,7 +74,7 @@ function HomePage() {
    * GET /api/movie/readAll → 전체 영화 조회 후 프론트에서 종료된 영화 제외
    */
   useEffect(() => {
-    apiClient.get<MovieDTO[]>('/movie/readAll')
+    apiClient.get<MovieDTO[]>('/movie/all')
       .then((res) => {
         const slides = res.data
           // 종료된 영화(endAt이 과거) 제외

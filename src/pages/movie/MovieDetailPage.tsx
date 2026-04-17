@@ -66,7 +66,7 @@ function MovieDetailPage() {
      *   백엔드가 수정되면 아래 코드를 다시 단일 조회로 교체할 것:
      *     apiClient.get<MovieDTO>(`/movie/${id}/readOne`)
      */
-    apiClient.get<MovieDTO[]>('/movie/readAll')
+    apiClient.get<MovieDTO[]>('/movie/all')
       .then((res) => {
         const found = res.data.find((m) => m.movieId === Number(id))
         if (found) {

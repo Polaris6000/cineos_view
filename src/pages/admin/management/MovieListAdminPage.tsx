@@ -94,7 +94,7 @@ function MovieListAdminPage() {
 
   /** GET /api/movie/readAll — 전체 영화 목록 */
   useEffect(() => {
-    apiClient.get<MovieDTO[]>('/movie/readAll')
+    apiClient.get<MovieDTO[]>('/admin/movie/readAll')
       .then((res) => setMovies(res.data.map(toAdminMovie)))
       .catch((err) => console.error('[MovieListAdminPage] 영화 목록 로드 실패', err))
       .finally(() => setLoading(false))
@@ -136,7 +136,7 @@ function MovieListAdminPage() {
     setPendingDeletes((prev) => new Set(prev).add(movie.id))
 
     // DELETE /api/movie/remove?movieId={id}
-    apiClient.delete('/movie/remove', { params: { movieId: movie.id } })
+    apiClient.delete('/admin/movie/remove', { params: { movieId: movie.id } })
       .then(() => {
         // 성공 시 목록에서 제거
         setMovies((prev) => prev.filter((m) => m.id !== movie.id))

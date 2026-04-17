@@ -313,7 +313,7 @@ function MovieFormPage() {
        * 수정: PATCH /api/movie/modify  (백엔드 @PatchMapping) ← 반드시 patch 사용
        * POST로 보내면 405 Method Not Allowed 발생
        */
-      const endpoint = isEdit ? '/movie/modify' : '/movie/upload'
+      const endpoint = isEdit ? '/admin/movie/modify' : '/admin/movie/upload'
       // Content-Type을 undefined로 지정 → apiClient 기본값(application/json) 제거
       // → axios가 FormData를 감지해 multipart/form-data; boundary=... 자동 설정
       await (isEdit
