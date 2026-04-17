@@ -74,7 +74,7 @@ function MovieListPage() {
   useEffect(() => {
     const axiosMovies = async () => {
       try {
-        const { data } = await axios.get<MovieDTO[]>('/api/movie/readAll')
+        const { data } = await axios.get<MovieDTO[]>('/api/movie/all')
         const formattedMovies = data.map((dto) => mapToMovie(dto))
 
         console.log("변환된 데이터:", formattedMovies); // 화면 확인
@@ -128,7 +128,7 @@ useEffect(() => {
             setTheater(formattedTheater)
 
         } catch (error) {
-            console.error("❌ 영화관 로딩 중 에러:", error);
+            console.error(" 영화관 로딩 중 에러:", error);
         }
     };
 
