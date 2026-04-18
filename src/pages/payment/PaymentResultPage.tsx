@@ -149,11 +149,15 @@ function PaymentResultPage() {
           paymentKey:   paymentKey ?? 'point',
           amount:       Number(amount ?? 0),
           phone:        bookingData.phone,
-          // 백엔드 PaymentController savePaymentInfo:
+          // 백엔드 PaymentController savePaymentInfo 파싱:
           //   requestData.path("scheduleId").path("scheduleId").asLong()
-          // → scheduleId 키에 Schedule 객체(scheduleId 필드 포함)를 통째로 보냄
-          // → { "scheduleId": { "scheduleId": 1, ... } } 구조
-          scheduleId:   bookingData.schedule,
+          //
+          // ⚠ bookingData.schedule은 ScheduleDTO로 id 필드를 가짐 (scheduleId 아님).
+          //   그대로 보내면 path("scheduleId").path("scheduleId") = 0 → getScheduleDTO(0) → NPE → 500
+          //
+          // 백엔드가 기대하는 구조: { "scheduleId": { "scheduleId": <number> } }
+          // → 백엔드 파싱 패턴에 맞춰 래퍼 객체로 감싸서 전송
+          scheduleId:   { scheduleId: bookingData.schedule?.id ?? bookingData.schedule?.scheduleId ?? 0 },
           seats:        bookingData.selectedSeats,
           bonusPolicyId,                                  // 동적으로 조회한 활성 적립 정책 ID
           usePoint:     bookingData.pointUsed ?? 0,

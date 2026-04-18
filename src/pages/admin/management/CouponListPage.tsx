@@ -57,7 +57,15 @@ function CouponListPage() {
 
             // Page<CouponDTO>의 content 배열과 페이징 정보를 상태에 저장
             const {content, totalPages, totalElements} = res.data
-            setCoupons(content ?? [])
+
+            // 사용 가능(status=true)이 상단에 오도록 정렬
+            // 참고: 페이지 단위로 가져오는 구조라 현재 페이지 내 정렬만 적용됨
+            const sorted = [...(content ?? [])].sort((a: Coupon, b: Coupon) => {
+                if (a.status === b.status) return 0
+                return a.status ? -1 : 1 // true(사용 가능) → 앞으로
+            })
+
+            setCoupons(sorted)
             setTotalPages(totalPages ?? 1)
             setTotalItems(totalElements ?? 0)
         } catch (e) {

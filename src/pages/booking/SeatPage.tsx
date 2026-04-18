@@ -27,7 +27,8 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Info, CreditCard, Wifi, WifiOff } from 'lucide-react'
-// mockData 의존성 제거 — 백엔드 연동 완료로 목데이터 불필요, 인라인 상수 사용
+// 좌석 배치 생성 및 통로 분할 유틸 — SeatListPage(관리자)와 동일 로직 공유
+import { generateSeats, splitRowByAisle, type SeatItem } from '../../utils/seatUtils'
 
 /** 좌석 타입 → 표시 레이블 */
 const SEAT_TYPE_LABEL: Record<string, string> = {
@@ -45,60 +46,11 @@ const PERSON_TYPES: { type: string; label: string; discount: number }[] = [
 import apiClient, { type TheaterDTO, type SeatPolicyDTO, type ScheduleDTO } from '../../api/apiClient'
 import { useWebSocket } from '../../hooks/useWebSocket'
 
-/* ── 타입 정의 ─────────────────────────────────────────────── */
-
-/** 좌석 하나의 데이터 (generateRealSeats 반환 타입) */
-interface SeatItem {
-  id:       string    // "A1", "B3" 형식 — WebSocket seatNumber와 동일
-  row:      string    // 행 라벨 (A~J)
-  col:      number    // 열 번호 (1~10)
-  seatType: 'NORMAL' | 'RECLINER'
-}
-
-/* ── 좌석 배치 생성 ─────────────────────────────────────────── */
-
 /**
- * 실제 API 상영관 데이터(TheaterDTO) 기반 좌석 배치 생성
- *
- * @param theater     - 백엔드에서 받아온 상영관 DTO
- * @param hasRecliner - 리클라이너 관 여부
- *   - theater.rows/cols가 0 또는 미반환(undefined)이면 theater.no 기반 계산값 사용
- *     no=1 → 5행×8열, no=2 → 6행×9열, ...
- *   - hasRecliner는 seatPolicy.name에서 파생 (백엔드 fields가 없어도 안전)
- *     → true: 마지막 행만 RECLINER, 나머지 NORMAL (시네마 표준)
- *     → false: 전 좌석 NORMAL
+ * SeatItem 타입은 seatUtils.ts에서 import.
+ * generateSeats / splitRowByAisle 함수도 seatUtils.ts에서 import.
+ * → SeatListPage(관리자)와 동일 로직을 공유하므로 배치가 항상 일치함.
  */
-function generateRealSeats(theater: TheaterDTO, hasRecliner: boolean): SeatItem[] {
-  // rows/cols가 없거나 0이면 no 기반 계산값(typeData.mapToTheater 기준)으로 fallback
-  const ROW_COUNT = (theater.rows && theater.rows > 0) ? theater.rows : (theater.no + 4)
-  const COL_COUNT = (theater.cols && theater.cols > 0) ? theater.cols : (theater.no + 7)
-
-  const rowLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  const seats: SeatItem[] = []
-
-  for (let r = 0; r < ROW_COUNT; r++) {
-    // 마지막 행이고 리클라이너 관이면 RECLINER, 나머지는 NORMAL
-    const isLastRow  = r === ROW_COUNT - 1
-    const seatType: SeatItem['seatType'] = (hasRecliner && isLastRow) ? 'RECLINER' : 'NORMAL'
-
-    for (let c = 1; c <= COL_COUNT; c++) {
-      seats.push({
-        id:   `${rowLabels[r]}${c}`,
-        row:  rowLabels[r],
-        col:  c,
-        seatType,
-      })
-    }
-  }
-
-  // eslint-disable-next-line no-console
-  console.log(
-    `[SeatPage] ${theater.no}관 좌석 생성 완료`,
-    `(${ROW_COUNT}행 × ${COL_COUNT}열 = ${seats.length}석,`,
-    `hasRecliner: ${hasRecliner})`,
-  )
-  return seats
-}
 
 /* ── 컴포넌트 ───────────────────────────────────────────────── */
 
@@ -213,25 +165,20 @@ function SeatPage() {
 
   /* ── 좌석 배치 생성 (메모이제이션) ──────────────────────── */
   /**
-   * theater + seatPolicy 모두 로드된 후에만 좌석 생성
+   * theaterConfig.ts 고정 상수 기반으로 좌석 배치 생성.
    *
-   * hasRecliner 결정 우선순위:
-   *  1. theater.hasRecliner (백엔드 명시적 값) — 있을 경우 최우선
-   *  2. seatPolicy.name.toLowerCase().includes('recliner') — 없을 경우 seatPolicy로 판단
-   *  3. false — 둘 다 없으면 전 좌석 일반석
+   * 백엔드 TheaterDTO에 rows/cols/hasRecliner 필드가 없어도 동작함.
+   * schedule.no(상영관 번호)를 키로 THEATER_CONFIG에서 배치 정보를 조회.
    *
-   * 고객용 /api/theater/list가 rows/cols/hasRecliner를 반환하지 않는 경우에도
-   * seatPolicy.name에서 안전하게 파생하도록 개선.
+   * SeatListPage(관리자)도 동일한 generateSeats(theaterNo)를 사용하므로
+   * 고객 화면과 관리자 화면의 배치가 항상 일치함.
+   *
+   * API 로딩 완료 전에도 배치 생성이 가능하므로 seatPolicy 로드 여부와 무관.
    */
-  const seats = useMemo<SeatItem[]>(() => {
-    if (!theater) return []
-    // hasRecliner: theater 명시값 우선 → seatPolicy.name 파생 → false
-    const hasRecliner: boolean =
-      theater.hasRecliner !== undefined
-        ? theater.hasRecliner
-        : (seatPolicy?.name?.toLowerCase().includes('recliner') ?? false)
-    return generateRealSeats(theater, hasRecliner)
-  }, [theater, seatPolicy])
+  const seats = useMemo<SeatItem[]>(
+    () => generateSeats(schedule.no),
+    [schedule.no],
+  )
 
   /* ── 좌석 상태 파생 ─────────────────────────────────────── */
   /**
@@ -352,21 +299,6 @@ function SeatPage() {
   // 행(row) 목록 추출 (A, B, C ...)
   const rows = useMemo(() => [...new Set(seats.map((s) => s.row))], [seats])
 
-  /**
-   * 한 행의 좌석을 통로 기준으로 세 그룹으로 분리
-   * 구조: [좌측 2석] | 통로 | [중앙 6석] | 통로 | [우측 2석]
-   * cols < 5면 통로 없이 그냥 반환
-   */
-  const splitRowByAisle = (rowSeats: SeatItem[]) => {
-    const sorted = [...rowSeats].sort((a, b) => a.col - b.col)
-    if (sorted.length < 5) return { left: sorted, middle: [], right: [] }
-    return {
-      left:   sorted.slice(0, 2),
-      middle: sorted.slice(2, sorted.length - 2),
-      right:  sorted.slice(sorted.length - 2),
-    }
-  }
-
   // 열 번호 목록 (첫 번째 행 기준)
   const colNumbers = useMemo(() => {
     if (rows.length === 0) return []
@@ -375,6 +307,14 @@ function SeatPage() {
       .sort((a, b) => a.col - b.col)
       .map((s) => s.col)
   }, [seats, rows])
+
+  /**
+   * 통로 좌/우 그룹 크기 — seatUtils.splitRowByAisle와 동일 규칙
+   * - 열 수 ≤ 6 → 0 (통로 없음, 리클라이너 전용관)
+   * - 열 수 > 6 → 2 고정 (양쪽 가장자리 2칸)
+   * 열 번호 헤더와 좌석 행 모두 동일한 sideCount로 렌더링해야 열 정렬이 맞음.
+   */
+  const sideCount = colNumbers.length > 6 ? 2 : 0
 
   // 선택된 좌석들의 타입별 요약 (요금 표시용)
   const selectedSeatsSummary = useMemo<Record<string, number>>(() => {
@@ -465,26 +405,32 @@ function SeatPage() {
       <div style={gridOuter}>
         <div style={gridScroll}>
 
-          {/* 열 번호 헤더 행 */}
+          {/* 열 번호 헤더 행 — sideCount 기반 통로 위치 */}
           <div style={colHeaderRow}>
             <span style={rowLabel} />
-            {colNumbers.slice(0, 2).map((n) => (
+            {/* 왼쪽 그룹 */}
+            {colNumbers.slice(0, sideCount || colNumbers.length).map((n) => (
               <span key={n} style={colNumLabel}>{n}</span>
             ))}
-            {colNumbers.length >= 5 && <span style={aisleGap} />}
-            {colNumbers.slice(2, colNumbers.length - 2).map((n) => (
+            {/* 왼쪽 통로 */}
+            {sideCount > 0 && <span style={aisleGap} />}
+            {/* 중앙 그룹 */}
+            {sideCount > 0 && colNumbers.slice(sideCount, colNumbers.length - sideCount).map((n) => (
               <span key={n} style={colNumLabel}>{n}</span>
             ))}
-            {colNumbers.length >= 5 && <span style={aisleGap} />}
-            {colNumbers.slice(colNumbers.length - 2).map((n) => (
+            {/* 오른쪽 통로 */}
+            {sideCount > 0 && <span style={aisleGap} />}
+            {/* 오른쪽 그룹 */}
+            {sideCount > 0 && colNumbers.slice(colNumbers.length - sideCount).map((n) => (
               <span key={n} style={colNumLabel}>{n}</span>
             ))}
             <span style={rowLabel} />
           </div>
 
-          {/* 좌석 행 */}
+          {/* 좌석 행 — seatUtils.splitRowByAisle 사용 (SeatListPage와 동일 로직) */}
           {rows.map((row) => {
             const rowSeats = seats.filter((s) => s.row === row)
+            // sideCount 반환값은 헤더에서 이미 계산했으므로 구조분해만
             const { left, middle, right } = splitRowByAisle(rowSeats)
 
             /** 좌석 버튼 렌더 헬퍼 */
@@ -523,11 +469,16 @@ function SeatPage() {
             return (
               <div key={row} style={rowWrap}>
                 <span style={rowLabel}>{row}</span>
+                {/* 왼쪽 그룹 (통로 없으면 left에 전 좌석이 들어있음) */}
                 <div style={colWrap}>{left.map(renderSeat)}</div>
-                {colNumbers.length >= 5 && <span style={aisleGap} />}
+                {/* 왼쪽 통로 */}
+                {sideCount > 0 && <span style={aisleGap} />}
+                {/* 중앙 그룹 */}
                 {middle.length > 0 && <div style={colWrap}>{middle.map(renderSeat)}</div>}
-                {colNumbers.length >= 5 && <span style={aisleGap} />}
-                <div style={colWrap}>{right.map(renderSeat)}</div>
+                {/* 오른쪽 통로 */}
+                {sideCount > 0 && <span style={aisleGap} />}
+                {/* 오른쪽 그룹 */}
+                {right.length > 0 && <div style={colWrap}>{right.map(renderSeat)}</div>}
                 <span style={rowLabel}>{row}</span>
               </div>
             )
