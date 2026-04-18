@@ -1,6 +1,13 @@
-/* 공용 함수 정의*/
-export const today = new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
-export const now = new Date
+// TMDB 포스터 URL 변환 함수 import (apiClient에서 관리)
+// MovieDTO/ScheduleDTO/TheaterDTO는 이 파일에 직접 정의 — 중복 import 금지
+import { resolvePosterUrl, getKSTDateString } from './apiClient'
+
+/* 공용 함수 정의 */
+// KST 기준 오늘 날짜 ('YYYY-MM-DD')
+// ⚠️ toISOString()은 UTC 기준이라 한국(UTC+9) 자정~오전 9시 사이에 날짜가 하루 어긋남
+// → toLocaleDateString('en-CA')를 사용하는 getKSTDateString()으로 교체
+export const today = getKSTDateString()
+export const now = new Date()
 
 
 /** 타입 정의 */
@@ -20,32 +27,34 @@ export interface Movie {
 
 //dto 정보
 export interface MovieDTO {
-    movieId: number;
-    title: string;
-    genre: string;
-    rating: string;
-    runtime: number;
-    director: string;
-    actors: string;
+    movieId:    number;
+    title:      string;
+    genre:      string;
+    rating:     string;
+    runtime:    number;
+    director:   string;
+    actors:     string;
     description: string;
-    startAt: string;
-    endAt: string;
-    createAt: string;
+    startAt:    string;
+    endAt:      string;
+    createAt:   string;
+    posterPath: string | null;  // TMDB 경로 또는 null — resolvePosterUrl()로 변환
 }
 
 //변환 메소드
 export const mapToMovie = (movieDTO: MovieDTO): Movie => ({
-    id: movieDTO.movieId,
-    title: movieDTO.title,
-    genre: movieDTO.genre,
-    rating: movieDTO.rating,
-    posterUrl: "/poster" + movieDTO.title,
-    synopsis: movieDTO.description,
-    director: movieDTO.director,
-    cast: movieDTO.actors,
-    runtime: movieDTO.runtime,
-    "startAt": movieDTO.startAt.slice(0, 10),
-    endAt: movieDTO.endAt.slice(0, 10)
+    id:        movieDTO.movieId,
+    title:     movieDTO.title,
+    genre:     movieDTO.genre,
+    rating:    movieDTO.rating,
+    // posterPath → TMDB CDN URL 또는 절대 경로로 변환 (이전: "/poster" + title 잘못된 수식 수정)
+    posterUrl: resolvePosterUrl(movieDTO.posterPath),
+    synopsis:  movieDTO.description,
+    director:  movieDTO.director,
+    cast:      movieDTO.actors,
+    runtime:   movieDTO.runtime,
+    startAt:   movieDTO.startAt.slice(0, 10),
+    endAt:     movieDTO.endAt.slice(0, 10),
 })
 
 export interface Schedule {

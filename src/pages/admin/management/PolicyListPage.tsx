@@ -17,7 +17,19 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import apiClient from '../../../api/apiClient.ts'
-import { SEAT_PRICES, SEAT_TYPE_LABEL } from '../../../api/mockData'
+// mockData 의존성 제거 — 백엔드 연동 완료로 목데이터 불필요, 인라인 상수 사용
+
+/** 좌석 타입별 기본 단가 (백엔드 seat_policy에서 관리하지만 UI 초기값으로 사용) */
+const SEAT_PRICES = {
+  NORMAL:   14000,
+  RECLINER: 20000,
+} as const
+
+/** 좌석 타입 → 표시 레이블 */
+const SEAT_TYPE_LABEL: Record<string, string> = {
+  NORMAL:   '일반',
+  RECLINER: '리클라이너',
+}
 
 type SeatType = keyof typeof SEAT_PRICES
 

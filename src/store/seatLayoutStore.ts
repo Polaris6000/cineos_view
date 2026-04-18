@@ -12,7 +12,29 @@
  *   const seats = getSeatLayout(theaterId, fallbackGenerator)
  *   setSeatLayout(theaterId, modifiedSeats)
  */
-import { generateSeats, MOCK_THEATERS, type Seat, type Theater } from '../api/mockData'
+// mockData 의존성 제거 — 이 store는 현재 사용되지 않음 (SeatPage는 실 API 사용)
+// 추후 어드민 좌석 편집 기능 구현 시 실 API로 교체 예정
+
+/** 좌석 상태 타입 */
+type SeatStatus = 'empty' | 'selected' | 'sold_out' | 'occupied'
+
+/** 좌석 인터페이스 */
+interface Seat {
+  id:       string
+  row:      string
+  col:      number
+  seatType: 'NORMAL' | 'RECLINER'
+  status:   SeatStatus
+}
+
+/** 상영관 인터페이스 (미사용 — 타입 재export용 유지) */
+interface Theater {
+  id:          number
+  name:        string
+  rows:        number
+  cols:        number
+  hasRecliner: boolean
+}
 
 /** theaterId → Seat[] 매핑 */
 const store = new Map<number, Seat[]>()
@@ -22,28 +44,20 @@ const store = new Map<number, Seat[]>()
  * - 커스텀 배치가 저장돼 있으면 그것을 반환
  * - 없으면 generateSeats(theater)로 기본 배치 생성 후 저장
  */
+/**
+ * 좌석 배치를 가져옵니다.
+ * - 커스텀 배치가 저장돼 있으면 그것을 반환
+ * - 없으면 빈 배열 반환 (실 API 기반으로 교체 예정)
+ */
 export function getSeatLayout(theaterId: number, soldOutSeats: string[]): Seat[] {
-  let baseSeats: Seat[] = [];
+  if (!store.has(theaterId)) return []
 
-  if (store.has(theaterId)) {
-    // 1. 저장된 기본 배치를 가져옴
-    baseSeats = store.get(theaterId)!;
-  } else {
-    // 2. 없으면 생성해서 저장
-    const theater = MOCK_THEATERS.find((t) => t.id === theaterId);
-    if (!theater) return [];
-    
-    // 처음 생성 시에는 soldOutSeats 없이 기본 배치만 생성하는 것이 관리에 용이합니다.
-    baseSeats = generateSeats(theater, []); 
-    store.set(theaterId, baseSeats.map((s) => ({ ...s })));
-  }
-
-  // 3. [핵심] 가져온 기본 배치에 현재 넘어온 soldOutSeats 정보를 실시간으로 입힘
+  const baseSeats = store.get(theaterId)!
+  // 저장된 배치에 현재 매진 좌석 상태 반영
   return baseSeats.map((s) => ({
     ...s,
-    // 만약 현재 좌석 ID가 서버에서 넘어온 soldOutSeats에 포함되어 있다면 상태를 변경
-    status: soldOutSeats.includes(s.id) ? 'sold_out' : s.status
-  }));
+    status: soldOutSeats.includes(s.id) ? 'sold_out' : s.status,
+  }))
 }
 
 /**
@@ -57,12 +71,12 @@ export function setSeatLayout(theaterId: number, seats: Seat[]): void {
 /**
  * 특정 상영관 배치를 초기 기본값으로 리셋합니다.
  */
+/**
+ * 특정 상영관 배치를 초기화합니다. (실 API 연동 전까지 빈 배열 반환)
+ */
 export function resetSeatLayout(theaterId: number): Seat[] {
-  const theater = MOCK_THEATERS.find((t) => t.id === theaterId)
-  if (!theater) return []
-  const seats = generateSeats(theater)
-  store.set(theaterId, seats.map((s) => ({ ...s })))
-  return seats.map((s) => ({ ...s }))
+  store.delete(theaterId)
+  return []
 }
 
 /**

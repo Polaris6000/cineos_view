@@ -77,13 +77,19 @@ export interface UseWebSocketReturn {
 
 /**
  * WS 베이스 URL
- *   개발: ws://localhost:3000 → Vite proxy(/ws → localhost:8080) 경유 → CORS 없음
- *   프로덕션: Spring Boot가 동일 host에서 정적 파일 + WS 서빙
  *
- *   ⚠ 직접 ws://localhost:8080 으로 연결하면 Spring Boot CORS에 막힘!
- *      반드시 현재 host(Vite 개발 서버 혹은 Spring Boot)로 연결해야 함.
+ * ─── 개발 모드 (npm run dev / Vite dev server) ────────────────────────
+ *   Vite 6의 WebSocket 프록시(ws: true)가 업그레이드 요청을 간헐적으로
+ *   포워딩하지 못하는 이슈가 있어 백엔드(8080)로 직접 연결한다.
+ *   WebSocketConfig.setAllowedOrigins("*") 이므로 CORS 문제 없음.
+ *
+ * ─── 프로덕션 모드 (npm run build → Spring Boot 정적 서빙) ────────────
+ *   Spring Boot가 React 빌드 결과물과 WS 핸들러를 동일 포트에서 서빙하므로
+ *   window.location.host(= 배포 서버 host)를 그대로 사용.
  */
-const WS_BASE        = `ws://${window.location.host}`
+const WS_BASE = import.meta.env.DEV
+  ? 'ws://localhost:8080'              // 개발: Vite 프록시 우회, 백엔드 직접 연결
+  : `ws://${window.location.host}`     // 프로덕션: 동일 host 사용
 const MAX_RETRY      = 3
 const RETRY_DELAY_MS = 2_000
 

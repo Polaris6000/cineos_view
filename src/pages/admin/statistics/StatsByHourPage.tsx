@@ -3,7 +3,7 @@
  * TODO: GET /api/admin/stats/by-hour 연동
  */
 import type { CSSProperties } from 'react'
-import { MOCK_HOUR_STATS } from '../../../api/mockData'
+import { MOCK_HOUR_STATS } from '../../../api/statsTestData'
 import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
 function StatsByHourPage() {

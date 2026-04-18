@@ -217,12 +217,12 @@ function HomePage() {
                 type="button"
                 className={`${styles.indicator} ${index === currentIndex ? styles.indicatorActive : ''}`}
                 onClick={(e) => { e.stopPropagation(); goToSlide(index) }}
+                aria-label={`슬라이드 ${index + 1}번으로 이동`}
               />
             ))}
           </div>
         )}
       </div>
-
     </div>
   )
 }

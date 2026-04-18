@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Ticket, Banknote } from 'lucide-react'
-import { MOCK_MOVIE_STATS } from '../../../api/mockData'
+import { MOCK_MOVIE_STATS } from '../../../api/statsTestData'
 import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
 const today        = new Date().toISOString().slice(0, 10)

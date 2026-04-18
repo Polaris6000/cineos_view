@@ -374,34 +374,41 @@ const scheduleGrid: React.CSSProperties = {
   gap: 16,
 }
 const scheduleItem: React.CSSProperties = {
-  padding: '18px 16px', background: 'var(--bg-surface)',
-  border: '1px solid var(--border-default)', borderRadius: 14,
-  textAlign: 'center', color: 'var(--text-primary)', cursor: 'pointer',
+  background: 'var(--bg-surface)',
+  border: '1px solid var(--border-default)',
+  borderRadius: 12, padding: '16px 20px',
+  cursor: 'pointer',
+  transition: 'border-color 0.15s',
 }
+const scheduleTime: React.CSSProperties = {
+  fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6,
+}
+const scheduleSeats: React.CSSProperties = { fontSize: 14, color: 'var(--text-muted)' }
+void scheduleTime; void scheduleSeats // 스케줄 카드에서 사용 예정 — 현재 미사용 경고 억제
 
 /* ── 모달 스타일 ── */
 const modalOverlay: React.CSSProperties = {
-  position: 'fixed', inset: 0, zIndex: 999,
-  background: 'rgba(0,0,0,0.65)',
+  position: 'fixed', inset: 0, zIndex: 1000,
+  background: 'rgba(0,0,0,0.7)',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
 }
 const modalBox: React.CSSProperties = {
   background: 'var(--bg-surface)', borderRadius: 20,
-  padding: '40px 36px', maxWidth: 360, width: '90%',
-  display: 'flex', flexDirection: 'column', alignItems: 'center',
-  textAlign: 'center', gap: 8,
-  boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
+  padding: '40px 48px', textAlign: 'center',
+  maxWidth: 480, width: '90%',
 }
 const modalTitle: React.CSSProperties = {
-  fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', margin: 0,
+  fontSize: 20, fontWeight: 700, color: 'var(--text-primary)',
+  marginBottom: 8,
 }
 const modalSub: React.CSSProperties = {
-  fontSize: 14, color: 'var(--text-muted)', margin: '4px 0 16px',
+  fontSize: 15, color: 'var(--text-muted)', marginBottom: 28,
 }
 const modalBtn: React.CSSProperties = {
-  width: '100%', padding: '14px 0',
-  background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
-  border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer',
+  padding: '14px 36px',
+  background: 'var(--color-brand-default)', color: 'var(--primitive-neutral-900)',
+  border: 'none', borderRadius: 10,
+  fontSize: 16, fontWeight: 700, cursor: 'pointer',
 }
 
 export default MovieDetailPage

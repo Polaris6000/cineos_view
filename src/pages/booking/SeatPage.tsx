@@ -11,8 +11,8 @@
  *
  * 데이터 흐름:
  *  1. location.state로 { movieTitle, schedule(ScheduleDTO), persons, totalPersons } 수신
- *  2. schedule.no(상영관 번호) → GET /api/theater/list → 해당 상영관 정보 조회 (고객용)
- *  3. theater.policyId → GET /api/seat-policy/list → 좌석 타입·단가 조회 (고객용)
+ *  2. schedule.no(상영관 번호) → GET /api/theater/list (CustomerController, 인증 불필요)
+ *  3. theater.policyId → GET /api/seat-policy/list (CustomerController, 인증 불필요)
  *  4. 조회한 상영관 정보 기반 기본 좌석 배치 생성 (10행 × 10열)
  *  5. useWebSocket(schedule.id) → 실시간 예약완료/임시점유 좌석 반영
  *
@@ -27,7 +27,21 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Info, CreditCard, Wifi, WifiOff } from 'lucide-react'
-import { SEAT_TYPE_LABEL, PERSON_TYPES } from '../../api/mockData'
+// mockData 의존성 제거 — 백엔드 연동 완료로 목데이터 불필요, 인라인 상수 사용
+
+/** 좌석 타입 → 표시 레이블 */
+const SEAT_TYPE_LABEL: Record<string, string> = {
+  NORMAL:   '일반',
+  RECLINER: '리클라이너',
+}
+
+/** 인원 타입 정의 (할인 계산에 사용) */
+const PERSON_TYPES: { type: string; label: string; discount: number }[] = [
+  { type: 'adult',  label: '성인',   discount: 0    },
+  { type: 'teen',   label: '청소년', discount: 1000 },
+  { type: 'child',  label: '유아',   discount: 2000 },
+  { type: 'senior', label: '경로',   discount: 1500 },
+]
 import apiClient, { type TheaterDTO, type SeatPolicyDTO, type ScheduleDTO } from '../../api/apiClient'
 import { useWebSocket } from '../../hooks/useWebSocket'
 
@@ -46,21 +60,18 @@ interface SeatItem {
 /**
  * 실제 API 상영관 데이터(TheaterDTO) 기반 좌석 배치 생성
  *
- * @param theater - 백엔드에서 받아온 상영관 DTO
- *   - rows:        행 수 (0이면 fallback 10 사용)
- *   - cols:        열 수 (0이면 fallback 10 사용)
- *   - hasRecliner: 리클라이너 관 여부
- *     → true 이면 마지막 행만 RECLINER, 나머지 NORMAL (시네마 표준)
- *     → false 이면 전 좌석 NORMAL
- *
- * fallback이 필요한 이유:
- *   백엔드 엔티티에 rows/cols 매핑이 미완성인 경우 0이 내려올 수 있음.
- *   그 경우 화면이 비어버리는 걸 방지하기 위해 10×10 기본값 사용.
+ * @param theater     - 백엔드에서 받아온 상영관 DTO
+ * @param hasRecliner - 리클라이너 관 여부
+ *   - theater.rows/cols가 0 또는 미반환(undefined)이면 theater.no 기반 계산값 사용
+ *     no=1 → 5행×8열, no=2 → 6행×9열, ...
+ *   - hasRecliner는 seatPolicy.name에서 파생 (백엔드 fields가 없어도 안전)
+ *     → true: 마지막 행만 RECLINER, 나머지 NORMAL (시네마 표준)
+ *     → false: 전 좌석 NORMAL
  */
-function generateRealSeats(theater: TheaterDTO): SeatItem[] {
-  // rows/cols가 0 이하면 기본 10×10 사용 (백엔드 매핑 미완성 대비 fallback)
-  const ROW_COUNT = theater.rows > 0 ? theater.rows : 10
-  const COL_COUNT = theater.cols > 0 ? theater.cols : 10
+function generateRealSeats(theater: TheaterDTO, hasRecliner: boolean): SeatItem[] {
+  // rows/cols가 없거나 0이면 no 기반 계산값(typeData.mapToTheater 기준)으로 fallback
+  const ROW_COUNT = (theater.rows && theater.rows > 0) ? theater.rows : (theater.no + 4)
+  const COL_COUNT = (theater.cols && theater.cols > 0) ? theater.cols : (theater.no + 7)
 
   const rowLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   const seats: SeatItem[] = []
@@ -68,7 +79,7 @@ function generateRealSeats(theater: TheaterDTO): SeatItem[] {
   for (let r = 0; r < ROW_COUNT; r++) {
     // 마지막 행이고 리클라이너 관이면 RECLINER, 나머지는 NORMAL
     const isLastRow  = r === ROW_COUNT - 1
-    const seatType: SeatItem['seatType'] = (theater.hasRecliner && isLastRow) ? 'RECLINER' : 'NORMAL'
+    const seatType: SeatItem['seatType'] = (hasRecliner && isLastRow) ? 'RECLINER' : 'NORMAL'
 
     for (let c = 1; c <= COL_COUNT; c++) {
       seats.push({
@@ -84,7 +95,7 @@ function generateRealSeats(theater: TheaterDTO): SeatItem[] {
   console.log(
     `[SeatPage] ${theater.no}관 좌석 생성 완료`,
     `(${ROW_COUNT}행 × ${COL_COUNT}열 = ${seats.length}석,`,
-    `hasRecliner: ${theater.hasRecliner})`,
+    `hasRecliner: ${hasRecliner})`,
   )
   return seats
 }
@@ -142,6 +153,7 @@ function SeatPage() {
       setApiLoading(true)
       setApiError('')
       try {
+        // CustomerController: GET /api/theater/list, GET /api/seat-policy/list (인증 불필요)
         const [theaterRes, policyRes] = await Promise.all([
           apiClient.get<TheaterDTO[]>('/theater/list'),
           apiClient.get<SeatPolicyDTO[]>('/seat-policy/list'),
@@ -155,8 +167,19 @@ function SeatPage() {
         }
 
         // policyId로 좌석 정책 찾기
-        const policy = policyRes.data.find((p) => p.policyId === found.policyId)
+        // 고객용 /api/theater/list 응답 구조에 따라 두 가지 경우를 처리:
+        //   - apiClient.ts의 TheaterDTO: found.policyId (숫자 직접)
+        //   - typeData.ts의 TheaterDTO:  found.seatPolicy.policyId (객체 내부)
+        const policyId = (found as any).policyId ?? (found as any).seatPolicy?.policyId
+        const policy = policyRes.data.find((p) => p.policyId === policyId)
         if (!policy) {
+          // policy를 못 찾아도 seatPolicy 객체가 있으면 그걸 사용 (fallback)
+          const fallbackPolicy = (found as any).seatPolicy
+          if (fallbackPolicy) {
+            setTheater(found)
+            setSeatPolicy(fallbackPolicy)
+            return
+          }
           setApiError('좌석 정책 정보를 불러오지 못했습니다.')
           return
         }
@@ -190,16 +213,25 @@ function SeatPage() {
 
   /* ── 좌석 배치 생성 (메모이제이션) ──────────────────────── */
   /**
-   * theater가 로드된 후에만 좌석 생성
+   * theater + seatPolicy 모두 로드된 후에만 좌석 생성
    *
-   * hasRecliner는 이제 TheaterDTO에서 직접 받아오므로
-   * seatPolicy.name 파싱 없이 바로 사용 가능.
-   * seatPolicy는 요금 계산에만 필요하므로 의존성에서 제외.
+   * hasRecliner 결정 우선순위:
+   *  1. theater.hasRecliner (백엔드 명시적 값) — 있을 경우 최우선
+   *  2. seatPolicy.name.toLowerCase().includes('recliner') — 없을 경우 seatPolicy로 판단
+   *  3. false — 둘 다 없으면 전 좌석 일반석
+   *
+   * 고객용 /api/theater/list가 rows/cols/hasRecliner를 반환하지 않는 경우에도
+   * seatPolicy.name에서 안전하게 파생하도록 개선.
    */
   const seats = useMemo<SeatItem[]>(() => {
     if (!theater) return []
-    return generateRealSeats(theater)
-  }, [theater])
+    // hasRecliner: theater 명시값 우선 → seatPolicy.name 파생 → false
+    const hasRecliner: boolean =
+      theater.hasRecliner !== undefined
+        ? theater.hasRecliner
+        : (seatPolicy?.name?.toLowerCase().includes('recliner') ?? false)
+    return generateRealSeats(theater, hasRecliner)
+  }, [theater, seatPolicy])
 
   /* ── 좌석 상태 파생 ─────────────────────────────────────── */
   /**

@@ -4,7 +4,7 @@
  */
 import { useState, useMemo } from 'react'
 import type { CSSProperties } from 'react'
-import { MOCK_MONTHLY_STATS } from '../../../api/mockData'
+import { MOCK_MONTHLY_STATS } from '../../../api/statsTestData'
 import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
 const currentYear = new Date().getFullYear()

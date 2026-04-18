@@ -20,12 +20,18 @@
 import { useState, useMemo, useEffect} from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Film, Clock, Users, ChevronDown, ChevronUp, Info } from 'lucide-react'
-import { PERSON_TYPES } from '../../api/mockData'
+// mockData 의존성 제거 — 백엔드 연동 완료로 목데이터 불필요, 인라인 상수 사용
+/** 인원 타입 정의 (좌석 선택 및 할인 계산에 사용) */
+const PERSON_TYPES: { type: string; label: string; discount: number }[] = [
+  { type: 'adult',  label: '성인',   discount: 0    },
+  { type: 'teen',   label: '청소년', discount: 1000 },
+  { type: 'child',  label: '유아',   discount: 2000 },
+  { type: 'senior', label: '경로',   discount: 1500 },
+]
 
 import axios from 'axios'
 
 import {
-Movie, MovieDTO, mapToMovie,
 Schedule, ScheduleDTO, mapToSchedule,
 ReservationDetailesDTO,
 Theater, mapToTheater
@@ -53,51 +59,39 @@ function SchedulePage() {
     return null
   }
 
-  const [movie, setMovie] = useState<Movie>(); //현재 영화
+  // 영화 정보는 location.state.movieTitle로 전달받으므로 별도 API 호출 불필요
+  // (백엔드에 GET /api/movie/{id} 단건 조회 엔드포인트 없음 — MovieController 확인)
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [theater, setTheater] = useState<Theater>();
 
-  //영화 정보를 가져옴
-  useEffect(() => {
-    const axiosMovies = async () => {
-      try {
-        const { data } = await axios.get<MovieDTO>(`/api/movie/${movieId}/readOne`)
-        const formattedMovies = mapToMovie(data)
-        
-        console.log("변환된 데이터:", formattedMovies); // 화면 확인
 
-        setMovie(formattedMovies)
-      } catch (error) {
-        console.error("❌ 영화 로딩 중 에러:", error);
-      }
-    };
-
-    axiosMovies();
-  }, []); // 빈 배열: 페이지 처음 들어올 때만 실행
-
+  // 전체 ScheduleDTO 목록 저장 — selectedSched 변경 시 올바른 theater 매핑에 사용
+  const [rawScheduleDTOs, setRawScheduleDTOs] = useState<ScheduleDTO[]>([])
 
   useEffect(() => {
     const axiosSchedule = async () => {
       try {
         const { data } = await axios.get<ScheduleDTO[]>('/api/schedule/DTOlist')
 
-        console.log("스케쥴 정보", data);
+        console.log("스케쥴 정보", data)
 
+        const movieDTOs = data.filter(dto => dto.movie.movieId === movieId)
+        const formattedSchedule = movieDTOs.map((dto) => mapToSchedule(dto))
 
-        const formattedSchedule = data.map((dto) => mapToSchedule(dto)).filter(schedule => schedule.movieId === movieId)
-        const formattedTheater = mapToTheater(data.filter(schedule => schedule.movieId === movieId)[0].theater)
-        // console.log("변환된 데이터:", formattedSchedule); // 화면 확인
+        setRawScheduleDTOs(movieDTOs) // theater 역참조용으로 원본 DTO 보관
+        setSchedules(formattedSchedule)
 
-        setSchedules(formattedSchedule);
-        setTheater(formattedTheater)
-
+        // 초기 theater: 첫 번째 스케줄의 상영관 (선택 전 기본값)
+        if (movieDTOs.length > 0) {
+          setTheater(mapToTheater(movieDTOs[0].theater))
+        }
       } catch (error) {
-        console.error("❌ 스케쥴 로딩 중 에러:", error);
+        console.error("❌ 스케쥴 로딩 중 에러:", error)
       }
-    };
+    }
 
-    axiosSchedule();
-  }, []); //첫 로딩에 사용
+    axiosSchedule()
+  }, []) //첫 로딩에 사용
 
   //스케쥴에 남은 좌석에 대한 표기
   useEffect(() => {
@@ -112,7 +106,8 @@ function SchedulePage() {
         const reservedMap = data
           .filter(res => !res.returned)
           .reduce((acc, curr) => {
-            const schedId = curr.schedule.scheduleId;
+            // curr.schedule은 ScheduleDTO 타입 → 'id' 필드 사용 (scheduleId는 mapToSchedule 후 Schedule 타입에만 존재)
+            const schedId = curr.schedule.id;
             const seatCount = curr.seats.length; // 해당 예약 건의 좌석 수
 
             acc[schedId] = (acc[schedId] || 0) + seatCount;
@@ -139,14 +134,30 @@ function SchedulePage() {
   }, [movieId, schedules.length]); // schedules 전체를 넣으면 무한루프 위험이 있어 length 권장
 
 
-  // 오늘 날짜 고정 (당일 예매만 가능)
-  const today = new Date().toISOString().slice(0, 10)
+  // 오늘 날짜 고정 (당일 예매만 가능) — KST 기준 로컬 날짜 사용
+  // toISOString()은 UTC 기준이라 한국 자정~오전 9시에 날짜 어긋남 → toLocaleDateString 사용
+  const today = new Date().toLocaleDateString('en-CA')
 
   // ── 선택 상태 ──
   // preSelectedSchedule: 상세 페이지에서 시간 클릭 시 초기값으로 세팅
   const [selectedSched, setSelectedSched] = useState(preSelectedSchedule ?? null)
-  // 인원: { ADULT: 1, TEEN: 0, SENIOR: 0, DISABLED: 0 }
-  const [persons, setPersons] = useState({ ADULT: 1, TEEN: 0, SENIOR: 0, DISABLED: 0 })
+  // 인원: SeatPage, PaymentPage와 동일하게 소문자 키 사용
+  const [persons, setPersons] = useState<Record<string, number>>({ adult: 1, teen: 0, child: 0, senior: 0 })
+
+  /**
+   * 스케줄 선택 시 해당 스케줄의 상영관(Theater)을 동기화
+   * rawScheduleDTOs에서 scheduleId가 일치하는 DTO의 theater를 변환해 setTheater
+   * → SeatPage에 올바른 상영관 정보 전달
+   */
+  useEffect(() => {
+    if (!selectedSched || rawScheduleDTOs.length === 0) return
+    const matchedDTO = rawScheduleDTOs.find(
+      (dto) => dto.id === (selectedSched.scheduleId ?? selectedSched.id)
+    )
+    if (matchedDTO) {
+      setTheater(mapToTheater(matchedDTO.theater))
+    }
+  }, [selectedSched, rawScheduleDTOs])
 
   // 오늘 날짜의 상영 목록만 표시
   const daySchedules = useMemo(
@@ -155,9 +166,9 @@ function SchedulePage() {
   )
 
   /** 인원 수 변경 (+/-) */
-  const changePerson = (type, delta) => {
+  const changePerson = (type: string, delta: number) => {
     setPersons((prev) => {
-      const next  = prev[type] + delta
+      const next  = (prev[type] ?? 0) + delta
       const total = Object.values({ ...prev, [type]: next }).reduce((a, b) => a + b, 0)
       // 0명 미만 or 8명 초과 불가
       if (next < 0 || total > 8) return prev
@@ -183,13 +194,31 @@ function SchedulePage() {
 
   /** 다음 단계 → SeatPage */
   const handleNext = () => {
-    if (!canProceed) return
+    if (!canProceed || !selectedSched) return
+
+    /**
+     * SeatPage는 ScheduleDTO 형식을 기대함:
+     *   schedule.id  → WebSocket 연결 (useWebSocket)
+     *   schedule.no  → 상영관 번호 조회 (GET /api/theater/list)
+     *
+     * 하지만 SchedulePage는 mapToSchedule() 후 Schedule 타입 사용:
+     *   scheduleId (= ScheduleDTO.id)
+     *   theaterId  (= ScheduleDTO.theater.no)
+     *
+     * 두 필드를 alias로 추가해 SeatPage에서 정상 동작하도록 맞춤
+     */
+    const scheduleForSeat = {
+      ...selectedSched,
+      id: selectedSched.scheduleId,   // SeatPage: useWebSocket(schedule.id)
+      no: selectedSched.theaterId,    // SeatPage: theaterRes.data.find(t => t.no === schedule.no)
+    }
+
     navigate('/booking/seat', {
       state: {
         movieId,
-        movieTitle: movieTitle ?? movie?.title,
-        schedule: selectedSched,
-        theater:theater,
+        movieTitle: movieTitle,
+        schedule: scheduleForSeat,
+        theater,
         persons,
         totalPersons,
       },
@@ -215,7 +244,7 @@ function SchedulePage() {
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 36 }}>
         <div style={movieBadge}>
           <Film size={16} style={{ marginRight: 6 }} />
-          {movieTitle ?? movie?.title}
+          {movieTitle}
         </div>
         {/* 당일 예매만 가능하므로 오늘 날짜 표시 */}
         <div style={movieBadge}>
@@ -382,24 +411,21 @@ const stepNum   = {
   fontSize: 14, fontWeight: 800, flexShrink: 0,
 }
 
-const dateRow   = {
-  display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 8,
-}
-const dateBtn   = {
-  flexShrink: 0, padding: '12px 20px',
-  background: 'var(--bg-surface)',
+// dateRow, dateBtn, dateBtnActive, todayLabel — 날짜 선택 UI용 (현재 당일 고정이라 미사용, 향후 다일 선택 확장 시 활용)
+const _dateRow: React.CSSProperties       = { display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 8 }
+const _dateBtn: React.CSSProperties       = {
+  flexShrink: 0, padding: '12px 20px', background: 'var(--bg-surface)',
   border: '1px solid var(--border-default)', borderRadius: 12,
   color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'center',
   minWidth: 90, position: 'relative',
   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
 }
-const dateBtnActive = { borderColor: 'var(--color-brand-default)', background: 'rgba(255,184,0,0.1)' }
-const todayLabel    = {
-  fontSize: 11, color: 'var(--color-brand-default)', fontWeight: 700,
-}
+const _dateBtnActive: React.CSSProperties = { borderColor: 'var(--color-brand-default)', background: 'rgba(255,184,0,0.1)' }
+const _todayLabel: React.CSSProperties    = { fontSize: 11, color: 'var(--color-brand-default)', fontWeight: 700 }
+void _dateRow; void _dateBtn; void _dateBtnActive; void _todayLabel // 미사용 경고 억제
 
-const timeGrid  = { display: 'flex', gap: 16, flexWrap: 'wrap' }
-const timeBtn   = {
+const timeGrid: React.CSSProperties  = { display: 'flex', gap: 16, flexWrap: 'wrap' }
+const timeBtn: React.CSSProperties   = {
   padding: '16px 20px', background: 'var(--bg-surface)',
   border: '1px solid var(--border-default)', borderRadius: 14,
   textAlign: 'center', minWidth: 150, cursor: 'pointer',
@@ -408,22 +434,22 @@ const timeBtn   = {
 const timeBtnActive  = { borderColor: 'var(--color-brand-default)', background: 'rgba(255,184,0,0.1)' }
 const timeBtnSoldOut = { opacity: 0.4, cursor: 'not-allowed' }
 
-const personList = {
+const personList: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', gap: 16,
   background: 'var(--bg-surface)', borderRadius: 16, padding: '20px 24px',
 }
-const personRow  = {
+const personRow: React.CSSProperties  = {
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
 }
-const counter    = { display: 'flex', alignItems: 'center', gap: 16 }
-const counterBtn = {
+const counter: React.CSSProperties    = { display: 'flex', alignItems: 'center', gap: 16 }
+const counterBtn: React.CSSProperties = {
   width: 48, height: 48, borderRadius: '50%',
   border: '1px solid var(--border-default)',
   background: 'var(--bg-base)', color: 'var(--text-primary)',
   cursor: 'pointer',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
 }
-const counterNum = {
+const counterNum: React.CSSProperties = {
   width: 36, textAlign: 'center',
   fontSize: 22, fontWeight: 700, color: 'var(--text-primary)',
 }
@@ -449,13 +475,13 @@ const hintBox   = {
 }
 const nextBtn   = {
   display: 'block', width: '100%',
-  padding: '24px 0',
-  background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',
-  border: 'none', borderRadius: 16,
-  fontSize: 22, fontWeight: 800, cursor: 'pointer', letterSpacing: 1,
+  padding: '22px 0',
+  background: 'var(--color-brand-default)',
+  color: 'var(--primitive-neutral-900)',
+  border: 'none', borderRadius: 14,
+  fontSize: 18, fontWeight: 800,
+  cursor: 'pointer', letterSpacing: '0.02em',
 }
-const nextBtnDisabled = {
-  background: 'var(--bg-surface)', color: 'var(--text-muted)', cursor: 'not-allowed',
-}
+const nextBtnDisabled = { opacity: 0.4, cursor: 'not-allowed' }
 
 export default SchedulePage

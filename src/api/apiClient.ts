@@ -58,9 +58,48 @@ apiClient.interceptors.response.use(
 export default apiClient
 
 /* ────────────────────────────────────────────────────────
-   백엔드 DTO 타입 정의 (MovieDTO / ScheduleDTO / TheaterDTO 등)
-   - camelCase 필드명 (Spring @JsonProperty 기본값)
-   - 프론트 내부 타입과 구분하기 위해 접두사 없이 명시적으로 네이밍
+   KST 날짜 유틸
+   - toISOString()은 UTC 기준이라 한국(UTC+9) 자정~오전 9시에 날짜가 하루 어긋남
+   - toLocaleDateString('en-CA')는 'YYYY-MM-DD' 형식으로 로컬(KST) 날짜 반환
+   ─────────────────────────────────────────────────────── */
+
+/**
+ * 현재 KST 기준 날짜를 'YYYY-MM-DD' 형식으로 반환
+ * 시스템 타임존이 KST(UTC+9)로 설정된 경우 정확히 동작하며,
+ * 그렇지 않아도 toLocaleDateString이 브라우저 로컬 타임존을 사용하므로
+ * toISOString()보다 항상 안전함
+ */
+export function getKSTDateString(date: Date = new Date()): string {
+  return date.toLocaleDateString('en-CA') // 'YYYY-MM-DD' 형식
+}
+
+/**
+ * ISO datetime 문자열('YYYY-MM-DDTHH:mm:ss')에서 KST 기준 날짜 추출
+ * 백엔드 응답의 startAt, endAt 등에 사용
+ * @example getDateFromISO('2026-04-11T01:00:00') → '2026-04-11'
+ */
+export function getDateFromISO(isoStr: string): string {
+  // 백엔드가 KST로 저장된 ISO string을 반환하면 단순 slice만으로 충분
+  // UTC로 저장된다면 Date 파싱 → toLocaleDateString 방식으로 변환
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  return d.toLocaleDateString('en-CA')
+}
+
+/**
+ * ISO datetime 문자열에서 'HH:MM' 형식 시각 추출
+ * @example getTimeFromISO('2026-04-11T14:30:00') → '14:30'
+ */
+export function getTimeFromISO(isoStr: string): string {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  const h = String(d.getHours()).padStart(2, '0')
+  const m = String(d.getMinutes()).padStart(2, '0')
+  return `${h}:${m}`
+}
+
+/* ────────────────────────────────────────────────────────
+   TMDB 포스터 URL 변환
    ─────────────────────────────────────────────────────── */
 
 /** GET /api/movie/admin/admin/readAll 응답 (관리자용 전체 조회) */

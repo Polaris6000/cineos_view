@@ -17,19 +17,35 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, X, Film } from 'lucide-react'
-import {
-  GENRE_OPTIONS, RATING_OPTIONS, THEATER_TYPE_OPTIONS
-} from '../../api/mockData'
-
 import axios from 'axios'
 import {
   Movie, MovieDTO, mapToMovie,
   Schedule, ScheduleDTO, mapToSchedule,
   Theater, TheaterDTO, mapToTheater,
-  today
-
+  today,
 } from '../../api/typeData'
 import styles from './MovieListPage.module.css'
+
+// ── 필터 옵션 상수 (mockData 의존성 제거 — 백엔드 연동 완료로 목데이터 불필요) ──
+
+/** 장르 필터 옵션 */
+const GENRE_OPTIONS = ['전체', '액션', '애니메이션', 'SF', '코미디', '공포', '드라마', '어드벤처']
+
+/** 등급 필터 옵션 */
+const RATING_OPTIONS = [
+  { label: '전체',            value: '' },
+  { label: '전체관람가',      value: 'ALL' },
+  { label: '12세 이상',       value: '12' },
+  { label: '15세 이상',       value: '15' },
+  { label: '청소년 관람불가', value: '19' },
+]
+
+/** 상영관 타입 필터 옵션 */
+const THEATER_TYPE_OPTIONS = [
+  { label: '전체',              value: 'ALL' },
+  { label: '일반상영관',        value: 'NORMAL' },
+  { label: '리클라이너 상영관', value: 'RECLINER' },
+]
 
 /** 등급 → 표시 텍스트 (카드용 짧은 형식) */
 const RATING_LABEL = {
@@ -40,7 +56,7 @@ const RATING_LABEL = {
 }
 
 /** 런타임(분) → "2시간 46분" 형식 변환 */
-function formatRuntime(minutes) {
+function formatRuntime(minutes: number | undefined | null) {
   if (!minutes) return ''
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
@@ -113,7 +129,7 @@ function MovieListPage() {
     axiosSchedule();
 }, []); //첫 로딩에 사용
 
-//영화관 정보를 가져오기 위해서 사용
+// 영화관 정보 조회: GET /api/theater/dtoAll (CustomerController, 인증 불필요)
 useEffect(() => {
     const axiosTheater = async () => {
         try {
@@ -145,7 +161,8 @@ useEffect(() => {
    * - 일반 상영관이 하나라도 있으면 NORMAL 포함
    */
   const getMovieTheaterTypes = (movieId: number): Set<string> => {
-    const today = new Date().toISOString().slice(0, 10)
+    // KST 기준 오늘 날짜 — toISOString()은 UTC 기준이라 자정~오전 9시에 날짜가 어긋남
+    const today = new Date().toLocaleDateString('en-CA')
     const todaySchedules = (schedules).filter((s) => s.movieId === movieId && s.date === today)
     const types = new Set<string>()
     todaySchedules.forEach((s) => {
@@ -181,7 +198,7 @@ useEffect(() => {
   }, [baseList, selectedGenre, selectedRating, selectedTheaterType, searchQuery])
 
   /** 탭 전환 시 필터 초기화 */
-  const handleTabChange = (tab) => {
+  const handleTabChange = (tab: string) => {
     setActiveTab(tab)
     setSelectedGenre('전체')
     setSelectedRating('')
@@ -190,7 +207,7 @@ useEffect(() => {
   }
 
   /** 카드 클릭 → 영화 상세 페이지 */
-  const handleCardClick = (movieId) => {
+  const handleCardClick = (movieId: number) => {
     navigate(`/movie/detail/${movieId}`)
   }
 
@@ -341,7 +358,7 @@ useEffect(() => {
                       className={styles.cardImg}
                       src={movie.posterUrl || '/placeholder-poster.jpg'}
                       alt={`${movie.title} 포스터`}
-                      onError={e => { e.target.src = '/placeholder-poster.jpg' }}
+                      onError={e => { (e.target as HTMLImageElement).src = '/placeholder-poster.jpg' }}
                     />
                   </div>
 
@@ -350,7 +367,7 @@ useEffect(() => {
                     <h2 className={styles.cardTitle}>{movie.title}</h2>
                     <div className={styles.cardMeta}>
                       <span className={`${styles.badge} ${styles[`badge${movie.rating}`]}`}>
-                        {RATING_LABEL[movie.rating] ?? movie.rating}
+                        {(RATING_LABEL as Record<string, string>)[movie.rating] ?? movie.rating}
                       </span>
                       <span className={styles.cardGenre}>{movie.genre}</span>
                     </div>

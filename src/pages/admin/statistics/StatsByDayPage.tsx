@@ -3,7 +3,7 @@
  * TODO: GET /api/admin/stats/by-day 연동
  */
 import type { CSSProperties } from 'react'
-import { MOCK_DAY_STATS } from '../../../api/mockData'
+import { MOCK_DAY_STATS } from '../../../api/statsTestData'
 import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
 // 일=빨, 월~금=파, 토=보라, 금=골드

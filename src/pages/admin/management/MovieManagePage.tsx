@@ -146,12 +146,22 @@ function MovieManagePage() {
         const serverCancelledIds = new Set<number>()
 
         data.forEach((s: any) => {
+          // startAt을 로컬(KST) 기준으로 날짜 파싱
+          // - 백엔드가 KST ISO 문자열로 내려주면 new Date()가 그대로 처리
+          // - UTC ISO 문자열이라도 toLocaleDateString('en-CA')가 KST 날짜 추출
+          const parsedDate = new Date(s.startAt).toLocaleDateString('en-CA')
+
+          // 상영관 번호: 응답 구조에 따라 두 가지 경우 처리
+          //   - s.no: 직접 평면 필드
+          //   - s.theater?.no: 중첩 객체 (고객용 ScheduleDTO 구조)
+          const theaterNo = s.no ?? s.theater?.no ?? 0
+
           const newSched: Schedule = {
             id:         s.id,
-            date:       s.startAt.slice(0, 10), // "YYYY-MM-DD" (로컬 날짜와 비교)
-            startTime:  s.startAt,              // ISO datetime 전체 보존
+            date:       parsedDate,  // KST 기준 날짜
+            startTime:  s.startAt,   // ISO datetime 전체 보존 (타임라인 표시용)
             endTime:    s.endAt,
-            no:         s.no,
+            no:         theaterNo,
             movieId:    s.movieId,
             activation: s.activation ? 'ACTIVE' : 'CANCELLED',
             availableSeats: s.activation ? 100 : 0,
@@ -273,17 +283,12 @@ function MovieManagePage() {
       };
 
       const res = await apiClient.post('/admin/schedule', payload)
-      console.log('스케줄 로그 ',res.data)
+      console.log('스케줄 등록 응답 상태:', res.status)
 
-      if ((res.status === 200 || res.status === 201) && res.data?.id) {
-        /**
-         * ⚠️ 백엔드 버그 우회 [팀원 수정 필요]:
-         *  ScheduleServiceImpl.createSchedule() 이 응답 DTO의 activation 을
-         *  false 로 하드코딩해서 반환함 → 등록 직후 UI 가 "만료처리됨"으로 표시됨.
-         *  실제 DB 에는 activation=true 로 저장됨.
-         *
-         *  대응: 응답 DTO 를 직접 믿지 않고 서버에서 전체 재조회.
-         */
+      // ⚠️ 백엔드 POST /admin/schedule 응답이 ResponseEntity<Void> (body 없음)
+      // → res.data = null이라 res.data?.id 체크하면 항상 false → loadSchedules() 미호출
+      // → 201(CREATED) 상태 코드만 확인해서 바로 재조회
+      if (res.status === 200 || res.status === 201) {
         loadSchedules()
         console.log('스케줄 등록 완료 → 목록 재조회')
       }

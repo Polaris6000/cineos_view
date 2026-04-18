@@ -8,7 +8,7 @@
  */
 import { useState, useMemo } from 'react'
 import type { CSSProperties } from 'react'
-import { MOCK_DAILY_STATS } from '../../../api/mockData'
+import { MOCK_DAILY_STATS } from '../../../api/statsTestData'
 import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
 const today = new Date().toISOString().slice(0, 10)

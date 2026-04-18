@@ -10,7 +10,7 @@ import {
   Banknote, Ticket, TrendingUp, Film,
   CalendarDays, Calendar, BarChart2, Clock, Trophy,
 } from 'lucide-react'
-import { MOCK_DAILY_STATS, MOCK_MONTHLY_STATS, MOCK_MOVIE_STATS } from '../../../api/mockData'
+import { MOCK_DAILY_STATS, MOCK_MONTHLY_STATS, MOCK_MOVIE_STATS } from '../../../api/statsTestData'
 import StatsTabNav from '../../../components/Stats/StatsTabNav'
 
 
