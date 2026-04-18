@@ -77,7 +77,7 @@ function StatusBadge({ status }: { status: MovieStatus }) {
     DELETE_PENDING: '삭제 예정',
   }
   return (
-    <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, ...styles[status] }}>
+    <span className="badge" style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, ...styles[status] }}>
       {labels[status]}
     </span>
   )
@@ -227,7 +227,7 @@ function MovieListAdminPage() {
                     <td style={{ ...td, fontWeight: 600 }}>{m.title}</td>
                     <td style={td}>{m.genre || '-'}</td>
                     <td style={td}>
-                      <span style={{
+                      <span className="badge" style={{
                         padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700,
                         color: 'var(--bg-surface)',
                         background: RATING_COLOR[m.rating] ?? 'var(--text-secondary)',

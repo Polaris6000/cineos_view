@@ -397,7 +397,7 @@ function PolicyListPage() {
 
                     {/* 활성화 상태: 표시용 배지 (클릭 불가) */}
                     <td style={{ ...td, textAlign: 'center' }}>
-                      <span style={{
+                      <span className="badge" style={{
                         padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700,
                         background: p.activation ? 'var(--color-success-bg)' : 'var(--color-error-bg)',
                         color:      p.activation ? 'var(--color-success-text)' : 'var(--color-error-text)',
@@ -496,7 +496,7 @@ function PolicyListPage() {
 
                     {/* 활성화 상태: 표시용 배지 (클릭 불가) */}
                     <td style={{ ...td, textAlign: 'center' }}>
-                      <span style={{
+                      <span className="badge" style={{
                         padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700,
                         background: p.activation ? 'var(--color-success-bg)' : 'var(--color-error-bg)',
                         color:      p.activation ? 'var(--color-success-text)' : 'var(--color-error-text)',

@@ -245,7 +245,7 @@ function CouponListPage() {
                                         </td>
                                         {/* 사용 여부 배지 */}
                                         <td style={{...td, textAlign: 'center'}}>
-                        <span style={{
+                        <span className="badge" style={{
                             padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700,
                             background: c.status ? 'var(--color-success-bg)' : 'var(--color-error-bg)',
                             color: c.status ? 'var(--color-success-text)' : 'var(--color-error-text)',

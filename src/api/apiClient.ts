@@ -32,22 +32,28 @@ apiClient.interceptors.response.use(
       const url    = error.config?.url ?? '(unknown)'
       console.error(`[API Error] ${status ?? 'network'} → ${url}`, error.message)
 
-      // 401 → 토큰 재발급 시도
-      if (status === 401) {
+      // 401 처리
+      // ⚠️ 로그인 요청(/admin/login) 자체가 401이면 재발급 시도 없이 바로 실패로 반환
+      // — 이 경우 AuthContext.login()의 catch 블록이 처리함
+      if (status === 401 && !url.includes('/admin/login')) {
         const accessToken  = localStorage.getItem('accessToken')
         const refreshToken = localStorage.getItem('refreshToken')
 
         try {
+          // RefreshToken으로 AccessToken 재발급 시도
           const res = await axios.post('/admin/refresh', { accessToken, refreshToken })
           localStorage.setItem('accessToken', res.data.accessToken)
           localStorage.setItem('refreshToken', res.data.refreshToken)
 
-          // 실패한 요청 재시도
+          // 실패한 요청 재시도 (새 AccessToken 첨부)
           error.config.headers.Authorization = `Bearer ${res.data.accessToken}`
           return axios(error.config)
         } catch {
-          // 재발급 실패 → 로그아웃
-          localStorage.clear()
+          // 재발급 실패 → 로그아웃 후 로그인 페이지로 이동
+          localStorage.removeItem('accessToken')
+          localStorage.removeItem('refreshToken')
+          localStorage.removeItem('cineos_admin')
+          sessionStorage.removeItem('cineos_admin')
           window.location.href = '/admin/login'
         }
       }
@@ -102,7 +108,7 @@ export function getTimeFromISO(isoStr: string): string {
    TMDB 포스터 URL 변환
    ─────────────────────────────────────────────────────── */
 
-/** GET /api/movie/admin/admin/readAll 응답 (관리자용 전체 조회) */
+/** GET /api/admin/movie/readAll 응답 (관리자용 전체 조회) */
 export interface MovieDTO {
   movieId:     number
   title:       string

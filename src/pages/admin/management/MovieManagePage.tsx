@@ -109,17 +109,21 @@ function MovieManagePage() {
   }, [])
 
   useEffect(() => {
+    // MovieController: @RequestMapping("/api/admin/movie") + @GetMapping("/readAll")
+    // → 실제 URL: GET /api/admin/movie/readAll
+    // (apiClient baseURL = '/api/' 이므로 '/admin/movie/readAll')
     apiClient.get('/admin/movie/readAll')
         .then(res => {
-          console.log(res.data)
+          console.log('영화 목록:', res.data)
           const data: Movie[] = res.data;
           setMovies(data)
 
-          // 첫 영화 자동 선택
+          // 첫 영화 자동 선택 — 영화 목록이 없으면 스케줄 등록 불가
           if (data.length > 0) {
             setSelectedMovieId(data[0].movieId)
           }
         })
+        .catch(e => console.error('영화 목록 로드 실패:', e))
   }, [])
 
   // ── 스케줄 상태 ──
@@ -247,6 +251,12 @@ function MovieManagePage() {
     if (!newDate || !newTime) { alert('날짜와 시간을 선택해 주세요.'); return }
     if (newDate < TODAY) { alert('과거 날짜는 선택할 수 없습니다.'); return }
 
+    // 영화 목록 미로드 시 등록 차단 — selectedMovieId=1(초기값)이라도 영화가 실제로 선택됐는지 확인
+    if (movies.length === 0) {
+      alert('영화 목록을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.')
+      return
+    }
+
     const newStart = timeToMin(newTime)
     const newEnd   = timeToMin(previewEndTime)
     const startMin = timeToMin(newTime);
@@ -292,11 +302,22 @@ function MovieManagePage() {
         loadSchedules()
         console.log('스케줄 등록 완료 → 목록 재조회')
       }
-    } catch (e) {
-      console.error('스케줄 등록 실패 : ', e)
-      alert('스케줄 등록 중 오류 발생')
-    }
+    } catch (e: any) {
+      console.error('스케줄 등록 실패:', e)
+      const status  = e?.response?.status
+      const message = e?.response?.data
 
+      if (status === 400) {
+        // 400 Bad Request: 시간 겹침 등 비즈니스 로직 오류
+        alert(`등록 실패: ${message || '해당 상영관 시간대에 이미 스케줄이 있습니다.'}`)
+      } else if (status === 404) {
+        alert('등록 실패: 선택한 영화 또는 상영관이 존재하지 않습니다.')
+      } else if (status === 500) {
+        alert('서버 오류가 발생했습니다.\n백엔드 로그를 확인해 주세요. (영화·상영관 ID 존재 여부 확인 필요)')
+      } else {
+        alert('스케줄 등록 중 오류가 발생했습니다.')
+      }
+    }
   }
 
   /* ── 상태 업데이트 공통 함수 ── */

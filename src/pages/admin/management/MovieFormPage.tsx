@@ -287,6 +287,13 @@ function MovieFormPage() {
       // endAt은 백엔드 DTO가 LocalDateTime이므로 날짜만 있으면 T00:00:00 붙여서 전송
       if (form.endAt)   fd.append('endAt', `${form.endAt}T00:00:00`)
 
+      // 등록 모드: createAt = 현재 날짜·시간 (백엔드 LocalDateTime 형식: yyyy-MM-ddTHH:mm:ss)
+      // 수정 모드에서는 createAt 변경 없음
+      if (!isEdit) {
+        const now = new Date().toISOString().slice(0, 10) // "2026-04-19"
+        fd.append('createAt', now)
+      }
+
       // 수정 모드: movieId 포함
       if (isEdit) {
         const movieId = editMovie?.movieId ?? editMovie?.id

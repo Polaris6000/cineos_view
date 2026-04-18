@@ -168,7 +168,7 @@ function AdminAccountPage() {
                       <p style={cardId}>@{account.loginId}</p>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{
+                  <span className="badge" style={{
                     padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700,
                     background: isAccountMaster ? 'rgba(255,184,0,0.15)' : 'rgba(130,176,255,0.15)',
                     color: isAccountMaster ? '#ffb800' : '#82b0ff',
@@ -177,7 +177,7 @@ function AdminAccountPage() {
                   </span>
                       {isAccountMaster && <Lock size={14} color="var(--text-muted)" />}
                       {account.loginId === currentAdmin?.loginId && (
-                          <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4,
+                          <span className="badge" style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4,
                             background: 'var(--color-info-bg)', color: 'var(--color-info-dark)',
                             fontWeight: 600 }}>내 계정</span>
                       )}

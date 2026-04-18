@@ -15,7 +15,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Film, PlaySquare, Armchair, ScrollText, RotateCcw,
-  LayoutDashboard, Ticket,
+  LayoutDashboard, Ticket, ClipboardList,
   Sun, Moon, Users, ShieldCheck,
 } from 'lucide-react'
 import { adminPageVariants, adminPageTransition } from '../../styles/transitions'
@@ -60,9 +60,11 @@ const NAV_SECTIONS: NavSection[] = [
   {
     section: '정책/환불',
     items: [
-      { path: '/admin/management/policy/list',  label: '정책 목록', Icon: ScrollText, permission: 'ROLE_POLICY_LIST' },
-      { path: '/admin/management/coupon/list',  label: '쿠폰 관리', Icon: Ticket,     permission: 'ROLE_POLICY_LIST' },
-      { path: '/admin/refund',                  label: '환불 처리', Icon: RotateCcw,  permission: 'ROLE_REFUND' },
+      { path: '/admin/management/policy/list',  label: '정책 목록', Icon: ScrollText,    permission: 'ROLE_POLICY_LIST' },
+      { path: '/admin/management/coupon/list',  label: '쿠폰 관리', Icon: Ticket,         permission: 'ROLE_POLICY_LIST' },
+      { path: '/admin/refund',                  label: '환불 처리', Icon: RotateCcw,      permission: 'ROLE_REFUND' },
+      // 전체 결제 로그 — 결제내역 전체 조회 (백엔드 GET /api/payment/list 추가 후 동작)
+      { path: '/admin/management/payment-log',  label: '결제 로그', Icon: ClipboardList,  permission: 'ROLE_REFUND' },
     ],
   },
   {

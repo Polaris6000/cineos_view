@@ -10,7 +10,8 @@
  *  2. paymentKey, orderId, amount를 querystring에서 읽어 POST /api/payment/confirm 호출
  *     (포인트 전액은 paymentKey='point' → 별도 처리)
  *  3. 확인 성공 → 완료 상태 표시, 영수증 출력 / 모바일 발송 가능
- *  4. 5초 카운트다운 후 홈으로 자동 이동
+ *  4. 영수증 출력 또는 모바일 발송 버튼을 누르면 완료 모달 표시 + 5초 카운트다운
+ *     (이전: 결제 확인 즉시 모달 → 자동 이동. 변경: 사용자가 버튼을 눌러야 모달 표시)
  *
  * 백엔드 POST /api/payment/confirm 요청 형태:
  *  {
@@ -25,7 +26,7 @@ import {
   CheckCircle, Gift, Ticket, Printer,
   Smartphone, X, Info, Loader2
 } from 'lucide-react'
-import axios from 'axios'
+import apiClient from '../../api/apiClient'
 
 /* ── 인원 타입 라벨 (mockData 대체 인라인) ── */
 const PERSON_TYPES: { type: string; label: string }[] = [
@@ -56,7 +57,7 @@ function PaymentResultPage() {
   // 결제 확인 진행 상태
   const [confirming,    setConfirming]    = useState(false)
   const [confirmError,  setConfirmError]  = useState('')
-  const [_confirmed,    setConfirmed]     = useState(false) // 결제 확인 완료 여부 (showDoneModal로 UI 제어)
+  const [confirmed,     setConfirmed]     = useState(false) // 결제 확인 완료 여부 (true이면 결과 화면 표시)
 
   // 카운트다운 모달
   const [showDoneModal, setShowDoneModal] = useState(false)
@@ -84,21 +85,65 @@ function PaymentResultPage() {
 
     const confirmPayment = async () => {
       try {
-        // 활성화된 적립 정책 ID 동적 조회 (하드코딩 1 대신 실제 DB 값 사용)
-        // → bonusPolicyId=1 고정 시 해당 ID가 DB에 없으면 백엔드에서 404 반환
-        let bonusPolicyId = 1  // fallback (조회 실패 시 기본값)
+        /**
+         * 활성 적립 정책 ID 조회
+         *
+         * ─── 왜 이렇게 복잡한가? ────────────────────────────────────────────────────
+         * 백엔드 savePaymentInfo() 는 bonusPolicyId 를 프론트에서 받아
+         * getBonusPolicy(id) 로 DB를 조회한다. ID가 없으면 500 에러.
+         *
+         * 문제: 유일한 bonus-policy 조회 API가 /api/admin/bonus-policy/list 인데
+         *       이 경로는 Spring Security 에서 /api/admin/** → JWT 필수로 막혀 있어,
+         *       고객 결제 화면에서는 401 이 반환된다.
+         *
+         * 임시 해결책:
+         *   1차 시도: apiClient.get('/admin/bonus-policy/list')
+         *             키오스크 특성상 관리자 JWT 가 localStorage 에 남아있으면 성공.
+         *   2차 시도: apiClient.get('/bonus-policy/active')
+         *             ⚠️ 백엔드 팀에 공개 엔드포인트 추가 요청 필요 (아직 없음).
+         *
+         * ─── 백엔드 팀에게 ─────────────────────────────────────────────────────────
+         * 둘 중 하나로 수정 요청:
+         *  [A] GET /api/bonus-policy/active 공개 엔드포인트 추가
+         *  [B] savePaymentInfo 에서 bonusPolicyId 파라미터 제거,
+         *      내부적으로 활성 정책 자동 조회 (bonusPolicyService.getActive() 등)
+         * ──────────────────────────────────────────────────────────────────────────
+         */
+        let bonusPolicyId: number | null = null
+
+        // 1차: admin JWT가 있으면 성공 (키오스크에서 관리자가 로그인된 경우)
         try {
-          const bonusRes = await axios.get('/api/admin/bonus-policy/list')
-          const active = (bonusRes.data as any[]).filter((p) => p.activation)
+          const bonusRes = await apiClient.get<{ id: number; activation: boolean }[]>(
+            '/admin/bonus-policy/list'
+          )
+          const active = bonusRes.data.filter((p) => p.activation)
           if (active.length > 0) bonusPolicyId = active[0].id
-        } catch {
-          // 적립 정책 조회 실패 시 기본값 1 유지
-          console.warn('[PaymentResultPage] 적립 정책 조회 실패 → bonusPolicyId=1 사용')
+        } catch (e1: any) {
+          console.warn('[PaymentResultPage] 1차 적립정책 조회 실패 (status:', e1?.response?.status, ')')
+
+          // 2차: 공개 엔드포인트 시도 (백엔드 추가 시 동작)
+          try {
+            const bonusRes2 = await apiClient.get<{ id: number; activation: boolean }>(
+              '/bonus-policy/active'
+            )
+            bonusPolicyId = bonusRes2.data.id
+          } catch {
+            console.warn('[PaymentResultPage] 2차 적립정책 조회 실패 — bonusPolicyId 없이 진행')
+          }
+        }
+
+        // bonusPolicyId 를 가져오지 못하면 결제 중단
+        if (bonusPolicyId === null) {
+          throw new Error(
+            '적립 정책을 불러올 수 없습니다.\n' +
+            '백엔드 팀: GET /api/bonus-policy/active 공개 엔드포인트 추가 또는\n' +
+            'savePaymentInfo 내 bonusPolicyId 내부 조회로 변경이 필요합니다.'
+          )
         }
 
         // 포인트 전액 결제: Toss 승인 없이 DB 저장만
         // 카드 결제: Toss 승인 + DB 저장
-        await axios.post('/api/payment/confirm', {
+        await apiClient.post('/payment/confirm', {
           payType:      bookingData.payMethod,             // 'CARD' | 'POINT'
           orderId,
           paymentKey:   paymentKey ?? 'point',
@@ -113,9 +158,6 @@ function PaymentResultPage() {
           bonusPolicyId,                                  // 동적으로 조회한 활성 적립 정책 ID
           usePoint:     bookingData.pointUsed ?? 0,
           couponNum:    bookingData.couponNum ?? '',       // 쿠폰 없으면 빈 문자열
-          // ⚠️ 백엔드 버그: couponNum='' 일 때 getCoupon("")이 404를 던질 수 있음
-          // → savePaymentInfo 내 couponNum 변수가 실제로 사용되지 않으므로(null 하드코딩)
-          //   백엔드 팀에 빈 문자열 처리 예외 추가 요청 필요
         })
 
         // 성공 → 최종 데이터 업데이트
@@ -125,12 +167,21 @@ function PaymentResultPage() {
           paymentKey: paymentKey ?? 'point',
         }))
         setConfirmed(true)
-        setShowDoneModal(true)   // 결제 확인 완료 → 완료 모달 즉시 표시
+        // ⚠️ 여기서 setShowDoneModal(true) 호출하지 않음!
+        // 결제 확인이 완료되면 결과 화면을 보여주되, 자동으로 홈으로 이동하지 않는다.
+        // 사용자가 "영수증 출력" 또는 "모바일 영수증" 버튼을 눌렀을 때만 완료 모달이 뜸.
+        // 바로 홈으로 가고 싶은 사용자는 "홈으로 돌아가기" 버튼을 누르면 됨.
         localStorage.removeItem('pending_booking_data')
         localStorage.removeItem('ws_user_id')
-      } catch (err) {
+      } catch (err: any) {
         console.error('[PaymentResultPage] 결제 확인 실패', err)
-        setConfirmError('결제 확인 중 오류가 발생했습니다. 고객센터에 문의해 주세요.')
+        // 적립 정책 미설정 에러 vs 그 외 서버 에러 구분
+        const isNoPolicyError = err?.message?.includes('적립 정책')
+        setConfirmError(
+          isNoPolicyError
+            ? '결제 처리 중 오류가 발생했습니다.\n(적립 정책 미설정 — 관리자에게 문의해 주세요)'
+            : '결제 확인 중 오류가 발생했습니다. 고객센터에 문의해 주세요.'
+        )
       } finally {
         setConfirming(false)
       }
@@ -453,21 +504,41 @@ ${pointEarned > 0 ? `<div class="divider"></div><div class="row"><span class="la
         </div>
       )}
 
-      {/* 영수증 버튼 */}
+      {/* 영수증 버튼 — 누르면 완료 모달(+5초 카운트다운) 표시 */}
       <div style={btnRow}>
-        <button onClick={handlePrint} style={receiptBtn}>
+        <button
+          onClick={handlePrint}
+          disabled={!confirmed}
+          style={{ ...receiptBtn, opacity: confirmed ? 1 : 0.5 }}
+        >
           <Printer size={22} style={{ marginBottom: 8 }} />
           영수증 출력
         </button>
         <button
           onClick={handleMobileClick}
-          disabled={mobileSending}
-          style={{ ...mobileBtn, opacity: mobileSending ? 0.6 : 1 }}
+          disabled={mobileSending || !confirmed}
+          style={{ ...mobileBtn, opacity: (mobileSending || !confirmed) ? 0.6 : 1 }}
         >
           <Smartphone size={22} style={{ marginBottom: 8 }} />
           {mobileSending ? '발송 중...' : '모바일 영수증'}
         </button>
       </div>
+
+      {/* 영수증 없이 바로 홈으로 이동하고 싶은 사용자를 위한 버튼
+          영수증 버튼들 아래에 위치 — 결제 확인 완료 후에만 활성화 */}
+      <button
+        onClick={() => navigate('/')}
+        disabled={!confirmed}
+        style={{
+          ...goHomeBtn,
+          marginTop: 12,
+          width: '100%',
+          opacity: confirmed ? 1 : 0.4,
+          cursor: confirmed ? 'pointer' : 'not-allowed',
+        }}
+      >
+        홈으로 돌아가기
+      </button>
 
     </div>
   )

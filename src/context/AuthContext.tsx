@@ -19,8 +19,8 @@ import apiClient from '../api/apiClient.ts'
 /* ── Context 타입 ───────────────────────────────────── */
 interface AuthContextValue {
   currentAdmin:    AdminUser | null
-  /** 로그인 시도. 성공 시 true, 실패 시 false 반환 */
-  login:           (id: string, password: string) => Promise<boolean>
+  /** 로그인 시도. 성공 시 true, 실패 시 false 반환. remember=true면 localStorage에 저장 */
+  login:           (id: string, password: string, remember?: boolean) => Promise<boolean>
   logout:          () => void
   hasPermission:   (permission: Permission) => boolean
   isMaster: boolean
@@ -31,11 +31,17 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 /* ── Provider ───────────────────────────────────────── */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // localStorage에서 로그인 상태 복원 (새로고침 대응)
+  // 로그인 상태 복원
+  // 우선순위: sessionStorage(탭 세션) → localStorage(자동로그인)
+  // sessionStorage에 있으면 현재 탭에서만 유지되는 세션
+  // localStorage에 있으면 브라우저 닫아도 유지 (자동로그인 체크 시)
   const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(() => {
     try {
-      const saved = localStorage.getItem('cineos_admin')
-      return saved ? (JSON.parse(saved) as AdminUser) : null
+      const fromSession = sessionStorage.getItem('cineos_admin')
+      if (fromSession) return JSON.parse(fromSession) as AdminUser
+      const fromLocal = localStorage.getItem('cineos_admin')
+      if (fromLocal) return JSON.parse(fromLocal) as AdminUser
+      return null
     } catch {
       return null
     }
@@ -43,9 +49,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /**
    * login — 아이디/비밀번호로 인증
-   * TODO: POST /api/admin/login 연동 후 더미 코드 교체
+   *
+   * 동작 흐름:
+   *   1. POST /api/admin/login → Spring Security APILoginFilter가 처리
+   *   2. 성공 시: { accessToken, refreshToken, level, role } 반환
+   *   3. 실패 시: Spring Security가 302 redirect → Axios가 HTML 응답 받음
+   *      → accessToken이 undefined → 로그인 실패로 처리
+   *
+   * @param id       관리자 아이디
+   * @param password 비밀번호
+   * @param remember true면 localStorage(브라우저 닫아도 유지), false면 sessionStorage(탭 닫으면 삭제)
    */
-  const login = useCallback(async (id: string, password: string): Promise<boolean> => {
+  const login = useCallback(async (id: string, password: string, remember = false): Promise<boolean> => {
     try {
       const res = await apiClient.post('/admin/login', {
         loginId: id,
@@ -54,7 +69,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { accessToken, refreshToken, role, permissions, ...rest } = res.data;
 
-      if (accessToken) localStorage.setItem('accessToken', accessToken);
+      // ──────────────────────────────────────────────────────────────
+      // 핵심 방어 코드: accessToken이 없으면 로그인 실패로 처리
+      // Spring Security 인증 실패 시 302 redirect → Axios가 HTML 응답을
+      // 받아 200으로 처리하기 때문에 try 블록에 들어와도 성공이 아닐 수 있음
+      // ──────────────────────────────────────────────────────────────
+      if (!accessToken || typeof accessToken !== 'string') {
+        console.warn('login: accessToken 없음 — 인증 실패로 처리')
+        return false;
+      }
+
+      // 토큰 저장 — 항상 localStorage에 저장 (API 호출에 필요)
+      localStorage.setItem('accessToken', accessToken);
       if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
 
       const rawPermissions = permissions || role;
@@ -71,12 +97,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         permissions: isMasterUser
             ? (ROLE_PERMISSIONS['MASTER'] as Permission[])
             : (authList as Permission[])
-      } as AdminUser; // 타입 단언 추가로 안전하게
+      } as AdminUser;
 
-      console.log('최종 주입 데이터:', adminInfo);
+      console.log('로그인 성공, 주입 데이터:', adminInfo);
 
       setCurrentAdmin(adminInfo);
-      localStorage.setItem('cineos_admin', JSON.stringify(adminInfo));
+
+      // ──────────────────────────────────────────────────────────────
+      // 자동 로그인 여부에 따라 저장소 선택
+      //   remember = true  → localStorage  (브라우저 닫아도 유지)
+      //   remember = false → sessionStorage (탭 닫으면 삭제)
+      // ──────────────────────────────────────────────────────────────
+      const storage = remember ? localStorage : sessionStorage;
+      storage.setItem('cineos_admin', JSON.stringify(adminInfo));
 
       return true;
     } catch (err) {
@@ -85,12 +118,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  /** logout — 로그아웃 후 세션 삭제 */
+  /** logout — 로그아웃 후 저장된 인증 데이터 전부 삭제 */
   const logout = useCallback(() => {
     setCurrentAdmin(null)
+    // localStorage (자동로그인) + sessionStorage (일반 세션) 모두 정리
     localStorage.removeItem('cineos_admin')
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
+    sessionStorage.removeItem('cineos_admin')
   }, [])
 
   /**

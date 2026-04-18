@@ -69,7 +69,10 @@ import PolicyManagePage from './pages/admin/management/PolicyManagePage'
 import BonusPolicyFormPage from './pages/admin/management/BonusPolicyFormPage'
 import CouponListPage from './pages/admin/management/CouponListPage'
 import RefundPage from './pages/admin/management/RefundPage'
+import PaymentLogPage from './pages/admin/management/PaymentLogPage'
+import PaymentLogDetailPage from './pages/admin/management/PaymentLogDetailPage'
 import MemberListPage from './pages/admin/management/MemberListPage'
+import ActivityLogPage from './pages/admin/management/ActivityLogPage'
 import AdminAccountPage from './pages/admin/management/AdminAccountPage'
 
 /**
@@ -123,6 +126,10 @@ function AnimatedRoutes() {
               <Route path="management/theater/list" element={<TheaterListPage />} />
               <Route path="management/theater/edit" element={<TheaterEditPage />} />
               <Route path="management/seat/list"    element={<SeatListPage />} />
+              {/* 결제 로그 목록 */}
+              <Route path="management/payment-log"     element={<PaymentLogPage />} />
+              {/* 결제 로그 상세 — 네비 미노출, PaymentLogPage에서 navigate로 진입 */}
+              <Route path="management/payment-log/:id" element={<PaymentLogDetailPage />} />
             </Route>
 
             {/* 정책 — policy.view 권한 필요 (SUPER_ADMIN 전용) */}
@@ -149,6 +156,8 @@ function AnimatedRoutes() {
             {/* 회원 정보 관리 — member.view 권한 필요 (SUPER_ADMIN 전용) */}
             <Route element={<PrivateRoute permission="ROLE_MEMBER_MANAGEMENT" />}>
               <Route path="management/members" element={<MemberListPage />} />
+              {/* 전체 활동 로그 — 사이드바 미노출, MemberListPage 버튼에서 navigate로 진입 */}
+              <Route path="management/members/activity-log" element={<ActivityLogPage />} />
             </Route>
 
             {/* 계정/권한 관리 — 로그인만 필요 (컴포넌트 내부에서 SUPER_ADMIN/MANAGER 역할 분기)
