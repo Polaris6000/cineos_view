@@ -51,11 +51,11 @@
     pointer-events: auto;
 }
 
-/* 슬라이드 배경 — 단일 다크 컬러 */
+/* 슬라이드 배경 */
 .slideBg {
     position: absolute;
     inset: 0;
-    background: #0e0b08;
+    background: #000; /* 포스터 로드 실패 시 fallback */
 }
 
 /* 포스터 이미지 */
@@ -73,139 +73,28 @@
     /* height: 1200px; */
     /* 여전히 cover가 필요하다면 사용 (지정한 width/height 안에서 cover) */
     object-fit: cover;
-    opacity: 0.55;
+    opacity: 1;
     z-index: 1;
 }
 
-/* 하단 딤 오버레이 */
-.slideOverlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-            to top,
-            rgba(14, 11, 8, 0.97) 0%,
-            rgba(14, 11, 8, 0.65) 35%,
-            rgba(14, 11, 8, 0.25) 65%,
-            rgba(14, 11, 8, 0.10) 100%
-    );
-}
-
-/* 슬라이드 텍스트 콘텐츠 (하단 중앙) */
+/* 슬라이드 텍스트 콘텐츠 — CTA만 하단에 표시 */
 .slideContent {
     position: absolute;
-    bottom: 130px;
+    bottom: 80px;
     left: 0;
     right: 0;
-    padding: 0 10vw;
     z-index: 3;
     text-align: center;
 }
 
-/* 배지 행 — inline-flex로 중앙 정렬 (text-align:center 안에서 동작) */
-.badgeRow {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 18px;
-}
-
-/* 상태 배지 (상영중 / 상영예정) */
-.statusBadge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-}
-
-/* 상영 중 — 초록 계열 */
-.statusNow {
-    background: #1a7a3a;
-    color: #fff;
-}
-
-/* 상영 예정 — 파랑 계열 */
-.statusUpcoming {
-    background: #1a4fa0;
-    color: #fff;
-}
-
-/* 관람 등급 배지 */
-.ratingBadge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    /* margin-bottom은 badgeRow가 없을 때를 위한 fallback */
-    margin-bottom: 0;
-}
-
-.ratingALL {
-    background: var(--badge-all);
-    color: #fff;
-}
-
-/* 전체관람가 */
-.rating12 {
-    background: var(--color-brand-default);
-    color: #0e0b08;
-}
-
-/* 12세 (홈 슬라이드용 골드) */
-.rating15 {
-    background: #ff8c00;
-    color: #fff;
-}
-
-/* 15세 (주황) */
-.rating19 {
-    background: var(--color-error-main);
-    color: #fff;
-}
-
-/* 청소년 관람불가 (레드) */
-
-/* 영화 제목 */
-.slideTitle {
-    font-size: clamp(2rem, 6vw, 4rem);
-    font-weight: 800;
-    color: var(--text-primary);
-    margin: 18px 0 14px;
-    line-height: 1.15;
-    text-shadow: 0 3px 16px rgba(0, 0, 0, 0.6);
-    word-break: keep-all;
-    /* 2줄 초과 시 말줄임표 처리 */
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-/* 장르 */
-.slideGenre {
-    font-size: clamp(0.9rem, 2vw, 1.1rem);
-    color: var(--text-secondary); /* 구 color-neutral-200 */
-    margin: 0 0 10px;
-    font-weight: 500;
-}
-
-/* 상영 기간 */
-.slidePeriod {
-    font-size: clamp(0.85rem, 1.8vw, 1rem);
-    color: var(--color-brand-default); /* 골드 강조 */
-    margin: 0 0 30px;
-    font-weight: 600;
-}
-
 /* 터치 유도 문구 — 깜빡임 애니메이션 */
 .cta {
-    font-size: clamp(0.8rem, 1.6vw, 0.95rem);
-    color: var(--text-secondary); /* 구 color-neutral-200 */
+    font-size: clamp(0.85rem, 1.8vw, 1rem);
+    color: #fff;
     margin: 0;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
+    /* 포스터 위에서도 읽히도록 텍스트 그림자 */
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9), 0 0 24px rgba(0, 0, 0, 0.7);
     animation: ctaPulse 2.2s ease-in-out infinite;
 }
 

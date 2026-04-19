@@ -881,28 +881,22 @@ const inputStyle: React.CSSProperties = {
 const smallBtn: React.CSSProperties = {
   padding: '14px 20px',
   background: 'var(--color-brand-default)', color: 'var(--primitive-neutral-900)',
-  border: 'none', borderRadius: 10,
-  fontSize: 15, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+  border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer',
 }
 const cancelBtn: React.CSSProperties = {
-  padding: '8px 16px',
-  background: 'var(--bg-base)',
-  border: '1px solid var(--border-default)',
-  borderRadius: 8, color: 'var(--text-secondary)',
-  fontSize: 14, cursor: 'pointer',
+  padding: '8px 14px', background: 'transparent',
+  border: '1px solid var(--border-default)', borderRadius: 8,
+  color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer',
 }
 const pointBalanceBox: React.CSSProperties = {
-  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-  padding: '12px 16px', marginBottom: 14,
-  background: 'rgba(255,184,0,0.07)',
-  border: '1px solid rgba(255,184,0,0.25)',
-  borderRadius: 10,
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  padding: '12px 16px', background: 'var(--bg-base)',
+  border: '1px solid var(--border-default)', borderRadius: 10, marginBottom: 10,
 }
 const payBtn: React.CSSProperties = {
-  display: 'block', width: '100%', padding: '24px 0',
-  background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',
-  border: 'none', borderRadius: 16,
-  fontSize: 22, fontWeight: 800, cursor: 'pointer',
+  width: '100%', padding: '20px 0',
+  background: 'var(--color-brand-default)', border: 'none',
+  borderRadius: 14, color: '#000', fontSize: 18, fontWeight: 800, cursor: 'pointer',
 }
 
 export default PaymentPage

@@ -21,7 +21,7 @@ export interface TheaterConfig {
   cols:        number   // 열 수
   /**
    * 리클라이너 관 여부
-   * true  → 해당 관의 전 좌석이 RECLINER (통로도 없음 — cols ≤ 6 조건으로 자동 처리)
+   * true  → 해당 관의 전 좌석이 RECLINER (통로도 없음 — cols <= 6 조건으로 자동 처리)
    * false → 해당 관의 전 좌석이 NORMAL
    */
   hasRecliner: boolean
@@ -39,5 +39,7 @@ export const THEATER_CONFIG: Record<number, TheaterConfig> = {
 
 /** 설정이 없는 상영관에 적용할 기본값 (예상치 못한 상영관 번호 대비) */
 export const DEFAULT_THEATER_CONFIG: TheaterConfig = {
-  rows: 10, cols: 10, hasRecliner: false,
+  rows: 8,
+  cols: 10,
+  hasRecliner: false,
 }

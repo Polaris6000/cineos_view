@@ -14,7 +14,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Clock, Film, CalendarDays, Tag } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import apiClient, { type MovieDTO, type ScheduleDTO, resolvePosterUrl, theaterName } from '../../api/apiClient'
+import apiClient, { type MovieDTO, resolvePosterUrl } from '../../api/apiClient'
 
 /** 관람등급 → 표시 텍스트·색상 */
 const RATING_INFO: Record<string, { label: string; color: string }> = {
@@ -40,12 +40,6 @@ function MovieDetailPage() {
   const [movie,  setMovie]  = useState<MovieDTO | null>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(false)
-
-  /** 오늘 상영 스케줄 (activation=true & startAt 날짜 = 오늘) */
-  const [todaySchedules, setTodaySchedules] = useState<ScheduleDTO[]>([])
-
-  /** 당일 스케줄 없음 모달 표시 여부 */
-  const [showNoScheduleModal, setShowNoScheduleModal] = useState(false)
 
   /* ── 영화 단일 조회 ── */
   useEffect(() => {
@@ -83,21 +77,6 @@ function MovieDetailPage() {
       .finally(() => setLoading(false))
   }, [id])
 
-  /* ── 스케줄 조회: GET /api/admin/schedule/{movieId}/movie ── */
-  useEffect(() => {
-    if (!id) return
-    apiClient.get<ScheduleDTO[]>(`/schedule/${id}/movie`)
-      .then((res) => {
-        // 오늘 날짜이고 활성화된 스케줄만 필터
-        const filtered = res.data.filter(
-          (s) => s.activation && s.startAt.slice(0, 10) === today
-        )
-        // 시작 시간 오름차순 정렬
-        filtered.sort((a, b) => a.startAt.localeCompare(b.startAt))
-        setTodaySchedules(filtered)
-      })
-      .catch((err) => console.error('[MovieDetailPage] 스케줄 조회 실패', err))
-  }, [id, today])
 
   /* ── 로딩 / 에러 / 없음 ── */
   if (loading) {
@@ -132,50 +111,15 @@ function MovieDetailPage() {
   const isUpcoming = movie.startAt > today
   const isEnded    = movie.endAt != null && movie.endAt.slice(0, 10) < today
 
-  /** 예매하기 클릭 → 당일 스케줄 있으면 이동, 없으면 모달 */
+  /** 예매하기 클릭 → 상영 스케줄 선택 페이지로 이동 */
   const handleBook = () => {
-    if (todaySchedules.length === 0) {
-      setShowNoScheduleModal(true)
-      return
-    }
     navigate('/booking/schedule', {
       state: { movieId: movie.movieId, movieTitle: movie.title },
     })
   }
 
-  /** 특정 시간 클릭 → SchedulePage로 해당 스케줄 pre-select */
-  const handleBookWithSchedule = (schedule: ScheduleDTO) => {
-    navigate('/booking/schedule', {
-      state: {
-        movieId:             movie.movieId,
-        movieTitle:          movie.title,
-        preSelectedSchedule: schedule,
-      },
-    })
-  }
-
   return (
     <div style={pageWrap}>
-
-      {/* ── 당일 상영 없음 모달 ── */}
-      {showNoScheduleModal && (
-        <div style={modalOverlay}>
-          <div style={modalBox}>
-            <CalendarDays size={40} color="var(--color-brand-default)" style={{ marginBottom: 12 }} />
-            <p style={modalTitle}>오늘 상영 예정인 영화가 없습니다.</p>
-            <p style={modalSub}>키오스크에서는 당일 티켓만 예매 가능합니다.</p>
-            <button
-              style={modalBtn}
-              onClick={() => {
-                setShowNoScheduleModal(false)
-                navigate('/movie/list')
-              }}
-            >
-              영화 목록으로
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── 뒤로 가기 ── */}
       <button onClick={() => navigate(-1)} style={backBtn}>
@@ -253,37 +197,6 @@ function MovieDetailPage() {
         )}
       </div>
 
-      {/* ── 오늘 상영 시간표 ── */}
-      {!isUpcoming && !isEnded && todaySchedules.length > 0 && (
-        <div style={scheduleSection}>
-          <h2 style={sectionTitle}>오늘 상영 시간표</h2>
-          <div style={scheduleGrid}>
-            {todaySchedules.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => handleBookWithSchedule(s)}
-                style={scheduleItem}
-              >
-                {/* 시작 시간 */}
-                <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-brand-default)', margin: 0 }}>
-                  {s.startAt.slice(11, 16)}
-                </p>
-                {/* 종료 시간 · 상영관 */}
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
-                  ~ {s.endAt.slice(11, 16)} · {theaterName(s.no)}
-                </p>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 오늘 스케줄 없을 때 안내 */}
-      {!isUpcoming && !isEnded && todaySchedules.length === 0 && (
-        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 8 }}>
-          오늘 예정된 상영이 없습니다.
-        </p>
-      )}
     </div>
   )
 }
@@ -363,52 +276,6 @@ const btnPrimary: React.CSSProperties = {
   marginTop: 24, padding: '16px 32px',
   background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',
   border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer',
-}
-const scheduleSection: React.CSSProperties = {}
-const sectionTitle: React.CSSProperties = {
-  fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 20,
-}
-const scheduleGrid: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-  gap: 16,
-}
-const scheduleItem: React.CSSProperties = {
-  background: 'var(--bg-surface)',
-  border: '1px solid var(--border-default)',
-  borderRadius: 12, padding: '16px 20px',
-  cursor: 'pointer',
-  transition: 'border-color 0.15s',
-}
-const scheduleTime: React.CSSProperties = {
-  fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6,
-}
-const scheduleSeats: React.CSSProperties = { fontSize: 14, color: 'var(--text-muted)' }
-void scheduleTime; void scheduleSeats // 스케줄 카드에서 사용 예정 — 현재 미사용 경고 억제
-
-/* ── 모달 스타일 ── */
-const modalOverlay: React.CSSProperties = {
-  position: 'fixed', inset: 0, zIndex: 1000,
-  background: 'rgba(0,0,0,0.7)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-}
-const modalBox: React.CSSProperties = {
-  background: 'var(--bg-surface)', borderRadius: 20,
-  padding: '40px 48px', textAlign: 'center',
-  maxWidth: 480, width: '90%',
-}
-const modalTitle: React.CSSProperties = {
-  fontSize: 20, fontWeight: 700, color: 'var(--text-primary)',
-  marginBottom: 8,
-}
-const modalSub: React.CSSProperties = {
-  fontSize: 15, color: 'var(--text-muted)', marginBottom: 28,
-}
-const modalBtn: React.CSSProperties = {
-  padding: '14px 36px',
-  background: 'var(--color-brand-default)', color: 'var(--primitive-neutral-900)',
-  border: 'none', borderRadius: 10,
-  fontSize: 16, fontWeight: 700, cursor: 'pointer',
 }
 
 export default MovieDetailPage

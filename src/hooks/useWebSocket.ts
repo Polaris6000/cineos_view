@@ -353,16 +353,13 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
 
     // 낙관적 업데이트 — UPDATE_OCCUPANCY 수신 전에 UI 먼저 갱신
     // 네트워크 지연 시에도 클릭이 즉각 반응하는 것처럼 보이게 함
-    setWsState((prev) => {
-      const nextOccupied = new Map(prev.occupied)
-      if (isMySelected) {
-        nextOccupied.delete(seatNumber)
-      } else {
-        nextOccupied.set(seatNumber, userIdRef.current)
-      }
-      return { ...prev, occupied: nextOccupied }
-    })
-  }, [sendAction])
+    setWsState((prev) => ({
+      ...prev,
+      occupied: buildOccupiedMap([...mySeatsRef.current, ...Array.from(prev.occupied.keys()).filter(s => !mySeatsRef.current.has(s) && prev.occupied.get(s) !== prev.myId)]),
+    }))
+  }, [sendAction, buildOccupiedMap])
 
   return { wsState, sendToggle }
 }
+
+export default useWebSocket

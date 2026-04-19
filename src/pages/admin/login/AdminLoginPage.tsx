@@ -197,9 +197,11 @@ const errorBox: React.CSSProperties = {
   borderRadius: 8, color: '#a82020', fontSize: 14,
 }
 const submitBtn: React.CSSProperties = {
-  padding: '14px 0', background: '#ffb800', color: '#4c1c00',
-  border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700,
-  cursor: 'pointer', marginTop: 4,
+  width: '100%', padding: '15px 0',
+  background: '#ffb800', border: 'none',
+  borderRadius: 10, color: '#1a1408',
+  fontSize: 16, fontWeight: 800, cursor: 'pointer',
+  letterSpacing: 1,
 }
 
 export default AdminLoginPage

@@ -15,9 +15,9 @@
  *
  * 백엔드 POST /api/payment/confirm 요청 형태:
  *  {
- *    payType,       paymentKey, orderId, amount,
- *    phone,         scheduleId (Schedule 객체 — backend: .path("scheduleId").path("scheduleId")),
- *    seats,         bonusPolicyId, usePoint, couponNum,
+ *    payType, paymentKey, orderId, amount,
+ *    phone,   scheduleId ({ scheduleId: id } 중첩 구조),
+ *    seats,   usePoint,  couponNum,
  *  }
  */
 import { useState, useEffect, useRef } from 'react'
@@ -86,28 +86,11 @@ function PaymentResultPage() {
     const confirmPayment = async () => {
       try {
         /**
-         * 활성 적립 정책 ID 조회
+         * POST /api/payment/confirm
          *
-         * ─── 왜 이렇게 복잡한가? ────────────────────────────────────────────────────
-         * 백엔드 savePaymentInfo() 는 bonusPolicyId 를 프론트에서 받아
-         * getBonusPolicy(id) 로 DB를 조회한다. ID가 없으면 500 에러.
-         *
-         * 문제: 유일한 bonus-policy 조회 API가 /api/admin/bonus-policy/list 인데
-         *       이 경로는 Spring Security 에서 /api/admin/** → JWT 필수로 막혀 있어,
-         *       고객 결제 화면에서는 401 이 반환된다.
-         *
-         * 임시 해결책:
-         *   1차 시도: apiClient.get('/admin/bonus-policy/list')
-         *             키오스크 특성상 관리자 JWT 가 localStorage 에 남아있으면 성공.
-         *   2차 시도: apiClient.get('/bonus-policy/active')
-         *             ⚠️ 백엔드 팀에 공개 엔드포인트 추가 요청 필요 (아직 없음).
-         *
-         * ─── 백엔드 팀에게 ─────────────────────────────────────────────────────────
-         * 둘 중 하나로 수정 요청:
-         *  [A] GET /api/bonus-policy/active 공개 엔드포인트 추가
-         *  [B] savePaymentInfo 에서 bonusPolicyId 파라미터 제거,
-         *      내부적으로 활성 정책 자동 조회 (bonusPolicyService.getActive() 등)
-         * ──────────────────────────────────────────────────────────────────────────
+         * bonusPolicyId는 전송하지 않음.
+         * 백엔드 PaymentConfirmServiceImpl이 getActiveBonusPolicy()로 내부 자동 조회.
+         * (기존엔 프론트에서 /admin/bonus-policy/list → 401, /bonus-policy/active → 404 문제)
          */
         let bonusPolicyId: number | null = null
 
@@ -361,7 +344,7 @@ ${pointEarned > 0 ? `<div class="divider"></div><div class="row"><span class="la
             <CheckCircle size={64} color="#00ad74" strokeWidth={1.5} style={{ marginBottom: 20 }} />
             <h3 style={doneTitle}>감사합니다!</h3>
             <p style={doneDesc}>
-              즐거운 관람 되세요. 🎬<br />
+              즐거운 관람 되세요.<br />
               언제든 CineOS를 찾아 주세요.
             </p>
             {authPhone && (
@@ -615,14 +598,17 @@ const priceRow: React.CSSProperties  = { display: 'flex', justifyContent: 'space
 const btnRow: React.CSSProperties    = { display: 'flex', gap: 14, marginTop: 8 }
 const receiptBtn: React.CSSProperties = {
   flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-  padding: '28px 0', background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',
-  border: 'none', borderRadius: 18, fontSize: 18, fontWeight: 800, cursor: 'pointer',
+  padding: '22px 0', background: 'var(--bg-surface)',
+  border: '1px solid var(--border-default)',
+  borderRadius: 16, color: 'var(--text-secondary)', fontSize: 15, cursor: 'pointer',
+  gap: 0, transition: 'background 0.15s',
 }
 const mobileBtn: React.CSSProperties = {
   flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-  padding: '28px 0', background: 'var(--bg-surface)',
-  border: '2px solid var(--color-brand-default)', borderRadius: 18,
-  fontSize: 18, fontWeight: 800, cursor: 'pointer', color: 'var(--color-brand-default)',
+  padding: '22px 0', background: 'var(--color-brand-default)',
+  border: 'none',
+  borderRadius: 16, color: '#000', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+  gap: 0, transition: 'opacity 0.15s',
 }
 
 export default PaymentResultPage

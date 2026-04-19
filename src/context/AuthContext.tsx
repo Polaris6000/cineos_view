@@ -21,7 +21,8 @@ interface AuthContextValue {
   currentAdmin:    AdminUser | null
   /** 로그인 시도. 성공 시 true, 실패 시 false 반환. remember=true면 localStorage에 저장 */
   login:           (id: string, password: string, remember?: boolean) => Promise<boolean>
-  logout:          () => void
+  /** 로그아웃. 백엔드 UUID 정리 후 클라이언트 인증 데이터 삭제 */
+  logout:          () => Promise<void>
   hasPermission:   (permission: Permission) => boolean
   isMaster: boolean
 }
@@ -118,14 +119,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  /** logout — 로그아웃 후 저장된 인증 데이터 전부 삭제 */
-  const logout = useCallback(() => {
-    setCurrentAdmin(null)
-    // localStorage (자동로그인) + sessionStorage (일반 세션) 모두 정리
-    localStorage.removeItem('cineos_admin')
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    sessionStorage.removeItem('cineos_admin')
+  /**
+   * logout — 백엔드 로그아웃 API 호출 후 클라이언트 인증 데이터 전부 삭제
+   *
+   * 백엔드가 처리하는 것:
+   *   - 자동로그인용 UUID 쿠키 제거 (Set-Cookie: uuid=; Max-Age=0)
+   *   - DB에 저장된 UUID를 null로 초기화
+   *
+   * 클라이언트가 처리하는 것:
+   *   - localStorage / sessionStorage 의 인증 정보 삭제
+   *   - currentAdmin 상태 null로 초기화
+   *
+   * ※ API 실패해도 클라이언트 정리는 반드시 수행 (finally)
+   */
+  const logout = useCallback(async () => {
+    try {
+      // 백엔드 로그아웃: UUID 쿠키 제거 + DB UUID null 처리
+      await apiClient.post('/admin/logout')
+    } catch (err) {
+      // 네트워크 오류 등 실패해도 클라이언트 정리는 계속 진행
+      console.warn('[logout] 백엔드 로그아웃 API 실패 (클라이언트 정리는 계속):', err)
+    } finally {
+      setCurrentAdmin(null)
+      // localStorage (자동로그인) + sessionStorage (일반 세션) 모두 정리
+      localStorage.removeItem('cineos_admin')
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
+      sessionStorage.removeItem('cineos_admin')
+    }
   }, [])
 
   /**

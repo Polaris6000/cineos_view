@@ -618,19 +618,20 @@ const hintBox: React.CSSProperties   = {
 }
 const amountBox: React.CSSProperties = {
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  padding: '14px 20px', marginBottom: 16,
-  background: 'rgba(255,184,0,0.06)', border: '1px solid var(--color-brand-default)',
-  borderRadius: 12,
+  padding: '14px 20px', background: 'var(--bg-surface)', borderRadius: 12,
+  border: '1px solid var(--border-default)',
 }
-const nextBtn: React.CSSProperties   = {
-  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
-  width: '100%', padding: '24px 0',
-  background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',
-  border: 'none', borderRadius: 16,
-  fontSize: 22, fontWeight: 800, cursor: 'pointer', letterSpacing: 1,
+const nextBtn: React.CSSProperties = {
+  width: '100%', padding: '18px 0',
+  background: 'var(--color-brand-default)', border: 'none',
+  borderRadius: 14, color: '#000', fontSize: 18, fontWeight: 800, cursor: 'pointer',
+  marginTop: 12,
 }
 const nextBtnDisabled: React.CSSProperties = {
-  background: 'var(--bg-surface)', color: 'var(--text-muted)', cursor: 'not-allowed',
+  background: 'var(--bg-surface)',
+  color: 'var(--text-muted)',
+  cursor: 'not-allowed',
+  border: '1px solid var(--border-default)',
 }
 
 export default SeatPage
