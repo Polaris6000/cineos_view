@@ -100,13 +100,25 @@ function MovieListAdminPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  /** 필터링 */
+  /** 필터링 + 정렬 */
   const filtered = useMemo(() => {
-    return movies.filter((m) => {
-      const status = getMovieStatus(m, pendingDeletes)
-      if (!showLog && (status === 'ENDED' || status === 'DELETE_PENDING')) return false
-      return m.title.includes(search) || m.genre.includes(search)
-    })
+    return movies
+      .filter((m) => {
+        const status = getMovieStatus(m, pendingDeletes)
+        if (!showLog && (status === 'ENDED' || status === 'DELETE_PENDING')) return false
+        return m.title.includes(search) || m.genre.includes(search)
+      })
+      .sort((a, b) => {
+        // 1차 정렬: 개봉일 내림차순 (미래 개봉일일수록 상단)
+        const startDiff = b.startAt.localeCompare(a.startAt)
+        if (startDiff !== 0) return startDiff
+
+        // 2차 정렬: 종영일 오름차순 (종영일 가까운 순)
+        // endAt이 null(미정)인 경우 매우 먼 미래로 취급하여 후순위 배치
+        const aEnd = a.endAt ?? '9999-12-31'
+        const bEnd = b.endAt ?? '9999-12-31'
+        return aEnd.localeCompare(bEnd)
+      })
   }, [movies, search, showLog, pendingDeletes])
 
   /** 상태별 카운터 */
@@ -202,7 +214,6 @@ function MovieListAdminPage() {
         <table style={table}>
           <thead>
             <tr style={thead}>
-              <th style={th}>ID</th>
               <th style={th}>제목</th>
               <th style={th}>장르</th>
               <th style={th}>등급</th>
@@ -214,16 +225,15 @@ function MovieListAdminPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={noData}>불러오는 중...</td></tr>
+              <tr><td colSpan={7} style={noData}>불러오는 중...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={8} style={noData}>검색 결과 없음</td></tr>
+              <tr><td colSpan={7} style={noData}>검색 결과 없음</td></tr>
             ) : (
               filtered.map((m) => {
                 const status = getMovieStatus(m, pendingDeletes)
                 const rowOpacity = (status === 'ENDED' || status === 'DELETE_PENDING') ? 0.6 : 1
                 return (
                   <tr key={m.id} style={{ ...tr, opacity: rowOpacity }}>
-                    <td style={td}>{m.id}</td>
                     <td style={{ ...td, fontWeight: 600 }}>{m.title}</td>
                     <td style={td}>{m.genre || '-'}</td>
                     <td style={td}>

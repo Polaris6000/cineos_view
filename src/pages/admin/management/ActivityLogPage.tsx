@@ -202,7 +202,7 @@ function ActivityLogPage() {
       </div>
 
       {/* ── 페이지네이션 ── */}
-      {totalPages > 1 && (
+      {totalPages >= 1 && (
         <div style={pagination}>
           {/* 이전 버튼 */}
           <button

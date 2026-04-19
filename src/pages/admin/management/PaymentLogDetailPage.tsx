@@ -71,7 +71,9 @@ function PaymentLogDetailPage() {
       setLoading(true)
       setError('')
       try {
-        const { data } = await apiClient.get<PaymentDTO>(`/payment/read/${id}`)
+        // ⚠️ 이전 버그: '/payment/read/${id}' — /admin prefix 누락 → 401
+        //    SecurityConfig: /api/admin/** 은 JWT 필수. apiClient.ts baseURL='/api' 기준
+        const { data } = await apiClient.get<PaymentDTO>(`/admin/payment/read/${id}`)
         setRaw(data)
         setDetail(mapToBooking(data))
       } catch (e: any) {

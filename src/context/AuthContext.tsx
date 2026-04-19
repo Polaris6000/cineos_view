@@ -150,27 +150,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   /**
-   * hasPermission — 현재 관리자가 해당 권한을 가졌는지 확인
-   * 미로그인 상태에서는 항상 false
+   * hasPermission — \ud2b9\uc815 \uad8c\ud55c \ubcf4\uc720 \uc5ec\ubd80 \ud655\uc778
+   * currentAdmin\uc774 null\uc774\uba74 \ud56d\uc0c1 false
    */
   const hasPermission = useCallback((permission: Permission): boolean => {
     if (!currentAdmin) return false
-
     return currentAdmin.permissions.includes(permission)
   }, [currentAdmin])
 
   const isMaster = currentAdmin?.level === false
 
   return (
-    <AuthContext.Provider value={{ currentAdmin, login, logout, hasPermission, isMaster: isMaster }}>
+    <AuthContext.Provider value={{ currentAdmin, login, logout, hasPermission, isMaster }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
-/* ── 훅 ─────────────────────────────────────────────── */
+/* \u2500\u2500 useAuth \ud6c4\ud06c \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+/**
+ * useAuth \u2014 AuthContext \uac12\uc744 \uc27d\uac8c \uac00\uc838\uc624\ub294 \ud6c4\ud06c
+ * AuthProvider \ub0b4\ubd80\uc5d0\uc11c\ub9cc \uc0ac\uc6a9 \uac00\ub2a5 (\uc678\ubd80\uc5d0\uc11c \ud638\ucd9c \uc2dc throw)
+ */
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth는 AuthProvider 내부에서만 사용 가능합니다.')
+  if (!ctx) throw new Error('useAuth\ub294 AuthProvider \ub0b4\ubd80\uc5d0\uc11c\ub9cc \uc0ac\uc6a9\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4')
   return ctx
 }

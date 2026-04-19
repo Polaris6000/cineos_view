@@ -87,7 +87,7 @@ export function splitRowByAisle(rowSeats: SeatItem[]): {
   return {
     left:      sorted.slice(0, sideCount),                           // 1~2번 좌석
     middle:    sorted.slice(sideCount, sorted.length - sideCount),   // 3~(N-2)번 좌석
-    right:     sorted.slice(-sideCount),                             // (N-1)~N번 좌석
+    right:     sorted.slice(-sideCount),                             // (N-1)~N번 �ì¢ì
     sideCount,
   }
 }

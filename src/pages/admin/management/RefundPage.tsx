@@ -44,10 +44,14 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function RefundPage() {
-  /* ── 결제내역 리스트 ── */
+  /* ── 결제내역 리스트 + 페이지네이션 ── */
   const [paymentList,    setPaymentList]    = useState<PaymentSummary[]>([])
   const [listLoading,    setListLoading]    = useState(false)
   const [listError,      setListError]      = useState('')
+  // 백엔드 서버사이드 페이징 상태 (1-based)
+  const [listPage,       setListPage]       = useState(1)
+  const [listTotalPages, setListTotalPages] = useState(1)
+  const [listTotalItems, setListTotalItems] = useState(0)
 
   /* ── 예매번호 검색 ── */
   const [query,    setQuery]    = useState('')                     // 예매번호 검색어
@@ -57,17 +61,25 @@ function RefundPage() {
   const [loading,  setLoading]  = useState(false)
 
   /**
-   * 전체 결제내역 조회
-   * ⚠️ GET /api/payment/list 엔드포인트는 백엔드 추가 예정.
-   * 백엔드에서 페이징(Page<PaymentDetailsDTO>) 추가 후에 res.data.content 로 변경 예정.
+   * 전체 결제내역 조회 (서버사이드 페이징)
+   * GET /api/admin/payment/list?page={page}
+   *
+   * 백엔드 readAllPayment(int page) → Spring Page<PaymentDetailsDTO> 반환
+   * JSON 직렬화 구조: { content: [...], totalPages, totalElements, ... }
+   * 백엔드 offset = (page - 1) * 10 이므로 page는 1-based로 전송
    */
-  const loadPaymentList = async () => {
+  const loadPaymentList = async (page: number) => {
     setListLoading(true)
     setListError('')
     try {
-      // 관리자용 전체 결제내역. 백엔드 엔드포인트 추가 전까지 404 응답.
-      const { data } = await apiClient.get<PaymentDTO[]>('/admin/payment/list')
-      const summaries: PaymentSummary[] = data.map((p) => ({
+      const { data } = await apiClient.get<{
+        content: PaymentDTO[]
+        totalPages: number
+        totalElements: number
+      }>('/admin/payment/list', { params: { page } })
+
+      // Spring Page 응답에서 실제 데이터는 .content 배열에 있음
+      const summaries: PaymentSummary[] = data.content.map((p) => ({
         id:         p.id,
         movieTitle: p.reservation?.schedule?.movie?.title ?? '(영화명 없음)',
         phone:      p.reservation?.phone?.phone ?? '-',
@@ -75,22 +87,18 @@ function RefundPage() {
         status:     p.status,
         createAt:   p.createAt,
       }))
-      // 최신순 정렬
-      summaries.sort((a, b) => b.createAt.localeCompare(a.createAt))
       setPaymentList(summaries)
+      setListTotalPages(data.totalPages)
+      setListTotalItems(data.totalElements)
     } catch (e: any) {
-      if (e?.response?.status === 404) {
-        setListError('백엔드에 GET /api/payment/list 엔드포인트가 아직 없습니다. 백엔드 팀에 추가 요청하세요.')
-      } else {
-        setListError('결제내역을 불러오지 못했습니다.')
-      }
+      setListError('결제내역을 불러오지 못했습니다.')
       console.error('결제내역 리스트 로드 실패:', e)
     }
     setListLoading(false)
   }
 
-  // 마운트 시 1회 조회
-  useEffect(() => { loadPaymentList() }, [])
+  // listPage 변경 시 재조회 (마운트 시 page=1 로 최초 조회 포함)
+  useEffect(() => { loadPaymentList(listPage) }, [listPage])
 
   /**
    * 예매번호로 상세 조회
@@ -137,8 +145,8 @@ function RefundPage() {
       })
       await new Promise((r) => setTimeout(r, 700))
       setRefunded(true)
-      // 리스트 새로고침 (해당 항목 상태를 RETURN으로 반영)
-      loadPaymentList()
+      // 리스트 새로고침 — 현재 페이지 그대로 재조회 (RETURN 상태 반영)
+      loadPaymentList(listPage)
     } catch {
       alert('환불 처리 중 오류가 발생했습니다.')
     }
@@ -156,9 +164,17 @@ function RefundPage() {
       {/* ── 전체 결제내역 리스트 ── */}
       <section style={sectionCard}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <h3 style={sectionTitle}>전체 결제내역</h3>
-          {/* 새로고침 버튼 */}
-          <button onClick={loadPaymentList} disabled={listLoading} style={refreshBtn} title="새로고침">
+          <h3 style={sectionTitle}>
+            전체 결제내역
+            {/* 전체 건수 표시 */}
+            {listTotalItems > 0 && (
+              <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 8 }}>
+                {listTotalItems}건
+              </span>
+            )}
+          </h3>
+          {/* 새로고침 — 현재 페이지 재조회 */}
+          <button onClick={() => loadPaymentList(listPage)} disabled={listLoading} style={refreshBtn} title="새로고침">
             <RefreshCw size={14} style={{ marginRight: 4 }} />
             {listLoading ? '로딩 중...' : '새로고침'}
           </button>
@@ -184,62 +200,111 @@ function RefundPage() {
         )}
 
         {!listLoading && paymentList.length > 0 && (
-          <div style={tableWrapper}>
-            <table style={table}>
-              <thead>
-                <tr>
-                  {['예매번호', '영화명', '고객전화', '결제금액', '상태', '결제일시', ''].map((h) => (
-                    <th key={h} style={th}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {paymentList.map((p) => (
-                  <tr
-                    key={p.id}
-                    style={{
-                      ...tr,
-                      // 현재 선택된 항목 강조
-                      background: query === p.id ? 'var(--color-brand-alpha-08, rgba(255,184,0,0.08))' : undefined,
-                    }}
-                  >
-                    <td style={td}>
-                      {/* 예매번호 — 길어서 앞 12자만 표시 */}
-                      <span style={{ fontFamily: 'monospace', fontSize: 12 }} title={p.id}>
-                        {p.id.length > 12 ? p.id.slice(0, 12) + '…' : p.id}
-                      </span>
-                    </td>
-                    <td style={td}>{p.movieTitle}</td>
-                    <td style={td}>{p.phone}</td>
-                    <td style={{ ...td, fontWeight: 700 }}>{p.cost.toLocaleString()}원</td>
-                    <td style={td}><StatusBadge status={p.status} /></td>
-                    <td style={{ ...td, color: 'var(--text-muted)', fontSize: 12 }}>
-                      {p.createAt ? p.createAt.replace('T', ' ').slice(0, 16) : '-'}
-                    </td>
-                    <td style={td}>
-                      {/* 이 항목으로 검색 자동입력 버튼 */}
-                      <button
-                        onClick={() => {
-                          setQuery(p.id)
-                          setResult(undefined)
-                          setError('')
-                          setRefunded(false)
-                          // 자동으로 스크롤 내려서 검색 폼 보이도록
-                          setTimeout(() => {
-                            document.getElementById('refund-search-input')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                          }, 100)
-                        }}
-                        style={selectBtn}
-                      >
-                        <Search size={12} style={{ marginRight: 3 }} />
-                        조회
-                      </button>
-                    </td>
+          <>
+            <div style={tableWrapper}>
+              <table style={table}>
+                <thead>
+                  <tr>
+                    {['예매번호', '영화명', '고객전화', '결제금액', '상태', '결제일시', ''].map((h) => (
+                      <th key={h} style={th}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {paymentList.map((p) => (
+                    <tr
+                      key={p.id}
+                      style={{
+                        ...tr,
+                        // 현재 선택된 항목 강조
+                        background: query === p.id ? 'var(--color-brand-alpha-08, rgba(255,184,0,0.08))' : undefined,
+                      }}
+                    >
+                      <td style={td}>
+                        {/* 예매번호 — 길어서 앞 12자만 표시 */}
+                        <span style={{ fontFamily: 'monospace', fontSize: 12 }} title={p.id}>
+                          {p.id.length > 12 ? p.id.slice(0, 12) + '…' : p.id}
+                        </span>
+                      </td>
+                      <td style={td}>{p.movieTitle}</td>
+                      <td style={td}>{p.phone}</td>
+                      <td style={{ ...td, fontWeight: 700 }}>{p.cost.toLocaleString()}원</td>
+                      <td style={td}><StatusBadge status={p.status} /></td>
+                      <td style={{ ...td, color: 'var(--text-muted)', fontSize: 12 }}>
+                        {p.createAt ? p.createAt.replace('T', ' ').slice(0, 16) : '-'}
+                      </td>
+                      <td style={td}>
+                        {/* 이 항목으로 검색 자동입력 버튼 */}
+                        <button
+                          onClick={() => {
+                            setQuery(p.id)
+                            setResult(undefined)
+                            setError('')
+                            setRefunded(false)
+                            // 자동으로 스크롤 내려서 검색 폼 보이도록
+                            setTimeout(() => {
+                              document.getElementById('refund-search-input')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                            }, 100)
+                          }}
+                          style={selectBtn}
+                        >
+                          <Search size={12} style={{ marginRight: 3 }} />
+                          조회
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ── 페이지네이션 — totalPages >= 1이면 항상 표시 ── */}
+            {listTotalPages >= 1 && (
+              <div style={paginationWrap}>
+                {/* 이전 버튼 */}
+                <button
+                  disabled={listPage === 1}
+                  onClick={() => setListPage(p => Math.max(1, p - 1))}
+                  style={{ ...pageBtn, opacity: listPage === 1 ? 0.4 : 1 }}
+                >
+                  이전
+                </button>
+
+                {/* 슬라이딩 윈도우 — 최대 5개 페이지 번호 표시 */}
+                {Array.from({ length: listTotalPages }, (_, i) => i + 1)
+                  .filter(n => n >= Math.max(1, listPage - 2) && n <= Math.min(listTotalPages, listPage + 2))
+                  .map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setListPage(n)}
+                      style={{
+                        ...pageNumBtn,
+                        background: listPage === n ? 'var(--color-brand-default)' : 'transparent',
+                        color:      listPage === n ? '#fff'                        : 'var(--text-secondary)',
+                        border:     listPage === n ? 'none'                        : '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      {n}
+                    </button>
+                  ))
+                }
+
+                {/* 다음 버튼 */}
+                <button
+                  disabled={listPage === listTotalPages}
+                  onClick={() => setListPage(p => Math.min(listTotalPages, p + 1))}
+                  style={{ ...pageBtn, opacity: listPage === listTotalPages ? 0.4 : 1 }}
+                >
+                  다음
+                </button>
+
+                {/* 현재 페이지 위치 텍스트 */}
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 4 }}>
+                  {listPage} / {listTotalPages} 페이지
+                </span>
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -371,6 +436,17 @@ const tr: React.CSSProperties = {
 const td: React.CSSProperties = {
   padding: '8px 10px', color: 'var(--text-primary)', verticalAlign: 'middle' as const,
 }
+const paginationWrap: React.CSSProperties = {
+  display: 'flex', gap: 6, alignItems: 'center', marginTop: 12,
+}
+const pageBtn: React.CSSProperties = {
+  padding: '5px 11px', border: '1px solid var(--border-default)',
+  borderRadius: 8, fontSize: 12, fontWeight: 600,
+  color: 'var(--text-secondary)', background: 'var(--bg-base)', cursor: 'pointer',
+}
+const pageNumBtn: React.CSSProperties = {
+  width: 30, height: 30, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+}
 const selectBtn: React.CSSProperties = {
   display: 'inline-flex', alignItems: 'center',
   padding: '4px 10px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
@@ -405,13 +481,13 @@ const alreadyRefundedBox: React.CSSProperties = {
   borderRadius: 8, color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, marginBottom: 4,
 }
 const successBox: React.CSSProperties = {
-  padding: '12px 16px', background: 'var(--color-success-bg)', border: '1px solid var(--color-success-main)',
-  borderRadius: 8, color: 'var(--color-success-main)', fontSize: 13, fontWeight: 600,
+  padding: '12px 16px', background: 'var(--color-success-bg)', border: '1px solid var(--color-success-text)',
+  borderRadius: 8, color: 'var(--color-success-text)', fontSize: 13, fontWeight: 600, marginBottom: 4,
 }
 const refundBtn: React.CSSProperties = {
-  display: 'block', width: '100%', padding: '14px 0',
-  background: 'var(--color-error-main)', color: '#fff', border: 'none',
-  borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: 'pointer', marginTop: 12,
+  width: '100%', padding: '14px 0',
+  background: '#e03c3c', border: 'none',
+  borderRadius: 10, color: '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer',
 }
 
 export default RefundPage

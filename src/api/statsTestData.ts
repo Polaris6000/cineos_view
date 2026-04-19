@@ -70,6 +70,7 @@ export const MOCK_MOVIE_STATS = [
   { movieId: 3, title: '인사이드 아웃 2', tickets: 3600, revenue: 3600 * 14000, rating: 'ALL' },
   { movieId: 4, title: '파묘',          tickets: 3100, revenue: 3100 * 14000, rating: '15' },
   { movieId: 5, title: '패스트 라이브즈', tickets: 2500, revenue: 2500 * 14000, rating: '12' },
-  { movieId: 6, title: '듄: 파트2',      tickets: 2100, revenue: 2100 * 14000, rating: '12' },
-  { movieId: 7, title: '웡카',           tickets: 1800, revenue: 1800 * 14000, rating: 'ALL' },
+  { movieId: 6, title: '듄: 파트2',     tickets: 2200, revenue: 2200 * 14000, rating: '12' },
+  { movieId: 7, title: '웡카',         tickets: 1800, revenue: 1800 * 14000, rating: 'ALL' },
+  { movieId: 8, title: '아가일',        tickets: 1500, revenue: 1500 * 14000, rating: '12' },
 ]

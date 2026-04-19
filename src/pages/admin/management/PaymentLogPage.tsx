@@ -53,21 +53,34 @@ function PaymentLogPage() {
   const [keyword,      setKeyword]      = useState('')
 
   /**
-   * 결제내역 페이지 조회 — GET /api/payment/list?page={page}
-   * 백엔드가 Page<PaymentDetailsDTO> 형태로 반환
-   * (content / totalPages / totalElements 필드 포함)
+   * 결제내역 페이지 조회 — GET /api/admin/payment/list?page={page}
+   *
+   * 백엔드 PaymentDetailsServiceImpl.readAll(page)가 Spring Page<PaymentDetailsDTO> 반환.
+   * Jackson 직렬화 시 { content, totalPages, totalElements, ... } 구조로 내려옴.
+   *
+   * ⚠️ 이전 버그:
+   *   1) apiClient.get<PaymentDTO[]> 로 받아서 .content 접근 안 함 → 항상 빈 배열
+   *   2) page 파라미터를 API에 전달 안 함 → 항상 1페이지만 조회
+   *   3) totalPages / totalElements 업데이트 안 함 → 페이지네이션 UI 미동작
    */
   const loadList = async (page: number) => {
     setLoading(true)
     setError('')
     try {
-      const { data } = await apiClient.get<PaymentDTO[]>('/admin/payment/list')
-      // 최신순 정렬
-      data.sort((a, b) => (b.createAt ?? '').localeCompare(a.createAt ?? ''))
-      setPaymentList(data)
+      // Page<PaymentDetailsDTO> 응답 타입 명시
+      const { data } = await apiClient.get<{
+        content: PaymentDTO[]
+        totalPages: number
+        totalElements: number
+      }>('/admin/payment/list', { params: { page } })
+
+      // Spring Page 응답: content 배열에 실제 데이터가 들어있음
+      setPaymentList(data.content)
+      setTotalPages(data.totalPages)
+      setTotalItems(data.totalElements)
     } catch (e: any) {
       if (e?.response?.status === 404) {
-        setError('백엔드에 GET /api/payment/list 엔드포인트가 없습니다.')
+        setError('백엔드에 GET /api/admin/payment/list 엔드포인트가 없습니다.')
       } else {
         setError('결제내역을 불러오지 못했습니다.')
       }
@@ -158,8 +171,8 @@ function PaymentLogPage() {
       {/* ── 에러 ── */}
       {error && <div style={errorBox}>{error}</div>}
 
-      {/* ── 페이지네이션 (상단) ── */}
-      {!loading && totalPages > 1 && (
+      {/* ── 페이지네이션 (상단) — totalPages >= 1이면 항상 표시 ── */}
+      {!loading && totalPages >= 1 && (
         <div style={paginationWrap}>
           <button
             disabled={currentPage === 1}
@@ -279,63 +292,58 @@ const statCard: React.CSSProperties = {
   boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
 }
 const toolbar: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' as const,
+  display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' as const,
 }
 const filterTab: React.CSSProperties = {
-  padding: '6px 12px', border: '1px solid var(--border-default)', borderRadius: 6,
-  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+  padding: '6px 12px', border: 'none', borderRadius: 8, fontSize: 12,
+  fontWeight: 700, cursor: 'pointer',
 }
 const searchInput: React.CSSProperties = {
-  flex: 1, minWidth: 200, padding: '8px 12px', border: '1px solid var(--border-default)',
-  borderRadius: 8, fontSize: 13, color: 'var(--text-primary)', background: 'var(--input-bg)',
-  outline: 'none',
+  flex: 1, minWidth: 200, padding: '7px 12px',
+  border: '1px solid var(--border-default)', borderRadius: 8,
+  fontSize: 13, color: 'var(--text-primary)', background: 'var(--input-bg)', outline: 'none',
 }
 const refreshBtn: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', padding: '7px 12px',
+  display: 'flex', alignItems: 'center', padding: '7px 13px',
   background: 'var(--bg-base)', border: '1px solid var(--border-default)',
-  borderRadius: 8, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
-  cursor: 'pointer', whiteSpace: 'nowrap' as const,
+  borderRadius: 8, fontSize: 12, fontWeight: 600,
+  color: 'var(--text-secondary)', cursor: 'pointer',
 }
 const errorBox: React.CSSProperties = {
-  padding: '14px 18px', background: 'var(--color-error-bg)', border: '1px solid var(--color-error-text)',
+  padding: '12px 16px', background: 'var(--color-error-bg)',
+  border: '1px solid var(--color-error-text)',
   borderRadius: 8, color: 'var(--color-error-text)', fontSize: 13, marginBottom: 12,
-  whiteSpace: 'pre-wrap' as const,
 }
-const tableWrapper: React.CSSProperties = {
-  overflowX: 'auto' as const, background: 'var(--bg-surface)',
-  borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+const paginationWrap: React.CSSProperties = {
+  display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12,
 }
+const pageBtn: React.CSSProperties = {
+  padding: '6px 12px', border: '1px solid var(--border-default)',
+  borderRadius: 8, fontSize: 12, fontWeight: 600,
+  color: 'var(--text-secondary)', background: 'var(--bg-base)', cursor: 'pointer',
+}
+const pageNumBtn: React.CSSProperties = {
+  width: 32, height: 32, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+}
+const tableWrapper: React.CSSProperties = { overflowX: 'auto' as const }
 const table: React.CSSProperties = {
   width: '100%', borderCollapse: 'collapse' as const, fontSize: 13,
 }
 const thStyle: React.CSSProperties = {
   padding: '10px 12px', background: 'var(--bg-base)', color: 'var(--text-secondary)',
   fontWeight: 700, fontSize: 12, textAlign: 'left' as const,
-  borderBottom: '2px solid var(--border-default)', position: 'sticky' as const, top: 0,
+  borderBottom: '2px solid var(--border-default)',
 }
-const trStyle: React.CSSProperties = { borderBottom: '1px solid var(--border-default)' }
+const trStyle: React.CSSProperties = {
+  borderBottom: '1px solid var(--border-default)',
+}
 const tdStyle: React.CSSProperties = {
-  padding: '9px 12px', color: 'var(--text-primary)', verticalAlign: 'middle' as const,
-}
-/* 페이지네이션 */
-const paginationWrap: React.CSSProperties = {
-  display: 'flex', justifyContent: 'center', alignItems: 'center',
-  gap: 6, marginBottom: 12,
-}
-const pageBtn: React.CSSProperties = {
-  padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border-default)',
-  background: 'var(--bg-surface)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-  color: 'var(--text-secondary)',
-}
-const pageNumBtn: React.CSSProperties = {
-  width: 30, height: 30, borderRadius: 6, cursor: 'pointer',
-  fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center',
-  justifyContent: 'center', transition: 'all 0.15s',
+  padding: '10px 12px', color: 'var(--text-primary)', verticalAlign: 'middle' as const,
 }
 const detailBtn: React.CSSProperties = {
-  padding: '5px 12px', background: 'var(--bg-base)',
+  padding: '4px 10px', background: 'var(--bg-base)',
   border: '1px solid var(--border-default)', borderRadius: 6,
-  color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+  fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', cursor: 'pointer',
 }
 
 export default PaymentLogPage

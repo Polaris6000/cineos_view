@@ -228,19 +228,24 @@ export interface PaymentDTO {
 
 export const mapToBooking = (paymentDTO : PaymentDTO) : BookingDTO => ({
     bookingId : paymentDTO.id,
-    canRefund : paymentDTO.status === "PAY" ? true : false,
+    // status가 PAY일 때만 환불 가능
+    canRefund : paymentDTO.status === "PAY",
     date : paymentDTO.reservation.schedule.startAt.slice(0,10),
     movieTitle : paymentDTO.reservation.schedule.movie.title,
     paidAt : paymentDTO.createAt,
     paymentKey : paymentDTO.paymentKey,
+    // paymentKey가 "POINT"면 포인트 전액 결제, 아니면 카드 결제
     paymentMethod : paymentDTO.paymentKey === "POINT" ? "POINT" : "CARD" ,
     phone : paymentDTO.reservation.phone.phone,
+    // 포인트 적립량: 결제금액 × 적립비율(%) / 100
     pointEarned: paymentDTO.cost * paymentDTO.bonusPolicy.giveValue / 100,
     pointUsed: paymentDTO.usePoint,
     seats: paymentDTO.reservation.seats.map(s => s.seatNumber),
     startTime:paymentDTO.reservation.schedule.startAt.slice(11,16),
     status:paymentDTO.status,
     theaterName: paymentDTO.reservation.schedule.theater.no + "관",
-    ticketCount:  paymentDTO.reservation.seats.map(s => s.seatNumber).length,
-    totalAmount: paymentDTO.cost + paymentDTO.usePoint
+    // ticketCount: 예매 좌석 개수 = 인원 수 (이전 버그: 파일 잘려서 truncated 상태였음)
+    ticketCount: paymentDTO.reservation.seats.length,
+    // totalAmount: 결제 금액 (BookingDTO 인터페이스 필수 필드)
+    totalAmount: paymentDTO.cost,
 })
