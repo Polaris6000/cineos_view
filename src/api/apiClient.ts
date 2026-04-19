@@ -8,56 +8,65 @@
 import axios from 'axios'
 
 const apiClient = axios.create({
-  baseURL: '/api',
-  timeout: 10_000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+    baseURL: '/api',
+    timeout: 10_000,
+    headers: {
+        'Content-Type': 'application/json',
+    },
 })
 
 // ── 요청 인터셉터 (JWT 토큰 첨부) ────────────────────────
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
+    const token = localStorage.getItem('accessToken')
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
 })
 
 // ── 응답 인터셉터 ────────────────────────────────────────
 apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
-      const status = error.response?.status
-      const url    = error.config?.url ?? '(unknown)'
-      console.error(`[API Error] ${status ?? 'network'} → ${url}`, error.message)
+        const status = error.response?.status
+        const url = error.config?.url ?? '(unknown)'
+        console.error(`[API Error] ${status ?? 'network'} → ${url}`, error.message)
 
-      // 401 처리
-      // ⚠️ 로그인 요청(/admin/login) 자체가 401이면 재발급 시도 없이 바로 실패로 반환
-      // — 이 경우 AuthContext.login()의 catch 블록이 처리함
-      if (status === 401 && !url.includes('/admin/login')) {
-        const accessToken  = localStorage.getItem('accessToken')
-        const refreshToken = localStorage.getItem('refreshToken')
+        // 401 처리
+        // 로그인 요청(/admin/login) 자체가 401이면 재발급 시도 없이 바로 실패로 반환
+        // — 이 경우 AuthContext.login()의 catch 블록이 처리함
+        if (status === 401 && !url.includes('/admin/login') && !url.includes('/remember_me/auth')) {
+            const accessToken = localStorage.getItem('accessToken')
+            const refreshToken = localStorage.getItem('refreshToken')
 
-        try {
-          // RefreshToken으로 AccessToken 재발급 시도
-          const res = await axios.post('/admin/refresh', { accessToken, refreshToken })
-          localStorage.setItem('accessToken', res.data.accessToken)
-          localStorage.setItem('refreshToken', res.data.refreshToken)
+            try {
+                // RefreshToken으로 AccessToken 재발급 시도
+                const res = await apiClient.post('/admin/refresh', {accessToken, refreshToken})
+                localStorage.setItem('accessToken', res.data.accessToken)
+                localStorage.setItem('refreshToken', res.data.refreshToken)
 
-          // 실패한 요청 재시도 (새 AccessToken 첨부)
-          error.config.headers.Authorization = `Bearer ${res.data.accessToken}`
-          return axios(error.config)
-        } catch {
-          // 재발급 실패 → 로그아웃 후 로그인 페이지로 이동
-          localStorage.removeItem('accessToken')
-          localStorage.removeItem('refreshToken')
-          localStorage.removeItem('cineos_admin')
-          sessionStorage.removeItem('cineos_admin')
-          window.location.href = '/admin/login'
+                // 실패한 요청 재시도 (새 AccessToken 첨부)
+                error.config.headers.Authorization = `Bearer ${res.data.accessToken}`
+                return apiClient(error.config)
+            } catch {
+
+                try {
+                    const res = await apiClient.post('/admin/remember_me/auth', {}, {withCredentials: true})
+                    localStorage.setItem('accessToken', res.data)
+
+                    error.config.headers.Authorization = `Bearer ${res.data}`
+                    return apiClient(error.config)
+                } catch {
+                    // 자동로그인도 실패 → 로그인 페이지로
+                    localStorage.removeItem('accessToken')
+                    localStorage.removeItem('refreshToken')
+                    localStorage.removeItem('cineos_admin')
+                    sessionStorage.removeItem('cineos_admin')
+                    window.location.href = '/admin/login'
+                }
+            }
         }
-      }
-      return Promise.reject(error)
+        return Promise.reject(error)
     },
 )
 
@@ -76,7 +85,7 @@ export default apiClient
  * toISOString()보다 항상 안전함
  */
 export function getKSTDateString(date: Date = new Date()): string {
-  return date.toLocaleDateString('en-CA') // 'YYYY-MM-DD' 형식
+    return date.toLocaleDateString('en-CA') // 'YYYY-MM-DD' 형식
 }
 
 /**
@@ -85,11 +94,11 @@ export function getKSTDateString(date: Date = new Date()): string {
  * @example getDateFromISO('2026-04-11T01:00:00') → '2026-04-11'
  */
 export function getDateFromISO(isoStr: string): string {
-  // 백엔드가 KST로 저장된 ISO string을 반환하면 단순 slice만으로 충분
-  // UTC로 저장된다면 Date 파싱 → toLocaleDateString 방식으로 변환
-  if (!isoStr) return ''
-  const d = new Date(isoStr)
-  return d.toLocaleDateString('en-CA')
+    // 백엔드가 KST로 저장된 ISO string을 반환하면 단순 slice만으로 충분
+    // UTC로 저장된다면 Date 파싱 → toLocaleDateString 방식으로 변환
+    if (!isoStr) return ''
+    const d = new Date(isoStr)
+    return d.toLocaleDateString('en-CA')
 }
 
 /**
@@ -97,11 +106,11 @@ export function getDateFromISO(isoStr: string): string {
  * @example getTimeFromISO('2026-04-11T14:30:00') → '14:30'
  */
 export function getTimeFromISO(isoStr: string): string {
-  if (!isoStr) return ''
-  const d = new Date(isoStr)
-  const h = String(d.getHours()).padStart(2, '0')
-  const m = String(d.getMinutes()).padStart(2, '0')
-  return `${h}:${m}`
+    if (!isoStr) return ''
+    const d = new Date(isoStr)
+    const h = String(d.getHours()).padStart(2, '0')
+    const m = String(d.getMinutes()).padStart(2, '0')
+    return `${h}:${m}`
 }
 
 /* ────────────────────────────────────────────────────────
@@ -110,76 +119,76 @@ export function getTimeFromISO(isoStr: string): string {
 
 /** GET /api/admin/movie/readAll 응답 (관리자용 전체 조회) */
 export interface MovieDTO {
-  movieId:     number
-  title:       string
-  genre:       string | null
-  /** 'ALL' | '12' | '15' | '19' */
-  rating:      string
-  runtime:     number
-  director:    string | null
-  actors:      string | null       // 프론트 cast 에 해당
-  description: string | null       // 프론트 synopsis 에 해당
-  startAt:     string              // 'YYYY-MM-DD'
-  endAt:       string | null       // ISO datetime or null
-  createAt:    string | null
-  posterPath:  string | null       // TMDB 경로 또는 로컬 파일 경로
-  image:       null                // 업로드 전용, 응답에는 항상 null
+    movieId: number
+    title: string
+    genre: string | null
+    /** 'ALL' | '12' | '15' | '19' */
+    rating: string
+    runtime: number
+    director: string | null
+    actors: string | null       // 프론트 cast 에 해당
+    description: string | null       // 프론트 synopsis 에 해당
+    startAt: string              // 'YYYY-MM-DD'
+    endAt: string | null       // ISO datetime or null
+    createAt: string | null
+    posterPath: string | null       // TMDB 경로 또는 로컬 파일 경로
+    image: null                // 업로드 전용, 응답에는 항상 null
 }
 
 /** GET /api/admin/schedule/list, /api/admin/schedule/{movieId}/movie 응답 */
 export interface ScheduleDTO {
-  id:         number
-  no:         number               // 상영관 번호 (theater.no)
-  movieId:    number
-  startAt:    string               // ISO datetime 'YYYY-MM-DDTHH:mm:ss'
-  endAt:      string               // ISO datetime
-  activation: boolean
+    id: number
+    no: number               // 상영관 번호 (theater.no)
+    movieId: number
+    startAt: string               // ISO datetime 'YYYY-MM-DDTHH:mm:ss'
+    endAt: string               // ISO datetime
+    activation: boolean
 }
 
 /** GET /api/admin/theater/list, /api/admin/theater/{no} 응답 */
 export interface TheaterDTO {
-  no:          number
-  policyId:    number              // seat_policy FK
-  cleanupTime: number              // 분 단위
-  rows:        number              // 상영관 행 수 (백엔드 TheaterDTO 추가 필드)
-  cols:        number              // 상영관 열 수
-  hasRecliner: boolean             // 리클라이너 좌석 포함 여부
+    no: number
+    policyId: number              // seat_policy FK
+    cleanupTime: number              // 분 단위
+    rows: number              // 상영관 행 수 (백엔드 TheaterDTO 추가 필드)
+    cols: number              // 상영관 열 수
+    hasRecliner: boolean             // 리클라이너 좌석 포함 여부
 }
 
 /** GET /api/admin/seat-policy/list, /api/admin/seat-policy/{no} 응답 */
 export interface SeatPolicyDTO {
-  policyId: number
-  name:     string                 // '일반', '리클라이너'
-  cost:     number                 // 원 단위
+    policyId: number
+    name: string                 // '일반', '리클라이너'
+    cost: number                 // 원 단위
 }
 
 /** GET /api/admin/discount-policy/list 응답 */
 export interface DiscountPolicyDTO {
-  id:            number
-  policyName:    string
-  discountType:  'RATIO' | 'WON'
-  discountValue: number
-  conditionType: 'TIME' | 'AGE' | 'JOB' | 'COUPON'
-  startAt:       string            // ISO datetime
-  endAt:         string | null
-  activation:    boolean
+    id: number
+    policyName: string
+    discountType: 'RATIO' | 'WON'
+    discountValue: number
+    conditionType: 'TIME' | 'AGE' | 'JOB' | 'COUPON'
+    startAt: string            // ISO datetime
+    endAt: string | null
+    activation: boolean
 }
 
 /** GET /api/admin/member/list 응답 */
 export interface MemberDTO {
-  phone:    string
-  point:    number
-  createAt: string                 // ISO datetime
+    phone: string
+    point: number
+    createAt: string                 // ISO datetime
 }
 
 /** GET /api/admin/member/{phone}/point-list 응답 */
 export interface PointHistoryDTO {
-  pointId:     number
-  paymentId:   string | null
-  phone:       string
-  type:        'EARN' | 'USE' | 'REFUND_EARN' | 'REFUND_USE'
-  amountPoint: number              // 항상 양수 (부호는 type으로 판단)
-  createAt:    string              // ISO datetime
+    pointId: number
+    paymentId: string | null
+    phone: string
+    type: 'EARN' | 'USE' | 'REFUND_EARN' | 'REFUND_USE'
+    amountPoint: number              // 항상 양수 (부호는 type으로 판단)
+    createAt: string              // ISO datetime
 }
 
 /* ────────────────────────────────────────────────────────
@@ -191,9 +200,9 @@ export interface PointHistoryDTO {
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500'
 
 export function resolvePosterUrl(posterPath: string | null | undefined): string {
-  if (!posterPath) return '/placeholder-poster.jpg'
-  if (posterPath.startsWith('http')) return posterPath
-  return `${TMDB_IMAGE_BASE}${posterPath}`
+    if (!posterPath) return '/placeholder-poster.jpg'
+    if (posterPath.startsWith('http')) return posterPath
+    return `${TMDB_IMAGE_BASE}${posterPath}`
 }
 
 /* ────────────────────────────────────────────────────────
@@ -201,5 +210,5 @@ export function resolvePosterUrl(posterPath: string | null | undefined): string 
    e.g.  1 → '1관'  /  5 → '5관'
    ─────────────────────────────────────────────────────── */
 export function theaterName(no: number): string {
-  return `${no}관`
+    return `${no}관`
 }
