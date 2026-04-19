@@ -15,10 +15,11 @@
  *
  * 백엔드 POST /api/payment/confirm 요청 형태:
  *  {
- *    payType,       paymentKey, orderId, amount,
- *    phone,         scheduleId (Schedule 객체 — backend: .path("scheduleId").path("scheduleId")),
- *    seats,         bonusPolicyId, usePoint, couponNum,
+ *    payType, paymentKey, orderId, amount,
+ *    phone,   scheduleId ({ scheduleId: id } 중첩 구조),
+ *    seats,   usePoint,  couponNum,
  *  }
+ *  ※ bonusPolicyId 불필요 — 백엔드 PaymentConfirmServiceImpl이 getActiveBonusPolicy()로 내부 자동 조회
  */
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -86,82 +87,24 @@ function PaymentResultPage() {
     const confirmPayment = async () => {
       try {
         /**
-         * 활성 적립 정책 ID 조회
+         * POST /api/payment/confirm
          *
-         * ─── 왜 이렇게 복잡한가? ────────────────────────────────────────────────────
-         * 백엔드 savePaymentInfo() 는 bonusPolicyId 를 프론트에서 받아
-         * getBonusPolicy(id) 로 DB를 조회한다. ID가 없으면 500 에러.
-         *
-         * 문제: 유일한 bonus-policy 조회 API가 /api/admin/bonus-policy/list 인데
-         *       이 경로는 Spring Security 에서 /api/admin/** → JWT 필수로 막혀 있어,
-         *       고객 결제 화면에서는 401 이 반환된다.
-         *
-         * 임시 해결책:
-         *   1차 시도: apiClient.get('/admin/bonus-policy/list')
-         *             키오스크 특성상 관리자 JWT 가 localStorage 에 남아있으면 성공.
-         *   2차 시도: apiClient.get('/bonus-policy/active')
-         *             ⚠️ 백엔드 팀에 공개 엔드포인트 추가 요청 필요 (아직 없음).
-         *
-         * ─── 백엔드 팀에게 ─────────────────────────────────────────────────────────
-         * 둘 중 하나로 수정 요청:
-         *  [A] GET /api/bonus-policy/active 공개 엔드포인트 추가
-         *  [B] savePaymentInfo 에서 bonusPolicyId 파라미터 제거,
-         *      내부적으로 활성 정책 자동 조회 (bonusPolicyService.getActive() 등)
-         * ──────────────────────────────────────────────────────────────────────────
+         * bonusPolicyId는 전송하지 않음.
+         * 백엔드 PaymentConfirmServiceImpl이 getActiveBonusPolicy()로 내부 자동 조회.
+         * (기존엔 프론트에서 /admin/bonus-policy/list → 401, /bonus-policy/active → 404 문제)
          */
-        let bonusPolicyId: number | null = null
-
-        // 1차: admin JWT가 있으면 성공 (키오스크에서 관리자가 로그인된 경우)
-        try {
-          const bonusRes = await apiClient.get<{ id: number; activation: boolean }[]>(
-            '/admin/bonus-policy/list'
-          )
-          const active = bonusRes.data.filter((p) => p.activation)
-          if (active.length > 0) bonusPolicyId = active[0].id
-        } catch (e1: any) {
-          console.warn('[PaymentResultPage] 1차 적립정책 조회 실패 (status:', e1?.response?.status, ')')
-
-          // 2차: 공개 엔드포인트 시도 (백엔드 추가 시 동작)
-          try {
-            const bonusRes2 = await apiClient.get<{ id: number; activation: boolean }>(
-              '/bonus-policy/active'
-            )
-            bonusPolicyId = bonusRes2.data.id
-          } catch {
-            console.warn('[PaymentResultPage] 2차 적립정책 조회 실패 — bonusPolicyId 없이 진행')
-          }
-        }
-
-        // bonusPolicyId 를 가져오지 못하면 결제 중단
-        if (bonusPolicyId === null) {
-          throw new Error(
-            '적립 정책을 불러올 수 없습니다.\n' +
-            '백엔드 팀: GET /api/bonus-policy/active 공개 엔드포인트 추가 또는\n' +
-            'savePaymentInfo 내 bonusPolicyId 내부 조회로 변경이 필요합니다.'
-          )
-        }
-
-        // 포인트 전액 결제: Toss 승인 없이 DB 저장만
-        // 카드 결제: Toss 승인 + DB 저장
         await apiClient.post('/payment/confirm', {
-          payType:      bookingData.payMethod,             // 'CARD' | 'POINT'
+          payType:    bookingData.payMethod,   // 'CARD' | 'POINT'
           orderId,
-          paymentKey:   paymentKey ?? 'point',
-          amount:       Number(amount ?? 0),
-          phone:        bookingData.phone,
-          // 백엔드 PaymentController savePaymentInfo 파싱:
-          //   requestData.path("scheduleId").path("scheduleId").asLong()
-          //
-          // ⚠ bookingData.schedule은 ScheduleDTO로 id 필드를 가짐 (scheduleId 아님).
-          //   그대로 보내면 path("scheduleId").path("scheduleId") = 0 → getScheduleDTO(0) → NPE → 500
-          //
-          // 백엔드가 기대하는 구조: { "scheduleId": { "scheduleId": <number> } }
-          // → 백엔드 파싱 패턴에 맞춰 래퍼 객체로 감싸서 전송
-          scheduleId:   { scheduleId: bookingData.schedule?.id ?? bookingData.schedule?.scheduleId ?? 0 },
-          seats:        bookingData.selectedSeats,
-          bonusPolicyId,                                  // 동적으로 조회한 활성 적립 정책 ID
-          usePoint:     bookingData.pointUsed ?? 0,
-          couponNum:    bookingData.couponNum ?? '',       // 쿠폰 없으면 빈 문자열
+          paymentKey: paymentKey ?? 'point',
+          amount:     Number(amount ?? 0),
+          phone:      bookingData.phone,
+          // 백엔드 파싱: requestData.path("scheduleId").path("scheduleId").asLong()
+          // → 중첩 객체로 감싸서 전송해야 정확히 파싱됨
+          scheduleId: { scheduleId: bookingData.schedule?.id ?? bookingData.schedule?.scheduleId ?? 0 },
+          seats:      bookingData.selectedSeats,
+          usePoint:   bookingData.pointUsed ?? 0,
+          couponNum:  bookingData.couponNum ?? '',  // 쿠폰 없으면 빈 문자열
         })
 
         // 성공 → 최종 데이터 업데이트
@@ -179,13 +122,7 @@ function PaymentResultPage() {
         localStorage.removeItem('ws_user_id')
       } catch (err: any) {
         console.error('[PaymentResultPage] 결제 확인 실패', err)
-        // 적립 정책 미설정 에러 vs 그 외 서버 에러 구분
-        const isNoPolicyError = err?.message?.includes('적립 정책')
-        setConfirmError(
-          isNoPolicyError
-            ? '결제 처리 중 오류가 발생했습니다.\n(적립 정책 미설정 — 관리자에게 문의해 주세요)'
-            : '결제 확인 중 오류가 발생했습니다. 고객센터에 문의해 주세요.'
-        )
+        setConfirmError('결제 확인 중 오류가 발생했습니다. 고객센터에 문의해 주세요.')
       } finally {
         setConfirming(false)
       }
@@ -615,14 +552,17 @@ const priceRow: React.CSSProperties  = { display: 'flex', justifyContent: 'space
 const btnRow: React.CSSProperties    = { display: 'flex', gap: 14, marginTop: 8 }
 const receiptBtn: React.CSSProperties = {
   flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-  padding: '28px 0', background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',
-  border: 'none', borderRadius: 18, fontSize: 18, fontWeight: 800, cursor: 'pointer',
+  padding: '22px 0', background: 'var(--bg-surface)',
+  border: '1px solid var(--border-default)',
+  borderRadius: 16, color: 'var(--text-secondary)', fontSize: 15, cursor: 'pointer',
+  gap: 0, transition: 'background 0.15s',
 }
 const mobileBtn: React.CSSProperties = {
   flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-  padding: '28px 0', background: 'var(--bg-surface)',
-  border: '2px solid var(--color-brand-default)', borderRadius: 18,
-  fontSize: 18, fontWeight: 800, cursor: 'pointer', color: 'var(--color-brand-default)',
+  padding: '22px 0', background: 'var(--color-brand-default)',
+  border: 'none',
+  borderRadius: 16, color: '#000', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+  gap: 0, transition: 'opacity 0.15s',
 }
 
 export default PaymentResultPage

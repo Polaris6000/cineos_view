@@ -343,12 +343,13 @@ const modalTitle: React.CSSProperties  = { fontSize: 17, fontWeight: 700, color:
 const closeIconBtn: React.CSSProperties = { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-muted)', padding: 4, flexShrink: 0 }
 const logRow: React.CSSProperties      = {
   display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-  padding: '10px 0', borderBottom: '1px solid var(--border-subtle)', gap: 10,
+  padding: '12px 0', borderBottom: '1px solid var(--border-default)',
 }
 const closeModalBtn: React.CSSProperties = {
-  marginTop: 16, padding: '10px 0',
-  background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',
-  border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+  width: '100%', padding: '12px 0',
+  background: 'var(--bg-base)', border: '1px solid var(--border-default)',
+  borderRadius: 10, color: 'var(--text-secondary)', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+  marginTop: 8,
 }
 
 export default MemberListPage

@@ -461,19 +461,15 @@ const rowLabelStyle: React.CSSProperties = {
   width: 18, fontSize: 11, color: '#9ca3af', textAlign: 'center', flexShrink: 0, fontWeight: 600,
 }
 const colWrap: React.CSSProperties    = { display: 'flex', gap: 4 }
-const aisleGap: React.CSSProperties   = { display: 'inline-block', width: 16, flexShrink: 0 }
-
-// 좌석 셀
-const seatStyle: React.CSSProperties = {
-  width: 28, height: 28, borderRadius: 4, flexShrink: 0,
-  overflow: 'hidden',
-}
-
-// 에러 배너
+const aisleGap: React.CSSProperties   = { display: 'inline-block', width: 12 }
 const errorBanner: React.CSSProperties = {
-  padding: '12px 16px', background: 'var(--color-error-bg)',
-  border: '1px solid var(--color-error-main)', borderRadius: 8,
-  color: 'var(--color-error-text)', fontSize: 14,
+  padding: '12px 16px', background: '#fdeaea', border: '1px solid #e03c3c',
+  borderRadius: 8, color: '#a82020', fontSize: 14, marginBottom: 16,
+}
+const seatStyle: React.CSSProperties = {
+  width: 28, height: 28, borderRadius: 5,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  fontSize: 9, fontWeight: 600, cursor: 'default', flexShrink: 0,
 }
 
 export default SeatListPage

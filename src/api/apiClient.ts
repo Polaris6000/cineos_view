@@ -30,26 +30,52 @@ apiClient.interceptors.response.use(
     async (error) => {
       const status = error.response?.status
       const url    = error.config?.url ?? '(unknown)'
+      // 백엔드 TokenCheckFilter가 반환하는 에러 메시지 (AccessTokenException → TokenError.msg)
+      const msg    = error.response?.data?.msg ?? ''
       console.error(`[API Error] ${status ?? 'network'} → ${url}`, error.message)
 
-      // 401 처리
-      // ⚠️ 로그인 요청(/admin/login) 자체가 401이면 재발급 시도 없이 바로 실패로 반환
-      // — 이 경우 AuthContext.login()의 catch 블록이 처리함
-      if (status === 401 && !url.includes('/admin/login')) {
+      /**
+       * 토큰 재발급이 필요한 두 가지 케이스:
+       *
+       *  ① 401 (UNACCEPT / BADTYPE)
+       *     - Authorization 헤더 없음 또는 Bearer 타입 오류
+       *
+       *  ② 403 + msg === "Expired Token" (EXPIRED)
+       *     - TokenCheckFilter가 ExpiredJwtException을 잡아 403으로 응답함
+       *     - HTTP 의미상 401이어야 맞지만 백엔드 TokenError.EXPIRED가 403으로 정의됨
+       *     - 이 경우를 별도로 감지해 refresh 흐름으로 진입해야 함
+       *
+       * ⚠️ /admin/login 요청 자체의 오류는 재발급 대상이 아님 (AuthContext.login이 처리)
+       * ⚠️ /admin/refresh 요청 자체의 오류도 재발급 대상이 아님 (무한루프 방지)
+       */
+      const isAuthError =
+        (status === 401 || (status === 403 && msg === 'Expired Token')) &&
+        !url.includes('/admin/login') &&
+        !url.includes('/admin/refresh')
+
+      if (isAuthError) {
         const accessToken  = localStorage.getItem('accessToken')
         const refreshToken = localStorage.getItem('refreshToken')
 
         try {
-          // RefreshToken으로 AccessToken 재발급 시도
-          const res = await axios.post('/admin/refresh', { accessToken, refreshToken })
+          /**
+           * RefreshToken으로 AccessToken 재발급 시도
+           *
+           * ⚠️ /api 접두사 필수!
+           *   - apiClient baseURL = '/api' 이지만 여기선 plain axios 사용
+           *   - Vite proxy는 /api/** 만 백엔드로 포워딩하므로 경로에 /api를 직접 포함해야 함
+           *   - 이전: axios.post('/admin/refresh') → http://localhost:3000/admin/refresh (프록시 미적용, 404)
+           *   - 수정: axios.post('/api/admin/refresh') → http://localhost:3000/api/admin/refresh (프록시 적용)
+           */
+          const res = await axios.post('/api/admin/refresh', { accessToken, refreshToken })
           localStorage.setItem('accessToken', res.data.accessToken)
-          localStorage.setItem('refreshToken', res.data.refreshToken)
+          if (res.data.refreshToken) localStorage.setItem('refreshToken', res.data.refreshToken)
 
-          // 실패한 요청 재시도 (새 AccessToken 첨부)
+          // 실패한 요청을 새 AccessToken으로 재시도
           error.config.headers.Authorization = `Bearer ${res.data.accessToken}`
           return axios(error.config)
         } catch {
-          // 재발급 실패 → 로그아웃 후 로그인 페이지로 이동
+          // 재발급도 실패 → 완전 로그아웃 후 로그인 페이지로 이동
           localStorage.removeItem('accessToken')
           localStorage.removeItem('refreshToken')
           localStorage.removeItem('cineos_admin')

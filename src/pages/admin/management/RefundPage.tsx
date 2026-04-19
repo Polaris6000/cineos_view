@@ -405,13 +405,13 @@ const alreadyRefundedBox: React.CSSProperties = {
   borderRadius: 8, color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, marginBottom: 4,
 }
 const successBox: React.CSSProperties = {
-  padding: '12px 16px', background: 'var(--color-success-bg)', border: '1px solid var(--color-success-main)',
-  borderRadius: 8, color: 'var(--color-success-main)', fontSize: 13, fontWeight: 600,
+  padding: '12px 16px', background: 'var(--color-success-bg)', border: '1px solid var(--color-success-text)',
+  borderRadius: 8, color: 'var(--color-success-text)', fontSize: 13, fontWeight: 600, marginBottom: 4,
 }
 const refundBtn: React.CSSProperties = {
-  display: 'block', width: '100%', padding: '14px 0',
-  background: 'var(--color-error-main)', color: '#fff', border: 'none',
-  borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: 'pointer', marginTop: 12,
+  width: '100%', padding: '14px 0',
+  background: '#e03c3c', border: 'none',
+  borderRadius: 10, color: '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer',
 }
 
 export default RefundPage

@@ -53,8 +53,9 @@ export const mapToMovie = (movieDTO: MovieDTO): Movie => ({
     director:  movieDTO.director,
     cast:      movieDTO.actors,
     runtime:   movieDTO.runtime,
-    startAt:   movieDTO.startAt.slice(0, 10),
-    endAt:     movieDTO.endAt.slice(0, 10),
+    // ?. + ?? '' : endAt이 null인 영화(상영 예정 등 종료일 미정)에도 안전하게 처리
+    startAt:   movieDTO.startAt?.slice(0, 10) ?? '',
+    endAt:     movieDTO.endAt?.slice(0, 10)   ?? '',
 })
 
 export interface Schedule {

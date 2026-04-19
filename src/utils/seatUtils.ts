@@ -58,12 +58,12 @@ export function generateSeats(theaterNo: number): SeatItem[] {
  * 한 행의 좌석을 통로 기준으로 세 그룹(left / middle / right)으로 분리
  *
  * 통로 규칙:
- *  - 열 수 ≤ 6 : 통로 없음 (리클라이너 전용관 — 6×6)
- *  - 열 수 > 6 : 양쪽 가장자리 2칸씩 고정 분리
+ *  - 열 수 <= 6 : 통로 없음 (리클라이너 전용관 — 6x6)
+ *  - 열 수 >  6 : 양쪽 가장자리 2칸씩 고정 분리
  *
  * | 열 수 | sideCount | left | middle | right |
  * |-------|-----------|------|--------|-------|
- * | ≤ 6   | 0         | 전체 | (없음) | (없음)|
+ * | <= 6  | 0         | 전체 | (없음) | (없음)|
  * | 8     | 2         | 2    | 4      | 2     |
  * | 10    | 2         | 2    | 6      | 2     |
  *
@@ -85,9 +85,9 @@ export function splitRowByAisle(rowSeats: SeatItem[]): {
   // 열 수 7 이상: 양쪽 가장자리 2칸씩 고정
   const sideCount = 2
   return {
-    left:      sorted.slice(0, sideCount),           // 1~2번 좌석
-    middle:    sorted.slice(sideCount, sorted.length - sideCount), // 3~(N-2)번 좌석
-    right:     sorted.slice(sorted.length - sideCount),            // (N-1)~N번 좌석
+    left:      sorted.slice(0, sideCount),                           // 1~2번 좌석
+    middle:    sorted.slice(sideCount, sorted.length - sideCount),   // 3~(N-2)번 좌석
+    right:     sorted.slice(-sideCount),                             // (N-1)~N번 좌석
     sideCount,
   }
 }

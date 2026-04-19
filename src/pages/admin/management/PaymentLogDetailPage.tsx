@@ -249,10 +249,10 @@ const infoRow: React.CSSProperties = {
   padding: '7px 0', borderBottom: '1px solid var(--border-subtle)',
 }
 const infoLabel: React.CSSProperties = {
-  fontSize: 13, color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0, marginRight: 16,
+  fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, flexShrink: 0, minWidth: 90,
 }
 const infoValue: React.CSSProperties = {
-  fontSize: 14, textAlign: 'right' as const,
+  fontSize: 14, color: 'var(--text-primary)', textAlign: 'right' as const,
 }
 
 export default PaymentLogDetailPage

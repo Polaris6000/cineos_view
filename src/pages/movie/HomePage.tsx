@@ -16,14 +16,6 @@ import styles from './HomePage.module.css'
 /** 슬라이드 자동 전환 간격 (ms) */
 const SLIDE_INTERVAL = 1000 * 5
 
-/** 등급 → 표시 텍스트 (백엔드 Rating @JsonValue 기준) */
-const RATING_LABEL: Record<string, string> = {
-  ALL:  '전체관람가',
-  '12': '12세 이상',
-  '15': '15세 이상',
-  '19': '청소년 관람불가',
-}
-
 /** 홈용 슬라이드 데이터 타입 */
 interface SlideMovie {
   id:        number
@@ -169,7 +161,7 @@ function HomePage() {
             className={`${styles.slide} ${index === currentIndex ? styles.slideActive : ''}`}
             aria-hidden={index !== currentIndex}
           >
-            {/* 배경: 다크 + 포스터 이미지 */}
+            {/* 배경: 포스터 이미지 (어둡게 처리 없음) */}
             <div className={styles.slideBg}>
               <img
                 className={styles.slidePoster}
@@ -180,27 +172,8 @@ function HomePage() {
               />
             </div>
 
-            {/* 하단 딤 오버레이 */}
-            <div className={styles.slideOverlay} aria-hidden="true" />
-
-            {/* 영화 정보 */}
+            {/* 터치 유도 문구만 하단에 표시 */}
             <div className={styles.slideContent}>
-              {/* 상태 배지 + 등급 배지 (가로 배치) */}
-              <div className={styles.badgeRow}>
-                <span className={`${styles.statusBadge} ${movie.status === 'UPCOMING' ? styles.statusUpcoming : styles.statusNow}`}>
-                  {movie.status === 'UPCOMING' ? '상영 예정' : '상영 중'}
-                </span>
-                <span className={`${styles.ratingBadge} ${styles[`rating${movie.rating}`]}`}>
-                  {RATING_LABEL[movie.rating] ?? movie.rating}
-                </span>
-              </div>
-              <h1 className={styles.slideTitle}>{movie.title}</h1>
-              <p className={styles.slideGenre}>{movie.genre}</p>
-              <p className={styles.slidePeriod}>
-                {movie.endAt
-                  ? `${movie.startAt} ~ ${movie.endAt}`
-                  : `${movie.startAt} 개봉`}
-              </p>
               <p className={styles.cta} aria-hidden="true">
                 화면을 터치하여 예매하기
               </p>

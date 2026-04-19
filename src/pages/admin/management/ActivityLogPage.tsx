@@ -305,10 +305,8 @@ const pagination: React.CSSProperties = {
   display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, marginTop: 20,
 }
 const pageBtn: React.CSSProperties = {
-  padding: '6px 10px', background: 'var(--bg-surface)',
-  border: '1px solid var(--border-default)', borderRadius: 6,
-  fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer',
-  display: 'flex', alignItems: 'center',
+  padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border-default)',
+  background: 'var(--bg-surface)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+  color: 'var(--text-secondary)',
 }
-
 export default ActivityLogPage

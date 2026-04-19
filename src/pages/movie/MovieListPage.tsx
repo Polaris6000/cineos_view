@@ -22,7 +22,6 @@ import {
   Movie, MovieDTO, mapToMovie,
   Schedule, ScheduleDTO, mapToSchedule,
   Theater, TheaterDTO, mapToTheater,
-  today,
 } from '../../api/typeData'
 import styles from './MovieListPage.module.css'
 
@@ -66,9 +65,6 @@ function formatRuntime(minutes: number | undefined | null) {
 function MovieListPage() {
   const navigate = useNavigate()
 
-  // 현재 활성 탭: 'now' | 'upcoming'
-  const [activeTab, setActiveTab] = useState('now')
-
   // 필터 상태
   const [selectedGenre, setSelectedGenre] = useState('전체')
   const [selectedRating, setSelectedRating] = useState('')
@@ -76,12 +72,9 @@ function MovieListPage() {
   const [selectedTheaterType, setSelectedTheaterType] = useState('ALL')
   const [searchQuery, setSearchQuery] = useState('')
 
+  // 현재 상영 중인 영화 목록
+  const [nowMovies, setNowMovies] = useState<Movie[]>([])
 
-
-  //영화에 대한 정보를 저장.
-  const [nowMovies, setNowMovies] = useState<Movie[]>([]); //현재 상영중인 영화
-  const [commingMovies, setCommingMovies] = useState<Movie[]>([]); // 상영 예정인 영화
-  
   const [schedules, setSchedule] = useState<Schedule[]>([]);
   const [theaters, setTheater] = useState<Theater[]>([]);
 
@@ -93,12 +86,7 @@ function MovieListPage() {
         const { data } = await axios.get<MovieDTO[]>('/api/movie/all')
         const formattedMovies = data.map((dto) => mapToMovie(dto))
 
-        console.log("변환된 데이터:", formattedMovies); // 화면 확인
-        console.log("today : ",today);
-        
-
-        setNowMovies(formattedMovies.filter((movie) => movie.startAt <= today && movie.endAt >= today))
-        setCommingMovies(formattedMovies.filter((movie) =>  movie.startAt > today ))
+        setNowMovies(formattedMovies)
 
       } catch (error) {
         console.error("❌ 영화 로딩 중 에러:", error);
@@ -108,26 +96,18 @@ function MovieListPage() {
     axiosMovies();
   }, []); // 빈 배열: 페이지 처음 들어올 때만 실행
 
-  //스케쥴 정보를 가져오기 위해서 사용
+  // 스케줄 정보 로드 (상영관 타입 필터용)
   useEffect(() => {
     const axiosSchedule = async () => {
-        try {
-            const { data } = await axios.get<ScheduleDTO[]>('/api/schedule/DTOlist')
-            console.log("스케쥴 정보", data);
-
-
-            const formattedSchedule = data.map((dto) => mapToSchedule(dto))
-            // console.log("변환된 데이터:", formattedSchedule); // 화면 확인
-
-            setSchedule(formattedSchedule);
-
-        } catch (error) {
-            console.error("❌ 스케쥴 로딩 중 에러:", error);
-        }
-    };
-
-    axiosSchedule();
-}, []); //첫 로딩에 사용
+      try {
+        const { data } = await axios.get<ScheduleDTO[]>('/api/schedule/DTOlist')
+        setSchedule(data.map((dto) => mapToSchedule(dto)))
+      } catch (error) {
+        console.error("❌ 스케쥴 로딩 중 에러:", error)
+      }
+    }
+    axiosSchedule()
+  }, [])
 
 // 영화관 정보 조회: GET /api/theater/dtoAll (CustomerController, 인증 불필요)
 useEffect(() => {
@@ -150,9 +130,6 @@ useEffect(() => {
 
     axiosTheater();
 }, []); //첫 로딩에 사용
-
-  // 탭에 따라 기본 목록 결정
-  const baseList = activeTab === 'now' ? nowMovies : commingMovies
 
   /**
    * 영화의 오늘 상영 일정에 해당하는 상영관 타입을 반환
@@ -179,7 +156,7 @@ useEffect(() => {
    * baseList, 필터 상태가 바뀔 때만 재계산
    */
   const filteredMovies = useMemo(() => {
-    return baseList.filter(movie => {
+    return nowMovies.filter(movie => {
       // 장르 필터
       if (selectedGenre !== '전체' && !movie.genre.includes(selectedGenre)) return false
       // 등급 필터
@@ -195,16 +172,7 @@ useEffect(() => {
       return true
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseList, selectedGenre, selectedRating, selectedTheaterType, searchQuery])
-
-  /** 탭 전환 시 필터 초기화 */
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab)
-    setSelectedGenre('전체')
-    setSelectedRating('')
-    setSelectedTheaterType('ALL')
-    setSearchQuery('')
-  }
+  }, [nowMovies, selectedGenre, selectedRating, selectedTheaterType, searchQuery])
 
   /** 카드 클릭 → 영화 상세 페이지 */
   const handleCardClick = (movieId: number) => {
@@ -217,28 +185,6 @@ useEffect(() => {
       {/* ── 페이지 헤더 ── */}
       <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>영화</h1>
-      </div>
-
-      {/* ── 탭: 현재 상영 중 / 상영 예정 ── */}
-      <div className={styles.tabs} role="tablist" aria-label="상영 구분">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'now'}
-          className={`${styles.tab} ${activeTab === 'now' ? styles.tabActive : ''}`}
-          onClick={() => handleTabChange('now')}
-        >
-          현재 상영 중
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'upcoming'}
-          className={`${styles.tab} ${activeTab === 'upcoming' ? styles.tabActive : ''}`}
-          onClick={() => handleTabChange('upcoming')}
-        >
-          상영 예정
-        </button>
       </div>
 
       {/* ── 필터 바 ── */}
@@ -334,9 +280,7 @@ useEffect(() => {
             <p className={styles.emptyText}>
               {searchQuery
                 ? `"${searchQuery}" 검색 결과가 없습니다.`
-                : activeTab === 'now'
-                  ? '현재 상영 중인 영화가 없습니다.'
-                  : '상영 예정 영화가 없습니다.'}
+                : '현재 상영 중인 영화가 없습니다.'}
             </p>
           </div>
         ) : (

@@ -38,27 +38,45 @@ type FilterStatus = 'ALL' | 'PAY' | 'RETURN' | 'FAIL'
 function PaymentLogPage() {
   const navigate = useNavigate()
 
-  /* ── 전체 데이터 ── */
+  /* ── 페이지네이션 상태 ── */
+  const [currentPage,  setCurrentPage]  = useState(1)   // 현재 페이지 (1-based)
+  const [totalPages,   setTotalPages]   = useState(1)   // 전체 페이지 수
+  const [totalItems,   setTotalItems]   = useState(0)   // 전체 건수
+
+  /* ── 현재 페이지 데이터 ── */
   const [paymentList, setPaymentList] = useState<PaymentDTO[]>([])
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState('')
 
-  /* ── 필터 / 검색 ── */
+  /* ── 필터 / 검색 (현재 페이지 내 클라이언트 필터) ── */
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL')
   const [keyword,      setKeyword]      = useState('')
 
-  /** 전체 결제내역 조회 — GET /api/payment/list */
-  const loadList = async () => {
+  /**
+   * 결제내역 페이지 조회 — GET /api/payment/list?page={page}
+   * 백엔드가 Page<PaymentDetailsDTO> 형태로 반환
+   * (content / totalPages / totalElements 필드 포함)
+   */
+  const loadList = async (page: number) => {
     setLoading(true)
     setError('')
     try {
-      const { data } = await apiClient.get<PaymentDTO[]>('/payment/list')
-      // 최신순 정렬
-      data.sort((a, b) => (b.createAt ?? '').localeCompare(a.createAt ?? ''))
-      setPaymentList(data)
+      const { data } = await apiClient.get('/payment/list', { params: { page } })
+
+      // Page<T> 응답 구조 파싱
+      const content: PaymentDTO[]  = data.content       ?? []
+      const tp:      number        = data.totalPages     ?? 1
+      const te:      number        = data.totalElements  ?? 0
+
+      // 현재 페이지 내 최신순 정렬
+      content.sort((a, b) => (b.createAt ?? '').localeCompare(a.createAt ?? ''))
+
+      setPaymentList(content)
+      setTotalPages(tp)
+      setTotalItems(te)
     } catch (e: any) {
       if (e?.response?.status === 404) {
-        setError('백엔드에 GET /api/payment/list 엔드포인트가 없습니다.\nPaymentController에 @GetMapping("/list") 추가 요청하세요.')
+        setError('백엔드에 GET /api/payment/list 엔드포인트가 없습니다.')
       } else {
         setError('결제내역을 불러오지 못했습니다.')
       }
@@ -67,8 +85,8 @@ function PaymentLogPage() {
     setLoading(false)
   }
 
-  // 마운트 시 1회 조회
-  useEffect(() => { loadList() }, [])
+  // 페이지 변경 시 재조회
+  useEffect(() => { loadList(currentPage) }, [currentPage])
 
   /** 필터 + 검색 적용 */
   const filtered = useMemo(() => {
@@ -86,8 +104,7 @@ function PaymentLogPage() {
     })
   }, [paymentList, filterStatus, keyword])
 
-  /* ── 집계 통계 ── */
-  const totalCount  = paymentList.length
+  /* ── 집계 통계 (현재 페이지 기준) ── */
   const payCount    = paymentList.filter((p) => p.status === 'PAY').length
   const returnCount = paymentList.filter((p) => p.status === 'RETURN').length
   const totalSales  = paymentList
@@ -101,10 +118,10 @@ function PaymentLogPage() {
       {/* ── 집계 카드 ── */}
       <div style={statsRow}>
         {[
-          { label: '전체 결제',     value: totalCount  + '건', color: 'var(--text-primary)'          },
-          { label: '결제완료',      value: payCount    + '건', color: 'var(--color-info-text)'        },
-          { label: '환불완료',      value: returnCount + '건', color: 'var(--color-success-main)'     },
-          { label: '결제완료 총액', value: totalSales.toLocaleString() + '원', color: 'var(--color-brand-default)' },
+          { label: '전체 결제 (누적)',  value: totalItems  + '건', color: 'var(--text-primary)'          },
+          { label: '결제완료 (현재 페이지)',      value: payCount    + '건', color: 'var(--color-info-text)'        },
+          { label: '환불완료 (현재 페이지)',      value: returnCount + '건', color: 'var(--color-success-main)'     },
+          { label: '결제금액 합계 (현재 페이지)', value: totalSales.toLocaleString() + '원', color: 'var(--color-brand-default)' },
         ].map((s) => (
           <div key={s.label} style={statCard}>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>{s.label}</p>
@@ -140,8 +157,8 @@ function PaymentLogPage() {
           style={searchInput}
         />
 
-        {/* 새로고침 */}
-        <button onClick={loadList} disabled={loading} style={refreshBtn}>
+        {/* 새로고침 — 현재 페이지 재조회 */}
+        <button onClick={() => loadList(currentPage)} disabled={loading} style={refreshBtn}>
           <RefreshCw size={14} style={{ marginRight: 4 }} />
           {loading ? '로딩 중...' : '새로고침'}
         </button>
@@ -149,6 +166,44 @@ function PaymentLogPage() {
 
       {/* ── 에러 ── */}
       {error && <div style={errorBox}>{error}</div>}
+
+      {/* ── 페이지네이션 (상단) ── */}
+      {!loading && totalPages > 1 && (
+        <div style={paginationWrap}>
+          <button
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            style={{ ...pageBtn, opacity: currentPage === 1 ? 0.4 : 1 }}
+          >
+            이전
+          </button>
+          {/* 페이지 번호: 최대 5개 슬라이딩 윈도우 표시 */}
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter(n => n >= Math.max(1, currentPage - 2) && n <= Math.min(totalPages, currentPage + 2))
+            .map(n => (
+              <button
+                key={n}
+                onClick={() => setCurrentPage(n)}
+                style={{
+                  ...pageNumBtn,
+                  background: currentPage === n ? 'var(--color-brand-default)' : 'transparent',
+                  color:      currentPage === n ? '#fff' : 'var(--text-secondary)',
+                  border:     currentPage === n ? 'none' : '1px solid var(--border-subtle)',
+                }}
+              >
+                {n}
+              </button>
+            ))
+          }
+          <button
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            style={{ ...pageBtn, opacity: currentPage === totalPages ? 0.4 : 1 }}
+          >
+            다음
+          </button>
+        </div>
+      )}
 
       {/* ── 로딩 ── */}
       {loading && !error && (
@@ -161,7 +216,7 @@ function PaymentLogPage() {
       {!loading && !error && (
         <>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
-            {filtered.length}건 표시 / 전체 {totalCount}건
+            {filtered.length}건 표시 / 현재 페이지 {paymentList.length}건 · 전체 {totalItems}건 ({currentPage}/{totalPages} 페이지)
           </p>
           <div style={tableWrapper}>
             <table style={table}>
@@ -271,9 +326,25 @@ const trStyle: React.CSSProperties = { borderBottom: '1px solid var(--border-def
 const tdStyle: React.CSSProperties = {
   padding: '9px 12px', color: 'var(--text-primary)', verticalAlign: 'middle' as const,
 }
+/* 페이지네이션 */
+const paginationWrap: React.CSSProperties = {
+  display: 'flex', justifyContent: 'center', alignItems: 'center',
+  gap: 6, marginBottom: 12,
+}
+const pageBtn: React.CSSProperties = {
+  padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border-default)',
+  background: 'var(--bg-surface)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+  color: 'var(--text-secondary)',
+}
+const pageNumBtn: React.CSSProperties = {
+  width: 30, height: 30, borderRadius: 6, cursor: 'pointer',
+  fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center',
+  justifyContent: 'center', transition: 'all 0.15s',
+}
 const detailBtn: React.CSSProperties = {
-  padding: '4px 10px', background: 'var(--bg-base)', border: '1px solid var(--border-default)',
-  borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--text-secondary)',
+  padding: '5px 12px', background: 'var(--bg-base)',
+  border: '1px solid var(--border-default)', borderRadius: 6,
+  color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
 }
 
 export default PaymentLogPage
