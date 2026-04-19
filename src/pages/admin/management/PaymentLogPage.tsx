@@ -52,7 +52,7 @@ function PaymentLogPage() {
     setLoading(true)
     setError('')
     try {
-      const { data } = await apiClient.get<PaymentDTO[]>('/payment/list')
+      const { data } = await apiClient.get<PaymentDTO[]>('/admin/payment/list')
       // 최신순 정렬
       data.sort((a, b) => (b.createAt ?? '').localeCompare(a.createAt ?? ''))
       setPaymentList(data)

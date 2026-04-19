@@ -114,7 +114,7 @@ function PaymentResultPage() {
         // 1차: admin JWT가 있으면 성공 (키오스크에서 관리자가 로그인된 경우)
         try {
           const bonusRes = await apiClient.get<{ id: number; activation: boolean }[]>(
-            '/admin/bonus-policy/list'
+            '/bonus-policy/list'
           )
           const active = bonusRes.data.filter((p) => p.activation)
           if (active.length > 0) bonusPolicyId = active[0].id

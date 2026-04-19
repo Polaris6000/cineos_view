@@ -66,7 +66,7 @@ function RefundPage() {
     setListError('')
     try {
       // 관리자용 전체 결제내역. 백엔드 엔드포인트 추가 전까지 404 응답.
-      const { data } = await apiClient.get<PaymentDTO[]>('/payment/list')
+      const { data } = await apiClient.get<PaymentDTO[]>('/admin/payment/list')
       const summaries: PaymentSummary[] = data.map((p) => ({
         id:         p.id,
         movieTitle: p.reservation?.schedule?.movie?.title ?? '(영화명 없음)',
@@ -109,7 +109,7 @@ function RefundPage() {
     setLoading(true)
     try {
       // apiClient 사용: baseURL = /api/, 401 인터셉터(admin/login 리다이렉트) 적용
-      const { data } = await apiClient.get<PaymentDTO>(`/payment/read/${query.trim()}`)
+      const { data } = await apiClient.get<PaymentDTO>(`/admin/payment/read/${query.trim()}`)
       const formattedBooking = mapToBooking(data)
       console.log('예매 조회 결과:', formattedBooking)
       setResult(formattedBooking)
@@ -131,7 +131,7 @@ function RefundPage() {
     setLoading(true)
     try {
       // apiClient 사용: 401 인터셉터 적용 + baseURL = /api/
-      await apiClient.post('/payment/refund', {
+      await apiClient.post('/admin/payment/refund', {
         paymentKey: result.paymentKey,
         paymentId:  result.bookingId,
       })
