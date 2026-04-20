@@ -5,9 +5,6 @@
  *  - 정리시간 (cleanupTime) → PATCH /api/admin/theater/cleantime
  *  - 좌석 정책 (policyId)   → PATCH /api/admin/theater/policy
  *
- * ⚠️ 미지원 항목 (백엔드 TheaterDTO에 rows/cols 없음):
- *  - 좌석 구성(행×열), 미니 좌석 미리보기 → 제거
- *
  * location.state 수신:
  *  - theater: { no, policyId, cleanupTime, name, hasRecliner, policyName }
  *  - seatPolicies: SeatPolicyDTO[]  (TheaterListPage에서 전달)

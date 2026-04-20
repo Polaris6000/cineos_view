@@ -89,7 +89,7 @@ function AdminLoginPage() {
           <input
             type="text"
             value={id}
-            onChange={(e) => setId(e.target.value)}
+            onChange={(e) => setId(e.target.value.replace(/\s/g, ""))}
             placeholder="관리자 아이디"
             required
             style={inputStyle}
@@ -103,7 +103,7 @@ function AdminLoginPage() {
           <input
             type="password"
             value={pw}
-            onChange={(e) => setPw(e.target.value)}
+            onChange={(e) => setPw(e.target.value.replace(/\s/g, ""))}
             placeholder="비밀번호"
             required
             style={inputStyle}

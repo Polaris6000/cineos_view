@@ -37,9 +37,9 @@ const SEAT_TYPE_LABEL: Record<SeatItem['seatType'], string> = {
 
 /** 좌석 상태 표시 색상 */
 const STATUS_COLOR = {
-  sold_out: { bg: '#374151', border: 'transparent',    label: '매진'    },
+  sold_out: { bg: 'var(--color-seat-sold-out)', border: 'transparent',    label: '매진'    },
   occupied: { bg: '#4a1c7a', border: '#9b6fd4',        label: '점유 중' },
-  empty_normal:   { bg: '#2563eb', border: '#3b82f6',  label: '일반 빈자리'     },
+  empty_normal:   { bg: 'var(--bg-base)', border: 'var(--color-seat-empty-border)',  label: '일반 빈자리'     },
   empty_recliner: { bg: '#1a5c3a', border: '#00ad74',  label: '리클라이너 빈자리' },
 }
 
@@ -439,10 +439,10 @@ const legendText: React.CSSProperties = { fontSize: 12, color: 'var(--text-secon
 
 // 좌석 배치도 래퍼
 const seatWrap: React.CSSProperties = {
-  background: '#111827', borderRadius: 12, padding: '20px 16px 24px',
+  background: 'var(--bg-surface)', borderRadius: 12, padding: '20px 16px 24px',
 }
 const screenBar: React.CSSProperties = {
-  textAlign: 'center', padding: '6px', background: '#1f2937',
+  textAlign: 'center', padding: '6px', background: 'var(--bg-base)',
   color: '#6b7280', fontSize: 12, letterSpacing: 4,
   marginBottom: 16, borderRadius: 4,
 }
