@@ -35,9 +35,21 @@ apiClient.interceptors.response.use(
         // 401 처리
         // 로그인 요청(/admin/login) 자체가 401이면 재발급 시도 없이 바로 실패로 반환
         // — 이 경우 AuthContext.login()의 catch 블록이 처리함
-        if (status === 401 && !url.includes('/admin/login') && !url.includes('/remember_me/auth')) {
+        if ((status === 401 || status === 403) && !url.includes('/admin/login') &&
+            !url.includes('/admin/refresh') && !url.includes('/remember_me/auth')) {
             const accessToken = localStorage.getItem('accessToken')
             const refreshToken = localStorage.getItem('refreshToken')
+
+            if (error.config._retry) {
+                localStorage.removeItem('accessToken')
+                localStorage.removeItem('refreshToken')
+                localStorage.removeItem('cineos_admin')
+                sessionStorage.removeItem('cineos_admin')
+                window.location.href = '/admin/login'
+                return Promise.reject(error)
+            }
+
+            error.config._retry = true // 재시도 플래그 설정
 
             try {
                 // RefreshToken으로 AccessToken 재발급 시도
