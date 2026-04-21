@@ -3,8 +3,9 @@
  *
  * 기능:
  *  1. 쿠폰 목록 조회  → GET  /api/admin/discount-policy/coupon/list
- *  2. 쿠폰 발행       → POST /api/admin/discount-policy/coupon/{policyId}
- *     - 쿠폰을 발행할 할인 정책(COUPON 타입)을 선택 후 버튼 클릭
+ *  2. 쿠폰 발행       → POST /api/admin/discount-policy/coupon/{policyId}?count={n}
+ *     - 쿠폰을 발행할 할인 정책(COUPON 타입)을 선택 후 장수 입력 후 버튼 클릭
+ *     - 백엔드 @RequestParam(defaultValue="1") int count 에 대응
  *
  * CouponDTO (백엔드 기준):
  *   couponNum  String  — 쿠폰 번호 (PK, 12자리)
@@ -34,6 +35,13 @@ function CouponListPage() {
     const [selectedPolicyId, setSelectedPolicyId] = useState<number | ''>('')
     const [issuing, setIssuing] = useState(false) // 발행 중 여부
     const [msg, setMsg] = useState('')     // 피드백 메시지
+
+    /* ────────────────────────────────────────────────────────
+       [추가] 발행 수량 상태
+       - 백엔드 POST /coupon/{policyId}?count=n 의 count 파라미터에 대응
+       - 최소 1장, 최대 100장으로 제한
+    ──────────────────────────────────────────────────────── */
+    const [issueCount, setIssueCount] = useState(1) // 한 번에 발행할 쿠폰 장 수 (기본값 1)
 
     /* ────────────────────────────────────────────────────────
        [추가] 페이징 관련 상태 관리
@@ -107,19 +115,32 @@ function CouponListPage() {
 
     /**
      * 쿠폰 발행 함수
-     * POST /api/admin/discount-policy/coupon/{policyId}
+     * POST /api/admin/discount-policy/coupon/{policyId}?count={issueCount}
+     *
+     * 백엔드: @RequestParam(defaultValue = "1") int count
+     * count=1 이면 1장, count=5 이면 5장 발행.
      */
     const handleIssueCoupon = async () => {
         if (selectedPolicyId === '') {
             alert('쿠폰을 발행할 정책을 선택해 주세요.')
             return
         }
+        if (issueCount < 1 || issueCount > 100) {
+            alert('발행 수량은 1~100장 사이여야 합니다.')
+            return
+        }
 
         setIssuing(true)
         try {
-            await apiClient.post(`/admin/discount-policy/coupon/${selectedPolicyId}`)
+            // count 파라미터를 쿼리스트링으로 전달
+            // axios의 params 옵션: { count: 5 } → URL에 ?count=5 자동 추가
+            await apiClient.post(
+                `/admin/discount-policy/coupon/${selectedPolicyId}`,
+                null,                       // POST body 없음 (백엔드가 @RequestParam으로 받음)
+                {params: {count: issueCount}}
+            )
 
-            setMsg('쿠폰이 성공적으로 발행되었습니다.')
+            setMsg(`쿠폰 ${issueCount}장이 성공적으로 발행되었습니다.`)
 
             // 발행 직후에는 최신 쿠폰을 확인하기 위해 1페이지로 강제 이동 및 갱신
             setCurrentPage(1)
@@ -179,13 +200,35 @@ function CouponListPage() {
                             </select>
                         </div>
 
+                        {/* [추가] 발행 수량 입력 필드
+                            백엔드 POST /coupon/{policyId}?count=n 의 count 파라미터에 대응.
+                            1~100 범위로 제한. */}
+                        <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
+                            <label style={fieldLabel}>발행 수량</label>
+                            <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={100}
+                                    value={issueCount}
+                                    onChange={(e) => {
+                                        // 1~100 범위로 클램핑
+                                        const v = Math.max(1, Math.min(100, Number(e.target.value) || 1))
+                                        setIssueCount(v)
+                                    }}
+                                    style={countInput}
+                                />
+                                <span style={{fontSize: 13, color: 'var(--text-muted)'}}>장</span>
+                            </div>
+                        </div>
+
                         {/* 발행 버튼 */}
                         <button
                             onClick={handleIssueCoupon}
                             disabled={issuing || selectedPolicyId === ''}
                             style={{...issueBtn, opacity: issuing ? 0.7 : 1, alignSelf: 'flex-end'}}
                         >
-                            {issuing ? '발행 중...' : '쿠폰 발행'}
+                            {issuing ? '발행 중...' : `쿠폰 ${issueCount}장 발행`}
                         </button>
                     </div>
                 )}
@@ -344,6 +387,13 @@ const selectStyle: React.CSSProperties = {
     fontSize: 14, color: 'var(--text-primary)', background: 'var(--input-bg)',
     minWidth: 280, cursor: 'pointer',
 }
+/** 발행 수량 입력 박스 */
+const countInput: React.CSSProperties = {
+    padding: '10px 12px', border: '1px solid var(--border-default)', borderRadius: 8,
+    fontSize: 14, color: 'var(--text-primary)', background: 'var(--input-bg)',
+    width: 72, textAlign: 'center',
+}
+
 const issueBtn: React.CSSProperties = {
     padding: '10px 22px', background: 'var(--color-brand-default)',
     color: 'var(--btn-primary-text)', border: 'none', borderRadius: 8,
