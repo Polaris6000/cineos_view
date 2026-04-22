@@ -14,7 +14,7 @@
  *
  * FHD(1080×1920) 세로형 키오스크 기준 레이아웃
  */
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, X, Film } from 'lucide-react'
 import axios from 'axios'
@@ -25,10 +25,8 @@ import {
 } from '../../api/typeData'
 import styles from './MovieListPage.module.css'
 
-// ── 필터 옵션 상수 (mockData 의존성 제거 — 백엔드 연동 완료로 목데이터 불필요) ──
-
-/** 장르 필터 옵션 */
-const GENRE_OPTIONS = ['전체', '액션', '애니메이션', 'SF', '코미디', '공포', '드라마', '어드벤처']
+// ── 필터 옵션 상수 ──
+// 장르 옵션은 nowMovies에서 동적으로 추출 (아래 useMemo 참고)
 
 /** 등급 필터 옵션 */
 const RATING_OPTIONS = [
@@ -152,13 +150,51 @@ useEffect(() => {
   }
 
   /**
+   * 장르 옵션 동적 추출
+   *
+   * nowMovies가 바뀔 때마다 실제 존재하는 장르만 칩으로 표시.
+   * movie.genre는 "액션,SF" 처럼 쉼표 구분 문자열일 수 있으므로 split 후 중복 제거.
+   * '전체'는 항상 첫 번째, 나머지는 가나다/알파벳 정렬.
+   */
+  const genreOptions = useMemo(() => {
+    const genreSet = new Set<string>()
+    nowMovies.forEach(movie => {
+      movie.genre
+        .split(',')                  // "액션,SF" → ["액션", "SF"]
+        .map(g => g.trim())          // 앞뒤 공백 제거
+        .filter(Boolean)             // 빈 문자열 제거
+        .forEach(g => genreSet.add(g))
+    })
+    return ['전체', ...Array.from(genreSet).sort()]
+  }, [nowMovies])
+
+  /**
+   * 영화 목록이 바뀌어 현재 선택된 장르가 더 이상 존재하지 않으면 '전체'로 리셋.
+   * 예: "SF" 영화가 내려간 뒤 SF 칩이 사라졌는데 필터가 SF로 남아있는 상황 방지.
+   */
+  useEffect(() => {
+    if (selectedGenre !== '전체' && !genreOptions.includes(selectedGenre)) {
+      setSelectedGenre('전체')
+    }
+  }, [genreOptions, selectedGenre])
+
+  /**
+   * 장르 파싱 헬퍼 — 쉼표 구분 장르 문자열을 배열로 변환
+   * useMemo/filter 내부에서 반복 사용하므로 useCallback으로 메모이제이션
+   */
+  const parseGenres = useCallback((genreStr: string): string[] => {
+    return genreStr.split(',').map(g => g.trim()).filter(Boolean)
+  }, [])
+
+  /**
    * useMemo로 필터링 결과 메모이제이션
    * baseList, 필터 상태가 바뀔 때만 재계산
    */
   const filteredMovies = useMemo(() => {
     return nowMovies.filter(movie => {
-      // 장르 필터
-      if (selectedGenre !== '전체' && !movie.genre.includes(selectedGenre)) return false
+      // 장르 필터: 쉼표 구분 분리 후 정확히 일치하는 장르가 있는지 확인
+      // (기존 substring includes 방식 → 정확한 배열 includes 방식으로 개선)
+      if (selectedGenre !== '전체' && !parseGenres(movie.genre).includes(selectedGenre)) return false
       // 등급 필터
       if (selectedRating && movie.rating !== selectedRating) return false
       // 상영관 타입 필터 (전체가 아닐 때만 적용)
@@ -172,7 +208,7 @@ useEffect(() => {
       return true
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nowMovies, selectedGenre, selectedRating, selectedTheaterType, searchQuery])
+  }, [nowMovies, selectedGenre, selectedRating, selectedTheaterType, searchQuery, parseGenres])
 
   /** 카드 클릭 → 영화 상세 페이지 */
   const handleCardClick = (movieId: number) => {
@@ -194,7 +230,8 @@ useEffect(() => {
         <div className={styles.filterRow}>
           <span className={styles.filterLabel}>장르</span>
           <div className={styles.chipGroup} role="group">
-            {GENRE_OPTIONS.map(genre => (
+            {/* genreOptions: nowMovies에서 동적으로 추출 — 영화가 없어지면 칩도 사라짐 */}
+            {genreOptions.map(genre => (
               <button
                 key={genre}
                 type="button"

@@ -8,6 +8,7 @@
 import {useEffect, useMemo, useState} from 'react'
 import {useNavigate} from 'react-router-dom'
 import apiClient, {type MovieDTO, resolvePosterUrl} from '../../../api/apiClient'
+import { useAuth } from '../../../context/AuthContext'
 
 /* ── 타입 ──────────────────────────────────────────── */
 type MovieStatus = 'NOW_PLAYING' | 'UPCOMING' | 'ENDED' | 'DELETE_PENDING'
@@ -86,6 +87,13 @@ function StatusBadge({status}: { status: MovieStatus }) {
 
 function MovieListAdminPage() {
     const navigate = useNavigate()
+    const { hasPermission } = useAuth()
+
+    // 버튼 표시 여부
+    // canRegister: 영화 등록 버튼 (ROLE_MOVIE_REGISTER)
+    // canEdit: 영화 목록의 수정·삭제 버튼 (ROLE_MOVIE_EDIT = 영화 편집 권한)
+    const canRegister = hasPermission('ROLE_MOVIE_REGISTER')
+    const canEdit     = hasPermission('ROLE_MOVIE_EDIT')
 
     const [movies, setMovies] = useState<AdminMovie[]>([])
     const [loading, setLoading] = useState(true)
@@ -184,9 +192,12 @@ function MovieListAdminPage() {
         <div>
             <div style={headerRow}>
                 <h2 style={pageTitle}>영화 목록</h2>
-                <button onClick={() => navigate('/admin/management/movie/form')} style={addBtn}>
-                    + 영화 등록
-                </button>
+                {/* ROLE_MOVIE_REGISTER 없으면 등록 버튼 숨김 */}
+                {canRegister && (
+                    <button onClick={() => navigate('/admin/management/movie/form')} style={addBtn}>
+                        + 영화 등록
+                    </button>
+                )}
             </div>
 
             {/* 상태 요약 */}
@@ -280,13 +291,15 @@ function MovieListAdminPage() {
                                     <td style={td}><StatusBadge status={status}/></td>
                                     <td style={td}>
                                         <div style={{display: 'flex', gap: 6}}>
-                                            {status !== 'ENDED' && (
+                                            {/* ROLE_MOVIE_EDIT 없으면 수정 버튼 숨김 */}
+                                            {canEdit && status !== 'ENDED' && (
                                                 <button
                                                     onClick={() => navigate('/admin/management/movie/form', {state: {movie: m}})}
                                                     style={editBtn}
                                                 >수정</button>
                                             )}
-                                            {status !== 'ENDED' && (
+                                            {/* ROLE_MOVIE_EDIT 없으면 삭제 버튼 숨김 (등록·수정·삭제 권한 통합) */}
+                                            {canEdit && status !== 'ENDED' && (
                                                 <button
                                                     onClick={() => handleDelete(m)}
                                                     style={status === 'DELETE_PENDING' ? cancelDeleteBtn : deleteBtn}

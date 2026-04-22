@@ -14,6 +14,7 @@
 import {useEffect, useMemo, useState} from 'react'
 import {Theater} from './TheaterListPage'
 import apiClient from "../../../api/apiClient.ts";
+import { useAuth } from '../../../context/AuthContext'
 
 /* ── 타입 정의 ── */
 interface Schedule {
@@ -87,6 +88,11 @@ function getScheduleStatus(
 }
 
 function MovieManagePage() {
+    const { hasPermission } = useAuth()
+    // 상영 관리(스케줄 등록/만료/복원) 버튼은 ROLE_MOVIE_DELETE 권한으로 제어
+    // (ROLE_MOVIE_DELETE는 DB에서 '상영 관리' 용도로 재활용됨)
+    const canEdit = hasPermission('ROLE_MOVIE_DELETE')
+
     // ── 선택된 영화 id ──
     const [selectedMovieId, setSelectedMovieId] = useState<number>(1)
     const [movies, setMovies] = useState<Movie[]>([])
@@ -487,7 +493,8 @@ function MovieManagePage() {
                             style={inputS}
                         />
                     </div>
-                    <button onClick={handleAddSchedule} style={addBtn}>+ 등록</button>
+                    {/* ROLE_MOVIE_EDIT 없으면 스케줄 등록 버튼 숨김 */}
+                    {canEdit && <button onClick={handleAddSchedule} style={addBtn}>+ 등록</button>}
                 </div>
                 <div style={endTimePreview}>
                     <span style={{color: 'var(--text-muted)', fontSize: 13}}>종료 예상:</span>
@@ -550,7 +557,8 @@ function MovieManagePage() {
                     {/* 체크된 항목이 있을 때만 일괄 액션 버튼 노출
           TODO 서버에서는 기간이 이미 지나간 만료된 스케줄은 변경하지 않음 UI도 막는게 아닌 변경이 안되게 반영해야함,
            그리고 만료된 스케줄인데 만료여부가 만료면 만료표시가 됨 이것도 그냥 만료로 하면 될듯함 */}
-                    {checkedIds.size > 0 && (
+                    {/* 체크된 항목이 있고 ROLE_MOVIE_EDIT 있을 때만 일괄 액션 버튼 노출 */}
+                    {canEdit && checkedIds.size > 0 && (
                         <div style={bulkActionBar}>
                             <span style={bulkCount}>{checkedIds.size}건 선택됨</span>
                             {checkedActiveCount > 0 && (
@@ -684,29 +692,29 @@ function MovieManagePage() {
                             </span>
                                                     </div>
 
-                                                    {/* 단건 액션 버튼 */}
-                                                    <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
-                                                        {/* ACTIVE → 만료처리 버튼 */}
-                                                        {sStatus === 'ACTIVE' && (
-                                                            <button
-                                                                onClick={() => handleExpire(s.id)}
-                                                                style={expireBtn}
-                                                                title="만료처리"
-                                                            >
-                                                                만료처리
-                                                            </button>
-                                                        )}
-                                                        {/* CANCELLED → 유효처리 버튼 (undo) */}
-                                                        {sStatus === 'CANCELLED' && (
-                                                            <button
-                                                                onClick={() => handleUndo(s.id)}
-                                                                style={undoBtn}
-                                                                title="만료처리 유효처리"
-                                                            >
-                                                                유효처리
-                                                            </button>
-                                                        )}
-                                                    </div>
+                                                    {/* 단건 액션 버튼 — ROLE_MOVIE_EDIT 없으면 전체 숨김 */}
+                                                    {canEdit && (
+                                                        <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
+                                                            {sStatus === 'ACTIVE' && (
+                                                                <button
+                                                                    onClick={() => handleExpire(s.id)}
+                                                                    style={expireBtn}
+                                                                    title="만료처리"
+                                                                >
+                                                                    만료처리
+                                                                </button>
+                                                            )}
+                                                            {sStatus === 'CANCELLED' && (
+                                                                <button
+                                                                    onClick={() => handleUndo(s.id)}
+                                                                    style={undoBtn}
+                                                                    title="만료처리 유효처리"
+                                                                >
+                                                                    유효처리
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )
                                         })}

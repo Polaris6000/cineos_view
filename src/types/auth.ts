@@ -49,7 +49,7 @@ export interface AdminUser {
   uuid: string // 자동로그인을 위한 토큰
   createdAt: string // 생성일
 
-  permissions: Permission[] // 권한 리스트
+  permissions: string[] // 권한 리스트 — 동적 API 응답이므로 string[]로 처리
 }
 
 /* ── 더미 계정 데이터 (TODO: 백엔드 API 연동 시 제거) ── */

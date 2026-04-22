@@ -17,6 +17,7 @@
 import {useEffect, useState} from 'react'
 import {useNavigate} from 'react-router-dom'
 import apiClient from '../../../api/apiClient.ts'
+import { useAuth } from '../../../context/AuthContext'
 // mockData 의존성 제거 — 백엔드 연동 완료로 목데이터 불필요, 인라인 상수 사용
 
 /** 좌석 타입별 기본 단가 (백엔드 seat_policy에서 관리하지만 UI 초기값으로 사용) */
@@ -63,6 +64,10 @@ interface BonusPolicy {
 
 function PolicyListPage() {
     const navigate = useNavigate()
+
+    // ROLE_POLICY_EDIT 권한이 있어야 좌석 요금 수정, 정책 등록, 활성화 토글 버튼이 표시됨
+    const { hasPermission } = useAuth()
+    const canEdit = hasPermission('ROLE_POLICY_EDIT')
 
     const [loading, setLoading] = useState(true)
 
@@ -268,7 +273,8 @@ function PolicyListPage() {
                         <h2 style={sectionTitle}>좌석 타입별 요금</h2>
                         <p style={sectionDesc}>상영관의 좌석 유형 별로 지정되는 기본 금액입니다.</p>
                     </div>
-                    {!seatEditing ? (
+                    {/* ROLE_POLICY_EDIT 없으면 수정/저장/취소 버튼 숨김 */}
+                    {canEdit && (!seatEditing ? (
                         <button onClick={handleSeatEdit} style={editActionBtn}>수정</button>
                     ) : (
                         <div style={{display: 'flex', gap: 8}}>
@@ -277,7 +283,7 @@ function PolicyListPage() {
                                 {seatSaving ? '저장 중...' : '저장'}
                             </button>
                         </div>
-                    )}
+                    ))}
                 </div>
 
                 {seatMsg && <div style={saveMsgBox}>{seatMsg}</div>}
@@ -322,12 +328,15 @@ function PolicyListPage() {
                             시간대·연령·직업·쿠폰 등 조건별 할인 정책을 관리합니다.
                         </p>
                     </div>
-                    <button
-                        onClick={() => navigate('/admin/management/policy/form')}
-                        style={addBtn}
-                    >
-                        + 정책 등록
-                    </button>
+                    {/* ROLE_POLICY_EDIT 없으면 등록 버튼 숨김 */}
+                    {canEdit && (
+                        <button
+                            onClick={() => navigate('/admin/management/policy/form')}
+                            style={addBtn}
+                        >
+                            + 정책 등록
+                        </button>
+                    )}
                 </div>
 
                 {discountMsg && <div style={saveMsgBox}>{discountMsg}</div>}
@@ -421,14 +430,19 @@ function PolicyListPage() {
                       </span>
                                     </td>
 
-                                    {/* 관리 컬럼: 활성화 on/off 토글 버튼만 */}
+                                    {/* 관리 컬럼: ROLE_POLICY_EDIT 있을 때만 토글 버튼 표시 */}
                                     <td style={{...td, textAlign: 'center'}}>
-                                        <button
-                                            onClick={() => toggleDiscountActivation(p.id)}
-                                            style={p.activation ? deactivateBtn : activateBtn}
-                                        >
-                                            {p.activation ? '비활성화' : '활성화'}
-                                        </button>
+                                        {canEdit ? (
+                                            <button
+                                                onClick={() => toggleDiscountActivation(p.id)}
+                                                style={p.activation ? deactivateBtn : activateBtn}
+                                            >
+                                                {p.activation ? '비활성화' : '활성화'}
+                                            </button>
+                                        ) : (
+                                            // 권한 없으면 빈 셀 (버튼 자리만 차지)
+                                            <span style={{fontSize: 12, color: 'var(--text-muted)'}}>—</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))
@@ -447,13 +461,15 @@ function PolicyListPage() {
                             결제 금액 대비 자동 적립되는 포인트 비율(%)을 관리합니다.
                         </p>
                     </div>
-                    {/* 별도 페이지로 이동하여 등록 (할인 정책과 동일한 패턴) */}
-                    <button
-                        onClick={() => navigate('/admin/management/policy/bonus-form')}
-                        style={addBtn}
-                    >
-                        + 정책 등록
-                    </button>
+                    {/* 별도 페이지로 이동하여 등록 — ROLE_POLICY_EDIT 없으면 숨김 */}
+                    {canEdit && (
+                        <button
+                            onClick={() => navigate('/admin/management/policy/bonus-form')}
+                            style={addBtn}
+                        >
+                            + 정책 등록
+                        </button>
+                    )}
                 </div>
 
                 {bonusMsg && <div style={saveMsgBox}>{bonusMsg}</div>}
@@ -532,14 +548,18 @@ function PolicyListPage() {
                       </span>
                                     </td>
 
-                                    {/* 관리 컬럼: 활성화 on/off 토글 버튼만 */}
+                                    {/* 관리 컬럼: ROLE_POLICY_EDIT 있을 때만 토글 버튼 표시 */}
                                     <td style={{...td, textAlign: 'center'}}>
-                                        <button
-                                            onClick={() => toggleBonusActivation(p.id)}
-                                            style={p.activation ? deactivateBtn : activateBtn}
-                                        >
-                                            {p.activation ? '비활성화' : '활성화'}
-                                        </button>
+                                        {canEdit ? (
+                                            <button
+                                                onClick={() => toggleBonusActivation(p.id)}
+                                                style={p.activation ? deactivateBtn : activateBtn}
+                                            >
+                                                {p.activation ? '비활성화' : '활성화'}
+                                            </button>
+                                        ) : (
+                                            <span style={{fontSize: 12, color: 'var(--text-muted)'}}>—</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))

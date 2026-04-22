@@ -18,6 +18,7 @@
 import {useCallback, useEffect, useState} from 'react'
 import apiClient from '../../../api/apiClient.ts'
 import {DiscountPolicy} from './PolicyListPage'
+import { useAuth } from '../../../context/AuthContext'
 
 /** 쿠폰 1건 타입 (CouponDTO 대응) */
 interface Coupon {
@@ -27,6 +28,10 @@ interface Coupon {
 }
 
 function CouponListPage() {
+    // ROLE_POLICY_EDIT 권한이 있어야 쿠폰 발행 폼이 표시됨
+    const { hasPermission } = useAuth()
+    const canEdit = hasPermission('ROLE_POLICY_EDIT')
+
     const [loading, setLoading] = useState(true)
     const [coupons, setCoupons] = useState<Coupon[]>([])
     // 쿠폰 발행 가능한 정책 목록 (condition_type = COUPON 인 것만)
@@ -174,62 +179,70 @@ function CouponListPage() {
 
                 {msg && <div style={msgBox}>{msg}</div>}
 
-                {policies.filter((p) => p.conditionType === 'COUPON').length === 0 ? (
-                    // COUPON 타입 정책이 없으면 안내 문구 표시
-                    <div style={emptyNotice}>
-                        등록된 COUPON 타입 할인 정책이 없습니다. 먼저 정책 목록에서 정책을 등록해 주세요.
-                    </div>
-                ) : (
-                    <div style={issueRow}>
-                        {/* 정책 선택 드롭다운 — COUPON 타입 정책만 필터링 */}
-                        <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
-                            <label style={fieldLabel}>정책 선택</label>
-                            <select
-                                value={selectedPolicyId}
-                                onChange={(e) => setSelectedPolicyId(Number(e.target.value))}
-                                style={selectStyle}
-                            >
-                                {policies.filter((p) => p.conditionType === 'COUPON').map((p) => (
-                                    <option key={p.id} value={p.id}>
-                                        [{p.id}] {p.policyName}
-                                        {' — '}
-                                        {p.discountType === 'RATIO' ? `${p.discountValue}%` : `${p.discountValue.toLocaleString()}원`} 할인
-                                        {p.activation ? '' : ' (비활성)'}
-                                    </option>
-                                ))}
-                            </select>
+                {/* ROLE_POLICY_EDIT 없으면 쿠폰 발행 폼 전체 숨김 */}
+                {canEdit ? (
+                    policies.filter((p) => p.conditionType === 'COUPON').length === 0 ? (
+                        // COUPON 타입 정책이 없으면 안내 문구 표시
+                        <div style={emptyNotice}>
+                            등록된 COUPON 타입 할인 정책이 없습니다. 먼저 정책 목록에서 정책을 등록해 주세요.
                         </div>
-
-                        {/* [추가] 발행 수량 입력 필드
-                            백엔드 POST /coupon/{policyId}?count=n 의 count 파라미터에 대응.
-                            1~100 범위로 제한. */}
-                        <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
-                            <label style={fieldLabel}>발행 수량</label>
-                            <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
-                                <input
-                                    type="number"
-                                    min={1}
-                                    max={100}
-                                    value={issueCount}
-                                    onChange={(e) => {
-                                        // 1~100 범위로 클램핑
-                                        const v = Math.max(1, Math.min(100, Number(e.target.value) || 1))
-                                        setIssueCount(v)
-                                    }}
-                                    style={countInput}
-                                />
-                                <span style={{fontSize: 13, color: 'var(--text-muted)'}}>장</span>
+                    ) : (
+                        <div style={issueRow}>
+                            {/* 정책 선택 드롭다운 — COUPON 타입 정책만 필터링 */}
+                            <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
+                                <label style={fieldLabel}>정책 선택</label>
+                                <select
+                                    value={selectedPolicyId}
+                                    onChange={(e) => setSelectedPolicyId(Number(e.target.value))}
+                                    style={selectStyle}
+                                >
+                                    {policies.filter((p) => p.conditionType === 'COUPON').map((p) => (
+                                        <option key={p.id} value={p.id}>
+                                            [{p.id}] {p.policyName}
+                                            {' — '}
+                                            {p.discountType === 'RATIO' ? `${p.discountValue}%` : `${p.discountValue.toLocaleString()}원`} 할인
+                                            {p.activation ? '' : ' (비활성)'}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
-                        </div>
 
-                        {/* 발행 버튼 */}
-                        <button
-                            onClick={handleIssueCoupon}
-                            disabled={issuing || selectedPolicyId === ''}
-                            style={{...issueBtn, opacity: issuing ? 0.7 : 1, alignSelf: 'flex-end'}}
-                        >
-                            {issuing ? '발행 중...' : `쿠폰 ${issueCount}장 발행`}
-                        </button>
+                            {/* [추가] 발행 수량 입력 필드
+                                백엔드 POST /coupon/{policyId}?count=n 의 count 파라미터에 대응.
+                                1~100 범위로 제한. */}
+                            <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
+                                <label style={fieldLabel}>발행 수량</label>
+                                <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={100}
+                                        value={issueCount}
+                                        onChange={(e) => {
+                                            // 1~100 범위로 클램핑
+                                            const v = Math.max(1, Math.min(100, Number(e.target.value) || 1))
+                                            setIssueCount(v)
+                                        }}
+                                        style={countInput}
+                                    />
+                                    <span style={{fontSize: 13, color: 'var(--text-muted)'}}>장</span>
+                                </div>
+                            </div>
+
+                            {/* 발행 버튼 */}
+                            <button
+                                onClick={handleIssueCoupon}
+                                disabled={issuing || selectedPolicyId === ''}
+                                style={{...issueBtn, opacity: issuing ? 0.7 : 1, alignSelf: 'flex-end'}}
+                            >
+                                {issuing ? '발행 중...' : `쿠폰 ${issueCount}장 발행`}
+                            </button>
+                        </div>
+                    )
+                ) : (
+                    // 권한 없는 경우 안내 문구
+                    <div style={emptyNotice}>
+                        쿠폰 발행 권한이 없습니다.
                     </div>
                 )}
             </div>

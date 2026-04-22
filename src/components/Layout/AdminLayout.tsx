@@ -46,15 +46,19 @@ const NAV_SECTIONS: NavSection[] = [
     section: '영화 관리',
     items: [
       { path: '/admin/management/movie/list',   label: '영화 목록', Icon: Film,        permission: 'ROLE_MOVIE_LIST' },
+      // 영화 등록: 새 영화 등록 페이지 접근 권한
       { path: '/admin/management/movie/form',   label: '영화 등록', Icon: Film,        permission: 'ROLE_MOVIE_REGISTER' },
-      { path: '/admin/management/movie/manage', label: '상영 관리', Icon: PlaySquare,  permission: 'ROLE_MOVIE_EDIT' },
+      // 영화 편집: 영화 목록 내 수정·삭제 버튼과는 별개로 nav 진입은 ROLE_MOVIE_EDIT
+      // 상영 관리: 스케줄 관리 — ROLE_MOVIE_DELETE 를 상영 관리 용도로 재활용
+      { path: '/admin/management/movie/manage', label: '상영 관리', Icon: PlaySquare,  permission: 'ROLE_MOVIE_DELETE' },
     ],
   },
   {
     section: '상영관/좌석',
     items: [
-      { path: '/admin/management/theater/list', label: '상영관 목록',    Icon: Armchair, permission: 'ROLE_THEATER_LIST' },
-      { path: '/admin/management/seat/list',    label: '좌석 목록',      Icon: Armchair, permission: 'ROLE_THEATER_LIST' },
+      // 상영관 편집: 상영관 등록·수정 권한 (ROLE_THEATER_EDIT)
+      { path: '/admin/management/theater/list', label: '상영관 편집', Icon: Armchair, permission: 'ROLE_THEATER_EDIT' },
+      { path: '/admin/management/seat/list',    label: '좌석 목록',   Icon: Armchair, permission: 'ROLE_THEATER_LIST' },
     ],
   },
   {

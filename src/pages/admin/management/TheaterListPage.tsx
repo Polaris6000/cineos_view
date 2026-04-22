@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, RefreshCw } from 'lucide-react'
 import apiClient from "../../../api/apiClient.ts";
+import { useAuth } from '../../../context/AuthContext'
 
 // 1. 인터페이스 정의
 export interface Theater {
@@ -21,6 +22,9 @@ const RECLINER_POLICY_ID = 2
 
 function TheaterListPage() {
   const navigate = useNavigate()
+  const { hasPermission } = useAuth()
+  // ROLE_THEATER_EDIT 없으면 상영관 등록/수정 버튼 숨김
+  const canEdit = hasPermission('ROLE_THEATER_EDIT')
 
   const [theaters,     setTheaters]     = useState<Theater[]>([])
   const [seatPolicies, setSeatPolicies] = useState<SeatPolicy[]>([])
@@ -117,12 +121,15 @@ function TheaterListPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <h2 style={pageTitle}>상영관 목록</h2>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => setShowAddForm((v) => !v)}
-              style={showAddForm ? cancelAddBtn : addBtn}
-            >
-              {showAddForm ? '취소' : '+ 상영관 등록'}
-            </button>
+            {/* ROLE_THEATER_EDIT 없으면 등록 버튼 숨김 */}
+            {canEdit && (
+              <button
+                onClick={() => setShowAddForm((v) => !v)}
+                style={showAddForm ? cancelAddBtn : addBtn}
+              >
+                {showAddForm ? '취소' : '+ 상영관 등록'}
+              </button>
+            )}
             <button onClick={fetchData} disabled={loading} style={refreshBtn}>
               <RefreshCw size={14} style={{ marginRight: 5 }} />
               새로고침
@@ -231,24 +238,27 @@ function TheaterListPage() {
                             </dd>
                           </dl>
 
-                          <button
-                              onClick={() => navigate('/admin/management/theater/edit', {
-                                state: {
-                                  theater: {
-                                    no: t.no,
-                                    policyId: t.policyId,
-                                    cleanupTime: t.cleanupTime,
-                                    name: tName,
-                                    hasRecliner: isRecliner,
-                                    policyName: getPolicyName(t.policyId),
-                                  },
-                                  seatPolicies,
-                                }
-                              })}
-                              style={editBtn}
-                          >
-                            수정
-                          </button>
+                          {/* ROLE_THEATER_EDIT 없으면 수정 버튼 숨김 */}
+                          {canEdit && (
+                            <button
+                                onClick={() => navigate('/admin/management/theater/edit', {
+                                  state: {
+                                    theater: {
+                                      no: t.no,
+                                      policyId: t.policyId,
+                                      cleanupTime: t.cleanupTime,
+                                      name: tName,
+                                      hasRecliner: isRecliner,
+                                      policyName: getPolicyName(t.policyId),
+                                    },
+                                    seatPolicies,
+                                  }
+                                })}
+                                style={editBtn}
+                            >
+                              수정
+                            </button>
+                          )}
                         </div>
                     )
                   })
