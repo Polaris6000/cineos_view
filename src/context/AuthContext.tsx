@@ -112,6 +112,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const storage = remember ? localStorage : sessionStorage;
       storage.setItem('cineos_admin', JSON.stringify(adminInfo));
 
+      // ──────────────────────────────────────────────────────────────
+      // 자동 로그인 체크 시 백엔드에 UUID 쿠키 발급 요청
+      //
+      // 흐름:
+      //   POST /api/admin/remember_me?loginId={id}
+      //   → 백엔드: DB에 UUID 생성·저장 후 remember-me 쿠키 Set-Cookie
+      //   → 이후 accessToken + refreshToken 모두 만료됐을 때
+      //     POST /api/admin/remember_me/auth (쿠키 자동 첨부)
+      //     → UUID 검증 → 새 accessToken 발급 (apiClient 인터셉터가 처리)
+      //
+      // withCredentials: true — 크로스 오리진 환경에서도 쿠키를 주고받기 위해 필요
+      //   Vite dev proxy(/api → localhost:8080) 경유 시에도 쿠키 전달 보장
+      // ──────────────────────────────────────────────────────────────
+      if (remember) {
+        try {
+          await apiClient.post(
+            `/admin/remember_me?loginId=${encodeURIComponent(id)}`,
+            {},
+            { withCredentials: true }
+          );
+          console.log('[자동로그인] UUID 쿠키 발급 완료');
+        } catch (rememberErr) {
+          // UUID 쿠키 발급 실패해도 로그인 자체는 성공 처리
+          // (accessToken + refreshToken만으로도 동작하므로 치명적이지 않음)
+          console.warn('[자동로그인] UUID 쿠키 발급 실패 (로그인은 유지):', rememberErr);
+        }
+      }
+
       return true;
     } catch (err) {
       console.error('로그인 에러:', err);
@@ -134,8 +162,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const logout = useCallback(async () => {
     try {
-      // 백엔드 로그아웃: UUID 쿠키 제거 + DB UUID null 처리
-      await apiClient.post('/admin/logout')
+      // 백엔드 로그아웃: DB UUID null 처리 + remember-me 쿠키 만료
+      //
+      // 백엔드 시그니처: logout(String loginId, ...)
+      //   → @RequestParam 어노테이션 없이 선언된 String 파라미터
+      //   → Spring MVC가 쿼리 파라미터로 자동 바인딩함
+      //   → loginId가 null이면 adminRepository.findByLoginId(null).orElseThrow() 예외 발생
+      //   → catch에서 처리하고 finally에서 클라이언트 정리는 반드시 수행
+      //
+      // withCredentials: true — Set-Cookie: remember-me 쿠키를 함께 전송해야
+      //   서버에서 Max-Age=0 으로 만료 처리 가능
+      //   ※ 현재 백엔드가 cookie.setSecure(true) → HTTP 로컬 환경에서는 쿠키 자체가
+      //     브라우저에 저장되지 않으므로 UUID 쿠키 기반 자동로그인은 HTTPS 전환 전까지 비활성
+      const loginId = currentAdmin?.loginId ?? '';
+      const url = loginId
+        ? `/admin/logout?loginId=${encodeURIComponent(loginId)}`
+        : '/admin/logout';
+      await apiClient.post(url, {}, { withCredentials: true });
     } catch (err) {
       // 네트워크 오류 등 실패해도 클라이언트 정리는 계속 진행
       console.warn('[logout] 백엔드 로그아웃 API 실패 (클라이언트 정리는 계속):', err)
@@ -147,7 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('refreshToken')
       sessionStorage.removeItem('cineos_admin')
     }
-  }, [])
+  }, [currentAdmin])  // currentAdmin 의존성 추가 — loginId를 참조하므로 stale closure 방지
 
   /**
    * hasPermission — \ud2b9\uc815 \uad8c\ud55c \ubcf4\uc720 \uc5ec\ubd80 \ud655\uc778
