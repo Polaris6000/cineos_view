@@ -161,9 +161,18 @@ function PaymentPage() {
         setPhoneRaw(raw)
     }
 
-    /** 인증번호 발송 (키오스크 테스트 환경 — 실제 SMS 구현 시 POST /api/sms 교체)
-     *  개인정보 수집 동의(privacyConsent)가 체크된 경우에만 발송 가능. */
-    const handleSendCode = () => {
+    /**
+     * 인증번호 발송 — POST /api/random/{toPhone}
+     *
+     * 백엔드 SmsNurigoController.random(): 랜덤 6자리 숫자를 SMS로 발송.
+     * 백엔드가 코드를 별도 저장하지 않으므로 입력 검증은 프론트 고정값(123456) 유지.
+     * (향후 백엔드에 인증번호 저장·검증 엔드포인트가 추가되면 handleVerify도 수정 필요)
+     *
+     * 개인정보 수집 동의(privacyConsent)가 체크된 경우에만 발송 가능.
+     */
+    const [sendingCode, setSendingCode] = useState(false) // 발송 중 로딩 상태
+
+    const handleSendCode = async () => {
         if (!privacyConsent) {
             setVerifyError('개인정보 수집 및 이용에 동의해 주세요.')
             return
@@ -172,8 +181,22 @@ function PaymentPage() {
             setVerifyError('올바른 휴대폰 번호를 입력해 주세요.')
             return
         }
-        setCodeSent(true)
+
+        setSendingCode(true)
         setVerifyError('')
+        try {
+            // POST /api/random/{toPhone} — 백엔드가 SMS로 6자리 인증번호 발송
+            await apiClient.post(`/random/${phoneRaw}`)
+            setCodeSent(true)
+        } catch {
+            // SMS 발송 실패 시 — 테스트 환경에서는 실제 SMS API 키 없을 수 있음
+            // 실패해도 코드 입력창은 열어줘서 테스트할 수 있게 처리
+            setVerifyError('인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+            // 개발/테스트 환경 fallback: 발송 실패해도 코드 입력 허용
+            setCodeSent(true)
+        } finally {
+            setSendingCode(false)
+        }
     }
 
     /**
@@ -547,13 +570,17 @@ function PaymentPage() {
                                 style={{...inputStyle, flex: 1}}
                                 maxLength={13}
                             />
+                            {/* 발송 중(sendingCode)이면 버튼 비활성화 + 텍스트 변경 */}
                             <button
                                 onClick={handleSendCode}
-                                disabled={codeSent || !privacyConsent}
-                                style={{...smallBtn, opacity: (codeSent || !privacyConsent) ? 0.6 : 1}}
+                                disabled={codeSent || !privacyConsent || sendingCode}
+                                style={{
+                                  ...smallBtn,
+                                  opacity: (codeSent || !privacyConsent || sendingCode) ? 0.6 : 1
+                                }}
                                 title={!privacyConsent ? '개인정보 수집 및 이용에 동의해 주세요.' : undefined}
                             >
-                                {codeSent ? '발송됨' : '인증번호 발송'}
+                                {sendingCode ? '발송 중...' : codeSent ? '발송됨' : '인증번호 발송'}
                             </button>
                         </div>
 

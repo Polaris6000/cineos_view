@@ -29,6 +29,7 @@ import {
   RefreshCw,
   Sparkles,
   ChevronRight,
+  ChevronLeft,
 } from 'lucide-react'
 import {
   getPopularMovies,
@@ -123,21 +124,34 @@ function MovieFormPage() {
   const [tmdbError,    setTmdbError]    = useState<string | null>(null)
   const [isSearchMode, setIsSearchMode] = useState(false)
 
+  /**
+   * 인기 영화 페이지네이션 상태
+   * - tmdbPage: 현재 표시 중인 TMDB popular 페이지 번호 (1부터 시작)
+   * - TMDB popular API는 page 파라미터를 지원하며 페이지당 20개 반환
+   * - 검색 모드(isSearchMode=true)일 때는 페이지 버튼 숨김
+   */
+  const [tmdbPage, setTmdbPage] = useState(1)
+
   /* ── 마운트 시 인기 영화 로드 ── */
   useEffect(() => {
-    fetchPopularMovies()
+    fetchPopularMovies(1)
   }, [])
 
   /* ── TMDB API 호출 ── */
 
-  /** 인기 영화 목록 로드 */
-  const fetchPopularMovies = async () => {
+  /**
+   * 인기 영화 목록 로드
+   * @param page - 불러올 페이지 번호 (기본 1)
+   * TMDB popular API는 페이지당 20개를 반환함
+   */
+  const fetchPopularMovies = async (page: number = 1) => {
     setTmdbLoading(true)
     setTmdbError(null)
     setIsSearchMode(false)
     try {
-      const movies = await getPopularMovies(1)
+      const movies = await getPopularMovies(page)
       setTmdbMovies(movies)
+      setTmdbPage(page) // 성공 시에만 현재 페이지 업데이트
     } catch {
       setTmdbError('인기 영화를 불러오지 못했습니다.\n백엔드 서버를 확인해 주세요.')
       setTmdbMovies([])
@@ -607,7 +621,7 @@ function MovieFormPage() {
                 <button
                   type="button"
                   style={tmdbIconBtn}
-                  onClick={() => { setTmdbQuery(''); fetchPopularMovies() }}
+                  onClick={() => { setTmdbQuery(''); fetchPopularMovies(1) }}
                   title="초기화"
                 >
                   <X size={13} />
@@ -685,6 +699,49 @@ function MovieFormPage() {
                     <ChevronRight size={12} color="var(--text-muted)" style={{ flexShrink: 0, marginLeft: 'auto' }} />
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* ── 인기 영화 페이지네이션 ──
+                검색 모드에서는 숨김 (검색은 전체 결과 한 번에 반환)
+                이전/다음 버튼 + 현재 페이지 번호 표시
+            ── */}
+            {!isSearchMode && !tmdbLoading && !tmdbError && (
+              <div style={tmdbPagination}>
+                {/* 이전 페이지 버튼 — 1페이지면 비활성화 */}
+                <button
+                  type="button"
+                  style={{
+                    ...tmdbPageBtn,
+                    opacity: tmdbPage <= 1 ? 0.35 : 1,
+                    cursor: tmdbPage <= 1 ? 'not-allowed' : 'pointer',
+                  }}
+                  onClick={() => fetchPopularMovies(tmdbPage - 1)}
+                  disabled={tmdbPage <= 1}
+                  title="이전 페이지"
+                >
+                  <ChevronLeft size={13} />
+                </button>
+
+                {/* 현재 페이지 표시 */}
+                <span style={tmdbPageInfo}>
+                  {tmdbPage} 페이지
+                </span>
+
+                {/* 다음 페이지 버튼 — 결과가 없으면 비활성화 */}
+                <button
+                  type="button"
+                  style={{
+                    ...tmdbPageBtn,
+                    opacity: tmdbMovies.length === 0 ? 0.35 : 1,
+                    cursor: tmdbMovies.length === 0 ? 'not-allowed' : 'pointer',
+                  }}
+                  onClick={() => fetchPopularMovies(tmdbPage + 1)}
+                  disabled={tmdbMovies.length === 0}
+                  title="다음 페이지"
+                >
+                  <ChevronRight size={13} />
+                </button>
               </div>
             )}
           </div>
@@ -778,10 +835,47 @@ const tmdbErrorBox: React.CSSProperties = {
   whiteSpace: 'pre-line',
 }
 
-/* 영화 리스트 (스크롤 가능) */
+/* 영화 리스트 (스크롤 가능)
+   패널 세로 공간을 최대한 활용하도록 maxHeight를 넉넉하게 설정.
+   페이지네이션 버튼 높이(약 42px) 만큼 여유를 줘서 잘리지 않게 조정. */
 const tmdbList: React.CSSProperties = {
-  maxHeight: 460, overflowY: 'auto',
+  maxHeight: 'calc(100vh - 320px)', // 화면 높이 기준으로 동적 계산
+  minHeight: 320,                   // 너무 짧아지지 않도록 최솟값 보장
+  overflowY: 'auto',
   borderTop: 'none',
+}
+
+/* 인기 영화 페이지네이션 영역 */
+const tmdbPagination: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  padding: '8px 12px',
+  borderTop: '1px solid var(--border-default)',
+  background: 'var(--bg-base)',
+}
+
+/* 페이지 이전/다음 버튼 */
+const tmdbPageBtn: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 28,
+  height: 28,
+  background: 'var(--bg-surface)',
+  border: '1px solid var(--border-default)',
+  borderRadius: 6,
+  color: 'var(--text-primary)',
+}
+
+/* 현재 페이지 표시 텍스트 */
+const tmdbPageInfo: React.CSSProperties = {
+  fontSize: 12,
+  color: 'var(--text-secondary)',
+  fontWeight: 600,
+  minWidth: 54,
+  textAlign: 'center',
 }
 /* 리스트 행 */
 const tmdbRow: React.CSSProperties = {

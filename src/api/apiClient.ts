@@ -4,8 +4,17 @@
  * - baseURL: '/api' → Vite dev server proxy → http://localhost:8080/api
  * - 빌드 후에는 Spring Boot가 직접 서빙하므로 상대 경로 그대로 동작
  * - 모든 API 호출에서 이 인스턴스를 import해서 사용
+ *
+ * [에러 처리 흐름]
+ *   백엔드 GlobalExceptionHandler가 던지는 에러를 Toast로 표시:
+ *   400 — IllegalArgumentException: 잘못된 요청 (body에 메시지 있음)
+ *   202 — IllegalStateException: 이미 처리됨 / 중복 (body에 메시지 있음)
+ *   404 — NoSuchElementException: 데이터 없음 (body 없음)
+ *   500 — RuntimeException: 서버 내부 오류 (body에 메시지 있음)
+ *   401/403 — 토큰 인증 오류: 기존 재발급 로직 유지 (Toast 미사용)
  */
 import axios from 'axios'
+import { showToast } from '../utils/toast'
 
 const apiClient = axios.create({
     baseURL: '/api',
@@ -31,6 +40,39 @@ apiClient.interceptors.response.use(
         const status = error.response?.status
         const url = error.config?.url ?? '(unknown)'
         console.error(`[API Error] ${status ?? 'network'} → ${url}`, error.message)
+
+        /* ── 백엔드 GlobalExceptionHandler 에러 → Toast 표시 ──────────
+           401/403은 아래의 토큰 재발급 로직이 처리하므로 여기서 제외.
+           응답 body(string)가 있으면 해당 메시지를 표시하고,
+           없으면 기본 메시지를 사용.
+        ──────────────────────────────────────────────────────────── */
+        if (status === 400) {
+          // 400: IllegalArgumentException — 잘못된 요청 (body에 상세 메시지)
+          const detail = typeof error.response?.data === 'string'
+            ? error.response.data
+            : '잘못된 요청입니다.'
+          showToast(detail, 'error')
+        } else if (status === 202 && error.response?.data) {
+          // 202: IllegalStateException — 중복·이미 처리됨 (body에 상세 메시지)
+          // ※ 정상 202 응답과 구분하기 위해 body가 있을 때만 경고로 표시
+          const detail = typeof error.response.data === 'string'
+            ? error.response.data
+            : '이미 처리된 요청입니다.'
+          showToast(detail, 'warning')
+        } else if (status === 404 && !url.includes('/member/')) {
+          // 404: NoSuchElementException — 데이터 없음
+          // /member/ 경로는 PaymentPage에서 신규 회원 판단용으로 404를 직접 사용하므로 제외
+          showToast('해당 정보를 찾을 수 없습니다.', 'error')
+        } else if (status === 500) {
+          // 500: RuntimeException — 서버 내부 오류
+          const detail = typeof error.response?.data === 'string'
+            ? error.response.data
+            : '서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+          showToast(detail, 'error')
+        } else if (!status) {
+          // 네트워크 오류 (서버 응답 자체가 없음)
+          showToast('서버에 연결할 수 없습니다. 네트워크를 확인해 주세요.', 'error')
+        }
 
         // 401 처리
         // 로그인 요청(/admin/login) 자체가 401이면 재발급 시도 없이 바로 실패로 반환

@@ -50,6 +50,13 @@ import PaymentResultPage from './pages/payment/PaymentResultPage'
 import AdminLoginPage from './pages/admin/login/AdminLoginPage'
 import ForbiddenPage from './pages/admin/ForbiddenPage'
 
+// 에러 페이지
+import NotFoundPage from './pages/error/NotFoundPage'
+import ServerErrorPage from './pages/error/ServerErrorPage'
+
+// 전역 Toast 알림
+import GlobalToast from './components/Toast/GlobalToast'
+
 // 관리자 — 로그인 필요 (PrivateRoute 내부)
 import StatsDashboardPage from './pages/admin/statistics/StatsDashboardPage'
 import StatsDailyPage from './pages/admin/statistics/StatsDailyPage'
@@ -107,6 +114,10 @@ function AnimatedRoutes() {
           <Route path="payment" element={<PaymentPage />} />
           <Route path="payment/result" element={<PaymentResultPage />} />
         </Route>
+
+        {/* ─── 에러 페이지 ─── */}
+        <Route path="500" element={<ServerErrorPage />} />
+        <Route path="*" element={<NotFoundPage />} />
 
         {/* ─── 관리자 영역 ─── */}
         <Route path="admin">
@@ -189,6 +200,8 @@ function App() {
             <AnimatedRoutes />
             {/* DevNav: 개발 환경에서만 렌더링되는 빠른 이동 패널 */}
             <DevNav />
+            {/* GlobalToast: 전역 Toast — apiClient 에러/showToast() 호출 시 우하단 표시 */}
+            <GlobalToast />
           </IdleTimerProvider>
       </AuthProvider>
     </BrowserRouter>
