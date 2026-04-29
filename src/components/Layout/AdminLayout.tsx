@@ -25,11 +25,12 @@ import {
   Film, PlaySquare, Armchair, ScrollText, RotateCcw,
   LayoutDashboard, Ticket, ClipboardList,
   Sun, Moon, Users, ShieldCheck,
-  Bot, ChevronLeft, ChevronRight, X, Send,
+  Bot, ChevronLeft, ChevronRight, BookOpen,
 } from 'lucide-react'
 import { adminPageVariants, adminPageTransition } from '../../styles/transitions'
 import { useAuth } from '../../context/AuthContext'
 import type { Permission } from '../../types/auth'
+import AiChatPanel from '../AiChatPanel/AiChatPanel'
 import styles from './AdminLayout.module.css'
 
 /**
@@ -84,6 +85,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: '/admin/management/members',  label: '회원 정보 관리', Icon: Users,       permission: 'ROLE_MEMBER_MANAGEMENT' },
       { path: '/admin/management/accounts', label: '계정 및 권한',   Icon: ShieldCheck, permission: 'ROLE_ADMIN_MANAGEMENT' },
+      { path: '/admin/management/etl',      label: 'AI 매뉴얼 관리', Icon: BookOpen,    permission: 'ROLE_ADMIN_MANAGEMENT' },
     ],
   },
 ]
@@ -326,48 +328,15 @@ function AdminLayout() {
           flex 레이아웃 덕분에 메인 콘텐츠가 overlay 아닌 push 방식으로 좁아짐
       */}
       <aside className={`${styles.chatPanel} ${chatOpen ? styles.chatPanelOpen : ''}`}>
-
-        {/* 챗봇 패널 헤더 */}
-        <div className={styles.chatHeader}>
-          <div className={styles.chatHeaderTitle}>
-            <Bot size={16} />
-            <span>AI 챗봇</span>
-          </div>
-          {/* 패널 닫기 버튼 */}
-          <button
-            onClick={() => setChatOpen(false)}
-            className={styles.chatCloseBtn}
-            title="챗봇 닫기"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* 챗봇 메시지 영역 — 백엔드 연동 전 플레이스홀더 */}
-        <div className={styles.chatBody}>
-          <div className={styles.chatPlaceholder}>
-            <Bot size={36} style={{ opacity: 0.25 }} />
-            <p className={styles.chatPlaceholderTitle}>AI 챗봇 준비 중</p>
-            <p className={styles.chatPlaceholderDesc}>
-              백엔드 연동 후<br />사용 가능합니다.
-            </p>
-          </div>
-        </div>
-
-        {/* 챗봇 입력 영역 — 백엔드 연동 전 비활성화 */}
-        <div className={styles.chatInputWrap}>
-          <input
-            type="text"
-            className={styles.chatInput}
-            placeholder="메시지를 입력하세요..."
-            disabled
-          />
-          {/* 전송 버튼 — 백엔드 미연동이므로 disabled */}
-          <button className={styles.chatSendBtn} disabled>
-            <Send size={15} />
-          </button>
-        </div>
-
+        {/*
+          AiChatPanel 컴포넌트 — 실제 RAG 챗봇 UI
+          conversationId로 관리자 loginId를 넘겨 백엔드 대화 메모리 키로 사용
+        */}
+        <AiChatPanel
+          isOpen={chatOpen}
+          conversationId={currentAdmin?.loginId ?? 'guest'}
+          onClose={() => setChatOpen(false)}
+        />
       </aside>
 
     </div>

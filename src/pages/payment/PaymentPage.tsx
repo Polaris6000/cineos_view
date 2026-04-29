@@ -31,17 +31,9 @@ import {useLocation, useNavigate, useSearchParams} from 'react-router-dom'
 import {CheckCircle, Coins, CreditCard, Gift, Info, Phone, Tag, X} from 'lucide-react'
 import {loadTossPayments} from '@tosspayments/tosspayments-sdk'
 import apiClient from '../../api/apiClient'
+// 인원 타입 / 할인 금액 / 포인트 적립률은 상수 파일에서 관리 — 변경 시 discount.ts 한 곳만 수정
+import { PERSON_TYPES, POINT_RATE } from '../../constants/discount'
 
-/* ── 포인트 적립률 ── */
-const POINT_RATE = 0.05
-
-/* ── 인원 타입 라벨 (mockData 대체 인라인 정의) ── */
-const PERSON_TYPES: { type: string; label: string; discount: number }[] = [
-    {type: 'adult', label: '성인', discount: 0},
-    {type: 'teen', label: '청소년', discount: 1000},
-    {type: 'child', label: '유아', discount: 2000},
-    {type: 'senior', label: '경로', discount: 1500},
-]
 
 /* ── 좌석 타입 라벨 ── */
 const SEAT_TYPE_LABEL: Record<string, string> = {
@@ -148,6 +140,7 @@ function PaymentPage() {
     const [isVerified, setIsVerified] = useState(false)
     const [verifyError, setVerifyError] = useState('')
     const [codeSent, setCodeSent] = useState(false)
+    const [codeTimeLeft, setCodeTimeLeft] = useState(0)  // 인증번호 남은 유효시간 (초), 0이면 만료
     const [memberPoint, setMemberPoint] = useState(0)   // 조회된 잔여 포인트
 
     /* ── 개인정보 수집 동의 상태 ──
@@ -161,17 +154,33 @@ function PaymentPage() {
         setPhoneRaw(raw)
     }
 
-    /**
-     * 인증번호 발송 — POST /api/random/{toPhone}
-     *
-     * 백엔드 SmsNurigoController.random(): 랜덤 6자리 숫자를 SMS로 발송.
-     * 백엔드가 코드를 별도 저장하지 않으므로 입력 검증은 프론트 고정값(123456) 유지.
-     * (향후 백엔드에 인증번호 저장·검증 엔드포인트가 추가되면 handleVerify도 수정 필요)
-     *
-     * 개인정보 수집 동의(privacyConsent)가 체크된 경우에만 발송 가능.
-     */
-    const [sendingCode, setSendingCode] = useState(false) // 발송 중 로딩 상태
+    // 인증번호 발송 중 로딩 상태
+    const [sendingCode, setSendingCode] = useState(false)
 
+    // 인증번호 유효시간 카운트다운 (발송 성공 시 180초 시작, 매초 감소)
+    // codeTimeLeft === 0 이면 만료 상태 (재발송 필요)
+    useEffect(() => {
+        if (!codeSent || codeTimeLeft <= 0) return
+        const timer = setInterval(() => {
+            setCodeTimeLeft((prev) => {
+                if (prev <= 1) {
+                    clearInterval(timer)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+        return () => clearInterval(timer)
+    }, [codeSent, codeTimeLeft > 0])  // codeTimeLeft > 0 → 재발송 시 새 타이머 시작
+
+    // MM:SS 포맷 변환 유틸
+    const formatTimeLeft = (seconds: number): string => {
+        const m = Math.floor(seconds / 60).toString().padStart(2, '0')
+        const s = (seconds % 60).toString().padStart(2, '0')
+        return `${m}:${s}`
+    }
+
+    // POST /api/sms/random/{toPhone} — 6자리 인증번호 SMS 발송 + 서버 Map 저장 (유효 3분)
     const handleSendCode = async () => {
         if (!privacyConsent) {
             setVerifyError('개인정보 수집 및 이용에 동의해 주세요.')
@@ -181,56 +190,66 @@ function PaymentPage() {
             setVerifyError('올바른 휴대폰 번호를 입력해 주세요.')
             return
         }
-
         setSendingCode(true)
         setVerifyError('')
         try {
-            // POST /api/random/{toPhone} — 백엔드가 SMS로 6자리 인증번호 발송
-            await apiClient.post(`/random/${phoneRaw}`)
+            await apiClient.post(`/sms/random/${phoneRaw}`)
             setCodeSent(true)
+            setCodeTimeLeft(180)  // 백엔드와 동일한 3분(180초) 타이머 시작
         } catch {
-            // SMS 발송 실패 시 — 테스트 환경에서는 실제 SMS API 키 없을 수 있음
-            // 실패해도 코드 입력창은 열어줘서 테스트할 수 있게 처리
             setVerifyError('인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.')
-            // 개발/테스트 환경 fallback: 발송 실패해도 코드 입력 허용
-            setCodeSent(true)
+            setCodeSent(true)     // 실패해도 입력창은 열어둠 (개발 환경 대응)
+            setCodeTimeLeft(180)
         } finally {
             setSendingCode(false)
         }
     }
 
-    /**
-     * 인증번호 확인
-     * 테스트 코드: 123456
-     * 성공 시 GET /api/member/{phone} → 포인트 조회 (없으면 신규 등록)
-     */
+    // POST /api/sms/comparison/{toPhone}/{inputCode} — 백엔드에서 실제 검증
+    // 200 OK  → SUCCESS: 회원 조회/등록 후 인증 완료 처리
+    // 400 Bad Request → MISMATCH | EXPIRED | INVALID_FORMAT: 백엔드 메시지 그대로 표시
     const handleVerify = async () => {
-        // 테스트 환경: 고정 인증번호 123456
-        if (verifyCode !== '123456') {
-            setVerifyError('인증번호가 올바르지 않습니다. (테스트: 123456)')
+        if (verifyCode.length !== 6) {
+            setVerifyError('인증번호 6자리를 입력해 주세요.')
             return
         }
         try {
-            // 기존 회원 조회: GET /api/member/{phone}
+            await apiClient.post(`/sms/comparison/${phoneRaw}/${verifyCode}`)
+        } catch (err: any) {
+            const msg = err?.response?.data
+            setVerifyError(typeof msg === 'string' ? msg : '인증에 실패했습니다. 다시 시도해 주세요.')
+            return
+        }
+
+        // 인증 성공 — 기존 회원 조회, 없으면 신규 등록
+        // 주의: 회원 생성까지 성공한 경우에만 isVerified=true로 설정.
+        //       실패 시 isVerified를 true로 두면 DB에 회원이 없는 채로 결제가 진행되어
+        //       백엔드 savePaymentInfo에서 NoSuchElementException(→ 404)이 발생함.
+        try {
             const {data} = await apiClient.get<{ phone: string; point: number; createAt: string }>(
                 `/member/${phoneRaw}`
             )
             setMemberPoint(data.point)
+            setIsVerified(true)
+            setVerifyError('')
+            setShowPhoneModal(false)
         } catch {
-            // 미가입 회원(404): POST /api/member/{phone} 으로 신규 회원 등록 후 포인트 0으로 세팅
+            // 404: 미가입 회원 → 신규 등록 시도
             try {
                 const {data} = await apiClient.post<{ phone: string; point: number; createAt: string }>(
                     `/member/${phoneRaw}`
                 )
                 setMemberPoint(data.point ?? 0)
+                setIsVerified(true)
+                setVerifyError('')
+                setShowPhoneModal(false)
             } catch (createErr) {
+                // 회원 생성 실패 시 인증 완료 처리하지 않음
+                // → isVerified가 false인 채로 유지되어 결제 진행 불가
                 console.error('[PaymentPage] 회원 생성 실패', createErr)
-                setMemberPoint(0)
+                setVerifyError('회원 정보 등록에 실패했습니다. 잠시 후 다시 시도해 주세요.')
             }
         }
-        setIsVerified(true)
-        setVerifyError('')
-        setShowPhoneModal(false) // 인증 완료 → 모달 닫기
     }
 
     const handlePhoneModalSkip = () => {
@@ -404,6 +423,15 @@ function PaymentPage() {
         // 결제 진행 중 메시지 초기화
         setCancelMsg('')
 
+        // 0원 결제(쿠폰·포인트 전액 차감) 시 전화 인증 필수 체크
+        // 백엔드 savePaymentInfo가 phone으로 member를 조회하기 때문에
+        // phone이 없으면 NoSuchElementException(404)이 발생함
+        if (isZeroPayment && !phoneRaw) {
+            setCancelMsg('0원 결제 시에도 회원 인증이 필요합니다. 전화번호를 인증해 주세요.')
+            setShowPhoneModal(true)
+            return
+        }
+
         // localStorage에 결제 진행 중 데이터 저장 (결과 페이지 / failUrl 복원용)
         const pendingBooking = {
             movieTitle,
@@ -570,33 +598,72 @@ function PaymentPage() {
                                 style={{...inputStyle, flex: 1}}
                                 maxLength={13}
                             />
-                            {/* 발송 중(sendingCode)이면 버튼 비활성화 + 텍스트 변경 */}
+                            {/* 발송 중(sendingCode)이면 버튼 비활성화 + 텍스트 변경
+                                한 번 발송 후에도 재발송 가능하도록 codeSent는 disabled 조건에서 제외 */}
                             <button
                                 onClick={handleSendCode}
-                                disabled={codeSent || !privacyConsent || sendingCode}
+                                disabled={!privacyConsent || sendingCode}
                                 style={{
-                                  ...smallBtn,
-                                  opacity: (codeSent || !privacyConsent || sendingCode) ? 0.6 : 1
+                                    ...smallBtn,
+                                    opacity: (!privacyConsent || sendingCode) ? 0.6 : 1
                                 }}
                                 title={!privacyConsent ? '개인정보 수집 및 이용에 동의해 주세요.' : undefined}
                             >
-                                {sendingCode ? '발송 중...' : codeSent ? '발송됨' : '인증번호 발송'}
+                                {sendingCode ? '발송 중...' : codeSent ? '재발송' : '인증번호 발송'}
                             </button>
                         </div>
 
                         {/* 인증번호 입력 — 발송 후 표시 */}
                         {codeSent && (
-                            <div style={{display: 'flex', gap: 10, marginBottom: 8}}>
-                                <input
-                                    type="text"
-                                    value={verifyCode}
-                                    onChange={(e) => setVerifyCode(e.target.value)}
-                                    placeholder="인증번호 6자리"
-                                    style={{...inputStyle, flex: 1}}
-                                    maxLength={6}
-                                />
-                                <button onClick={handleVerify} style={smallBtn}>확인</button>
-                            </div>
+                            <>
+                                {/* 유효시간 표시 바 */}
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    marginBottom: 6, padding: '6px 4px',
+                                }}>
+                                    <span style={{fontSize: 12, color: 'var(--text-muted)'}}>
+                                        인증번호 유효시간
+                                    </span>
+                                    <span style={{
+                                        fontSize: 14, fontWeight: 700,
+                                        // 30초 이하면 빨간색으로 강조
+                                        color: codeTimeLeft <= 30
+                                            ? '#e03c3c'
+                                            : codeTimeLeft === 0
+                                                ? '#e03c3c'
+                                                : 'var(--color-brand-default)',
+                                    }}>
+                                        {codeTimeLeft > 0 ? formatTimeLeft(codeTimeLeft) : '만료됨 — 재발송해 주세요'}
+                                    </span>
+                                </div>
+
+                                <div style={{display: 'flex', gap: 10, marginBottom: 8}}>
+                                    <input
+                                        type="text"
+                                        value={verifyCode}
+                                        onChange={(e) => setVerifyCode(e.target.value)}
+                                        placeholder="인증번호 6자리"
+                                        // 만료 시 입력창 비활성화
+                                        disabled={codeTimeLeft === 0}
+                                        style={{
+                                            ...inputStyle, flex: 1,
+                                            opacity: codeTimeLeft === 0 ? 0.5 : 1,
+                                        }}
+                                        maxLength={6}
+                                    />
+                                    <button
+                                        onClick={handleVerify}
+                                        disabled={codeTimeLeft === 0}
+                                        style={{
+                                            ...smallBtn,
+                                            opacity: codeTimeLeft === 0 ? 0.5 : 1,
+                                            cursor: codeTimeLeft === 0 ? 'not-allowed' : 'pointer',
+                                        }}
+                                    >
+                                        확인
+                                    </button>
+                                </div>
+                            </>
                         )}
 
                         {verifyError && (

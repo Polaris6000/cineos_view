@@ -29,20 +29,14 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Info, CreditCard, Wifi, WifiOff } from 'lucide-react'
 // 좌석 배치 생성 및 통로 분할 유틸 — SeatListPage(관리자)와 동일 로직 공유
 import { generateSeats, splitRowByAisle, type SeatItem } from '../../utils/seatUtils'
+// 인원 타입 / 할인 금액은 상수 파일에서 관리 — 변경 시 discount.ts 한 곳만 수정
+import { PERSON_TYPES } from '../../constants/discount'
 
 /** 좌석 타입 → 표시 레이블 */
 const SEAT_TYPE_LABEL: Record<string, string> = {
   NORMAL:   '일반',
   RECLINER: '리클라이너',
 }
-
-/** 인원 타입 정의 (할인 계산에 사용) */
-const PERSON_TYPES: { type: string; label: string; discount: number }[] = [
-  { type: 'adult',  label: '성인',   discount: 0    },
-  { type: 'teen',   label: '청소년', discount: 1000 },
-  { type: 'child',  label: '유아',   discount: 2000 },
-  { type: 'senior', label: '경로',   discount: 1500 },
-]
 import apiClient, { type TheaterDTO, type SeatPolicyDTO, type ScheduleDTO } from '../../api/apiClient'
 import { useWebSocket } from '../../hooks/useWebSocket'
 

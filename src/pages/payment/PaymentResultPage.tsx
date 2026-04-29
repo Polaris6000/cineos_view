@@ -1,37 +1,17 @@
-/**
- * PaymentResultPage.tsx — 결제 완료 화면
- *
- * 진입 방식:
- *  - 카드 결제: Toss가 /payment/result?paymentKey=...&orderId=...&amount=... 로 리다이렉트
- *  - 포인트 전액: PaymentPage에서 직접 navigate('/payment/result?...')
- *
- * 처리 흐름:
- *  1. localStorage에서 pending_booking_data 복원
- *  2. paymentKey, orderId, amount를 querystring에서 읽어 POST /api/payment/confirm 호출
- *     (포인트 전액은 paymentKey='point' → 별도 처리)
- *  3. 확인 성공 → 완료 상태 표시, 영수증 출력 / 모바일 발송 가능
- *  4. 영수증 출력 또는 모바일 발송 버튼을 누르면 완료 모달 표시 + 5초 카운트다운
- *     (이전: 결제 확인 즉시 모달 → 자동 이동. 변경: 사용자가 버튼을 눌러야 모달 표시)
- *
- * 백엔드 POST /api/payment/confirm 요청 형태:
- *  {
- *    payType, paymentKey, orderId, amount,
- *    phone,   scheduleId ({ scheduleId: id } 중첩 구조),
- *    seats,   usePoint,  couponNum,
- *  }
- */
 import {useEffect, useRef, useState} from 'react'
 import {useNavigate, useSearchParams} from 'react-router-dom'
 import {CheckCircle, Gift, Info, Loader2, Printer, Smartphone, Ticket, X} from 'lucide-react'
 import apiClient from '../../api/apiClient'
 
-/* ── 인원 타입 라벨 (mockData 대체 인라인) ── */
 const PERSON_TYPES: { type: string; label: string }[] = [
     {type: 'adult', label: '성인'},
     {type: 'teen', label: '청소년'},
-    {type: 'child', label: '유아'},
     {type: 'senior', label: '경로'},
 ]
+
+// 결제 완료 직후 티켓 알림 모달 자동 닫힘 카운트다운 (초)
+// 이 값만 바꾸면 닫힘 타이밍 조정 가능
+const TICKET_REMINDER_COUNTDOWN = 5
 
 /** 전화번호 포맷 */
 function formatPhone(raw: string): string {
@@ -51,12 +31,15 @@ function PaymentResultPage() {
         return saved ? JSON.parse(saved) : null
     })
 
-    // 결제 확인 진행 상태
     const [confirming, setConfirming] = useState(false)
     const [confirmError, setConfirmError] = useState('')
-    const [confirmed, setConfirmed] = useState(false) // 결제 확인 완료 여부 (true이면 결과 화면 표시)
+    const [confirmed, setConfirmed] = useState(false)
 
-    // 카운트다운 모달
+    // 결제 직후 티켓 알림 모달 (TICKET_REMINDER_COUNTDOWN초 후 자동 닫힘)
+    const [showTicketModal, setShowTicketModal] = useState(false)
+    const [ticketCountdown, setTicketCountdown] = useState(TICKET_REMINDER_COUNTDOWN)
+
+    // 영수증/모바일 버튼 클릭 시 표시되는 완료 모달
     const [showDoneModal, setShowDoneModal] = useState(false)
     const [countdown, setCountdown] = useState(5)
 
@@ -151,10 +134,8 @@ function PaymentResultPage() {
                     paymentKey: paymentKey ?? 'point',
                 }))
                 setConfirmed(true)
-                // ⚠️ 여기서 setShowDoneModal(true) 호출하지 않음!
-                // 결제 확인이 완료되면 결과 화면을 보여주되, 자동으로 홈으로 이동하지 않는다.
-                // 사용자가 "영수증 출력" 또는 "모바일 영수증" 버튼을 눌렀을 때만 완료 모달이 뜸.
-                // 바로 홈으로 가고 싶은 사용자는 "홈으로 돌아가기" 버튼을 누르면 됨.
+                setShowTicketModal(true)        // 티켓 알림 모달 자동 표시
+                setTicketCountdown(TICKET_REMINDER_COUNTDOWN)
                 localStorage.removeItem('pending_booking_data')
                 localStorage.removeItem('ws_user_id')
             } catch (err: any) {
@@ -174,7 +155,23 @@ function PaymentResultPage() {
         void confirmPayment()
     }, [searchParams, bookingData])
 
-    /* ── 카운트다운 (완료 모달 표시 시) ── */
+    /* ── 티켓 알림 모달 카운트다운 (confirmed 직후 자동 표시, 닫기만 함) ── */
+    useEffect(() => {
+        if (!showTicketModal) return
+        const timer = setInterval(() => {
+            setTicketCountdown((prev) => {
+                if (prev <= 1) {
+                    clearInterval(timer)
+                    setShowTicketModal(false)
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+        return () => clearInterval(timer)
+    }, [showTicketModal])
+
+    /* ── 완료 모달 카운트다운 (영수증/모바일 버튼 클릭 시, 홈으로 이동) ── */
     useEffect(() => {
         if (!showDoneModal) return
         const timer = setInterval(() => {
@@ -383,6 +380,27 @@ ${pointEarned > 0 ? `<div class="divider"></div><div class="row"><span class="la
     /* ── 메인 렌더 ── */
     return (
         <div style={pageWrap}>
+
+            {/* 티켓 알림 모달 — 결제 확인 직후 자동 표시, TICKET_REMINDER_COUNTDOWN초 후 자동 닫힘 */}
+            {showTicketModal && (
+                <div style={modalOverlay}>
+                    <div style={ticketModalBox}>
+                        <Ticket size={56} color="var(--color-brand-default)" strokeWidth={1.5} style={{marginBottom: 20}}/>
+                        <h3 style={ticketModalTitle}>티켓을 꼭 챙겨 가세요!</h3>
+                        <p style={ticketModalDesc}>
+                            발권된 티켓은 입장 시 반드시 필요합니다.<br/>
+                            분실 시 재발급이 어려우니 안전하게 보관해 주세요.
+                        </p>
+                        <div style={countdownBox}>
+                            <span style={countdownNum}>{ticketCountdown}</span>
+                            <span style={{fontSize: 15, color: 'var(--text-muted)'}}>초 후 자동으로 닫힙니다</span>
+                        </div>
+                        <button onClick={() => setShowTicketModal(false)} style={ticketModalCloseBtn}>
+                            확인
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* 완료 모달 */}
             {showDoneModal && (
@@ -612,6 +630,19 @@ const doneModalBox: React.CSSProperties = {
 }
 const doneTitle: React.CSSProperties = {fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 14}
 const doneDesc: React.CSSProperties = {fontSize: 16, color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: 28}
+const ticketModalBox: React.CSSProperties = {
+    width: '100%', maxWidth: 460, background: 'var(--bg-surface)',
+    borderRadius: 24, padding: '52px 40px 44px',
+    textAlign: 'center', boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+}
+const ticketModalTitle: React.CSSProperties = {fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 14}
+const ticketModalDesc: React.CSSProperties = {fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: 28}
+const ticketModalCloseBtn: React.CSSProperties = {
+    padding: '14px 48px', background: 'var(--color-brand-default)',
+    border: 'none', borderRadius: 14,
+    color: '#000', fontSize: 16, fontWeight: 800, cursor: 'pointer',
+}
 const countdownBox: React.CSSProperties = {
     display: 'flex', alignItems: 'center', gap: 10, padding: '14px 28px',
     background: 'var(--bg-base)', border: '1px solid var(--border-default)',

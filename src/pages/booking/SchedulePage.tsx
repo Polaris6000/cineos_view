@@ -21,12 +21,10 @@ import { useState, useMemo, useEffect} from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, Film, Clock, Users, ChevronDown, ChevronUp, Info } from 'lucide-react'
 // mockData 의존성 제거 — 백엔드 연동 완료로 목데이터 불필요, 인라인 상수 사용
-/** 인원 타입 정의 (좌석 선택 및 할인 계산에 사용) */
 const PERSON_TYPES: { type: string; label: string; discount: number }[] = [
   { type: 'adult',  label: '성인',   discount: 0    },
-  { type: 'teen',   label: '청소년', discount: 1000 },
-  { type: 'child',  label: '유아',   discount: 2000 },
-  { type: 'senior', label: '경로',   discount: 1500 },
+  { type: 'teen',   label: '청소년', discount: 2000 },
+  { type: 'senior', label: '경로',   discount: 3000 },
 ]
 
 import axios from 'axios'
@@ -142,7 +140,7 @@ function SchedulePage() {
   // preSelectedSchedule: 상세 페이지에서 시간 클릭 시 초기값으로 세팅
   const [selectedSched, setSelectedSched] = useState(preSelectedSchedule ?? null)
   // 인원: SeatPage, PaymentPage와 동일하게 소문자 키 사용
-  const [persons, setPersons] = useState<Record<string, number>>({ adult: 1, teen: 0, child: 0, senior: 0 })
+  const [persons, setPersons] = useState<Record<string, number>>({ adult: 1, teen: 0, senior: 0 })
 
   /**
    * 스케줄 선택 시 해당 스케줄의 상영관(Theater)을 동기화
@@ -342,6 +340,15 @@ function SchedulePage() {
             </div>
           ))}
         </div>
+
+        {/* 기타 할인 안내 — 유아·장애인·국가유공자 등은 카운터에서 별도 문의 */}
+        <div style={otherDiscountNotice}>
+          <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>
+            유아·장애인·국가유공자 등 기타 할인은 매표소 카운터에서 예매해 주세요.
+          </span>
+        </div>
+
         <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginTop: 12 }}>
           총 인원:{' '}
           <strong style={{ color: 'var(--color-brand-default)', fontSize: 17 }}>
@@ -437,6 +444,14 @@ const timeBtnSoldOut = { opacity: 0.4, cursor: 'not-allowed' }
 const personList: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', gap: 16,
   background: 'var(--bg-surface)', borderRadius: 16, padding: '20px 24px',
+}
+const otherDiscountNotice: React.CSSProperties = {
+  display: 'flex', alignItems: 'flex-start', gap: 8,
+  marginTop: 12, padding: '12px 16px',
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--border-subtle)',
+  borderRadius: 10,
+  fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6,
 }
 const personRow: React.CSSProperties  = {
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',

@@ -81,6 +81,7 @@ import PaymentLogDetailPage from './pages/admin/management/PaymentLogDetailPage'
 import MemberListPage from './pages/admin/management/MemberListPage'
 import ActivityLogPage from './pages/admin/management/ActivityLogPage'
 import AdminAccountPage from './pages/admin/management/AdminAccountPage'
+import EtlUploadPage from './pages/admin/management/EtlUploadPage'
 
 /**
  * AnimatedRoutes 컴포넌트
@@ -178,6 +179,11 @@ function AnimatedRoutes() {
               <Route path="management/accounts" element={<AdminAccountPage />} />
             </Route>
 
+            {/* AI 매뉴얼 업로드 — 계정 관리 권한 필요 (SUPER_ADMIN 전용) */}
+            <Route element={<PrivateRoute permission="ROLE_ADMIN_MANAGEMENT" />}>
+              <Route path="management/etl" element={<EtlUploadPage />} />
+            </Route>
+
           </Route>
         </Route>
 
@@ -198,11 +204,11 @@ function App() {
           {/* IdleTimerProvider: 고객 화면 유휴 감지 → 홈으로 이동 */}
           <IdleTimerProvider>
             <AnimatedRoutes />
-            {/* DevNav: 개발 환경에서만 렌더링되는 빠른 이동 패널 */}
+            {/* 개발용 네비게이션 — 프로덕션 빌드 전 제거 예정 */}
             <DevNav />
-            {/* GlobalToast: 전역 Toast — apiClient 에러/showToast() 호출 시 우하단 표시 */}
-            <GlobalToast />
           </IdleTimerProvider>
+        {/* 전역 Toast 알림 — 우하단 고정, apiClient 에맬 인터셉터와 연동 */}
+        <GlobalToast />
       </AuthProvider>
     </BrowserRouter>
   )
