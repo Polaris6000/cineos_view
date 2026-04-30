@@ -451,7 +451,7 @@ const otherDiscountNotice: React.CSSProperties = {
   background: 'rgba(255,255,255,0.04)',
   border: '1px solid var(--border-subtle)',
   borderRadius: 10,
-  fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6,
+  fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6,
 }
 const personRow: React.CSSProperties  = {
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -486,7 +486,7 @@ const hintBox   = {
   padding: '12px 20px', marginBottom: 16,
   background: 'var(--bg-surface)',
   border: '1px solid var(--border-default)',
-  borderRadius: 12, fontSize: 15, color: 'var(--text-muted)',
+  borderRadius: 12, fontSize: 15, color: 'var(--text-secondary)',
 }
 const nextBtn   = {
   display: 'block', width: '100%',

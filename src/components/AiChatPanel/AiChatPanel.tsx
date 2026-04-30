@@ -177,8 +177,8 @@ function AiChatPanel({ isOpen, conversationId, onClose }: AiChatPanelProps) {
               {/* 예시 클릭 시 입력창에 자동 입력 */}
               {[
                 '환불 처리 절차가 어떻게 되나요?',
-                '포인트 적립 기준을 알려주세요.',
-                '상영관 좌석 등급은 어떻게 구분되나요?',
+                '키오스크에서 티켓 출력이 되지 않아요.',
+                '비상 상황 시 대피 요령을 알려주세요!',
               ].map((ex) => (
                 <button
                   key={ex}

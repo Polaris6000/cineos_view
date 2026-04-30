@@ -118,8 +118,8 @@ function PaymentPage() {
     )
 
     /* ── 모달 상태 ── */
-    const [showPointModal, setShowPointModal] = useState(true)
-    const [showPhoneModal, setShowPhoneModal] = useState(false)
+    const [showPointModal, setShowPointModal] = useState(false)
+    const [showPhoneModal, setShowPhoneModal] = useState(true)
     const [wantPoints, setWantPoints] = useState<boolean | null>(null)
 
     const handleModalYes = () => {
@@ -423,6 +423,13 @@ function PaymentPage() {
         // 결제 진행 중 메시지 초기화
         setCancelMsg('')
 
+        // 인증이 안 되어 있으면 결제를 중단하고 인증 모달을 띄움
+        if (!isVerified) {
+            setCancelMsg('결제를 위해 휴대폰 인증이 필요합니다.');
+            setShowPhoneModal(true);
+            return; // 여기서 함수 종료하여 토스 결제창(tossInstance) 실행을 막음
+        }
+
         // 0원 결제(쿠폰·포인트 전액 차감) 시 전화 인증 필수 체크
         // 백엔드 savePaymentInfo가 phone으로 member를 조회하기 때문에
         // phone이 없으면 NoSuchElementException(404)이 발생함
@@ -670,13 +677,13 @@ function PaymentPage() {
                             <p style={{color: '#e03c3c', fontSize: 13, marginBottom: 8}}>{verifyError}</p>
                         )}
 
-                        <p style={{fontSize: 12, color: 'var(--text-muted)', marginBottom: 20}}>
+                        <p style={{fontSize: 12, color: 'var(--text-secondary)', marginBottom: 20}}>
                             <Info size={12} style={{marginRight: 4, verticalAlign: 'middle'}}/>
-                            테스트 인증번호: 123456
+                            인증 후 서비스를 정상적으로 이용하실 수 있습니다.
                         </p>
 
                         <button onClick={handlePhoneModalSkip} style={modalBtnNo}>
-                            건너뛰기
+                            닫기
                         </button>
                     </div>
                 </div>
@@ -854,7 +861,7 @@ function PaymentPage() {
                             <span>적립 예정: <strong>{pointEarned.toLocaleString()}P</strong></span>
                         </div>
                     ) : (
-                        <button onClick={() => setShowPointModal(true)} style={pointCtaBtn}>
+                        <button onClick={() => setShowPhoneModal(true)} style={pointCtaBtn}>
                             <Gift size={16} style={{marginRight: 8}}/>
                             포인트 적립 / 회원 인증
                         </button>

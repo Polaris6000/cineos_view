@@ -31,12 +31,6 @@ function TheaterListPage() {
   const [loading,      setLoading]      = useState(false)
   const [error,        setError]        = useState('')
 
-  /* ── 상영관 등록 폼 상태 ── */
-  const [showAddForm,  setShowAddForm]  = useState(false)
-  const [addForm,      setAddForm]      = useState({ policyId: 0, cleanupTime: 10 })
-  const [addSaving,    setAddSaving]    = useState(false)
-  const [addMsg,       setAddMsg]       = useState('')
-
   // 헬퍼 함수들
   const getTheaterName = (no: number) => `${no}관`;
 
@@ -78,113 +72,18 @@ function TheaterListPage() {
     // seatPolicies 로드 후 addForm 기본 policyId 설정
   }, [])
 
-  // seatPolicies가 로드됐을 때 등록 폼 기본값 설정
-  useEffect(() => {
-    if (seatPolicies.length > 0 && addForm.policyId === 0) {
-      setAddForm((prev) => ({ ...prev, policyId: seatPolicies[0].policyId }))
-    }
-  }, [seatPolicies])
-
-  /**
-   * 상영관 등록
-   * POST /api/admin/theater { policyId, cleanupTime }
-   * 성공 시 목록 새로고침
-   */
-  const handleAddTheater = async () => {
-    if (!addForm.policyId) { alert('좌석 정책을 선택해 주세요.'); return }
-    if (addForm.cleanupTime < 0 || addForm.cleanupTime > 60) {
-      alert('정리시간은 0~60분 사이여야 합니다.'); return
-    }
-
-    setAddSaving(true)
-    try {
-      await apiClient.post('/admin/theater', {
-        policyId:    addForm.policyId,
-        cleanupTime: addForm.cleanupTime,
-      })
-      setAddMsg('상영관이 등록되었습니다.')
-      setShowAddForm(false)
-      // 목록 새로고침으로 새 상영관 반영
-      await fetchData()
-    } catch (e) {
-      console.error('[TheaterListPage] 상영관 등록 실패', e)
-      alert('상영관 등록에 실패했습니다.')
-    } finally {
-      setAddSaving(false)
-      setTimeout(() => setAddMsg(''), 3000)
-    }
-  }
-
   return (
       <div>
         {/* ── 헤더 ── */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <h2 style={pageTitle}>상영관 목록</h2>
           <div style={{ display: 'flex', gap: 8 }}>
-            {/* ROLE_THEATER_EDIT 없으면 등록 버튼 숨김 */}
-            {canEdit && (
-              <button
-                onClick={() => setShowAddForm((v) => !v)}
-                style={showAddForm ? cancelAddBtn : addBtn}
-              >
-                {showAddForm ? '취소' : '+ 상영관 등록'}
-              </button>
-            )}
             <button onClick={fetchData} disabled={loading} style={refreshBtn}>
               <RefreshCw size={14} style={{ marginRight: 5 }} />
               새로고침
             </button>
           </div>
         </div>
-
-        {/* ── 상영관 등록 폼 ── */}
-        {showAddForm && (
-          <div style={addFormBox}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12 }}>
-              새 상영관 등록
-            </p>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              {/* 좌석 정책 선택 */}
-              <div style={addField}>
-                <label style={addLabel}>좌석 정책</label>
-                <select
-                  value={addForm.policyId}
-                  onChange={(e) => setAddForm((p) => ({ ...p, policyId: Number(e.target.value) }))}
-                  style={addSelect}
-                >
-                  {seatPolicies.map((p) => (
-                    <option key={p.policyId} value={p.policyId}>
-                      {p.name} ({p.cost.toLocaleString()}원)
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {/* 정리시간 */}
-              <div style={addField}>
-                <label style={addLabel}>정리시간 (분)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={60}
-                  step={5}
-                  value={addForm.cleanupTime}
-                  onChange={(e) => setAddForm((p) => ({ ...p, cleanupTime: Number(e.target.value) }))}
-                  style={addInput}
-                />
-              </div>
-              <button
-                onClick={handleAddTheater}
-                disabled={addSaving}
-                style={{ ...saveBtn, opacity: addSaving ? 0.7 : 1 }}
-              >
-                {addSaving ? '등록 중...' : '등록'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 등록 성공 메시지 */}
-        {addMsg && <div style={successBanner}>{addMsg}</div>}
 
         {/* 오류 메시지 */}
         {error && (
@@ -279,14 +178,5 @@ const dd: React.CSSProperties = { fontSize: 14, color: 'var(--text-primary)', ma
 const editBtn    = { width: '100%', padding: '10px 0', background: 'var(--color-info-bg)', border: '1px solid var(--color-brand-default)', borderRadius: 8, color: 'var(--color-brand-default)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }
 const refreshBtn: React.CSSProperties = { display: 'flex', alignItems: 'center', padding: '8px 14px', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }
 const errorBanner: React.CSSProperties   = { padding: '12px 16px', background: 'var(--color-error-bg)', border: '1px solid var(--color-error-main)', borderRadius: 8, color: 'var(--color-error-text)', marginBottom: 16, fontSize: 14 }
-const successBanner: React.CSSProperties = { padding: '10px 14px', background: 'var(--color-success-bg)', border: '1px solid var(--color-success-main)', borderRadius: 8, color: 'var(--color-success-main)', fontSize: 13, fontWeight: 600, marginBottom: 16 }
-const addBtn: React.CSSProperties        = { padding: '8px 18px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }
-const cancelAddBtn: React.CSSProperties  = { padding: '8px 18px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer' }
-const saveBtn: React.CSSProperties       = { padding: '10px 22px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer' }
-const addFormBox: React.CSSProperties    = { background: 'var(--bg-surface)', borderRadius: 10, padding: '16px 18px', marginBottom: 20, border: '1px solid var(--border-default)' }
-const addField: React.CSSProperties      = { display: 'flex', flexDirection: 'column', gap: 4 }
-const addLabel                           = { fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }
-const addSelect: React.CSSProperties     = { padding: '10px 12px', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 14, color: 'var(--text-primary)', background: 'var(--input-bg)', cursor: 'pointer', minWidth: 200 }
-const addInput: React.CSSProperties      = { padding: '10px 12px', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 14, color: 'var(--text-primary)', background: 'var(--input-bg)', width: 100 }
 
 export default TheaterListPage
