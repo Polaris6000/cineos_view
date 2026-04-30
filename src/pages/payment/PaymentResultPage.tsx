@@ -50,6 +50,7 @@ function PaymentResultPage() {
 
     const hasConfirmed = useRef(false)
 
+
     /* ── 결제 확인 로직 ── */
     useEffect(() => {
         if (hasConfirmed.current || !bookingData) return
@@ -106,7 +107,8 @@ function PaymentResultPage() {
 
                 // 포인트 전액 결제: Toss 승인 없이 DB 저장만
                 // 카드 결제: Toss 승인 + DB 저장
-                await apiClient.post('/payment/confirm', {
+                const res = await apiClient.post('/payment/confirm', {
+
                     payType: bookingData.payMethod,             // 'CARD' | 'POINT'
                     orderId,
                     paymentKey: paymentKey ?? 'point',
@@ -125,7 +127,8 @@ function PaymentResultPage() {
                     bonusPolicyId,                                  // 동적으로 조회한 활성 적립 정책 ID
                     usePoint: bookingData.pointUsed ?? 0,
                     couponNum: bookingData.couponNum ?? '',       // 쿠폰 없으면 빈 문자열
-                })
+                });
+                console.log("결제 데이터 값들 : ", res)
 
                 // 성공 → 최종 데이터 업데이트
                 setBookingData((prev: any) => ({
@@ -303,79 +306,57 @@ ${pointEarned > 0 ? `<div class="divider"></div><div class="row"><span class="la
 
     /**
      * 영수증 SMS 발송 공통 함수
-     *
-     * POST /api/sms → SmsNurigoController
-     * Body: { toPhone: string, content: string }
-     *
-     * @param targetPhone - 발송 대상 번호 (숫자만, 예: '01012345678')
+     * @param targetPhone - 발송 대상 번호 (예: '01012345678')
+     * @param bookingId - 예매내역 PK (no)
+     * @param paymentUuid - 결제내역 PK (uuid)
      */
-    const sendReceiptSms = async (targetPhone: string): Promise<void> => {
-        // SMS 본문 생성: 예매번호·결제금액·영화·상영시간·좌석 포함
-        const issuedAt = new Date().toLocaleString('ko-KR', {
-            year: 'numeric', month: '2-digit', day: '2-digit',
-            hour: '2-digit', minute: '2-digit',
-        })
+    const sendReceiptSms = async (targetPhone: string, bookingId: string): Promise<void> => {
+        // 백엔드 엔드포인트: POST /api/sms/receipt/{toPhone}/{no}/{uuid}
+        // API 클라이언트 설정에 따라 '/api' 접두사 포함 여부를 확인하세요.
+        const url = `/sms/receipt/${targetPhone}/${bookingId}`;
 
-        // 좌석 번호가 많으면 앞 4개만 표시 후 "외 n석" 처리 (SMS 90자 제한 고려)
-        const seatDisplay = selectedSeats.length <= 4
-            ? selectedSeats.join(', ')
-            : `${selectedSeats.slice(0, 4).join(', ')} 외 ${selectedSeats.length - 4}석`
-
-        const content = [
-            '[CineOS] 예매 영수증',
-            `예매번호: ${bookingId}`,
-            `결제시간: ${issuedAt}`,
-            `결제금액: ${finalAmount.toLocaleString()}원`,
-            `영화: ${movieTitle}`,
-            `상영시간: ${schedule?.startTime ?? ''}`,
-            `좌석: ${seatDisplay}`,
-            '즐거운 관람 되세요!',
-        ].join('\n')
-
-        // POST /api/sms (Nurigo SMS 서비스 — SmsNurigoController)
-        await apiClient.post('/sms', {toPhone: targetPhone, content})
-    }
+        await apiClient.post(url);
+    };
 
     /* ── 모바일 영수증 ── */
     const handleMobileClick = () => {
         if (authPhone) {
-            // 인증 시 등록된 번호로 즉시 발송
-            setMobileSending(true)
-            sendReceiptSms(authPhone)
+            setMobileSending(true);
+            // authPhone과 함께 현재 페이지의 bookingId, paymentUuid를 전달합니다.
+            sendReceiptSms(authPhone, bookingId)
                 .then(() => {
-                    setMobileSending(false)
-                    setCountdown(5)
-                    setShowDoneModal(true)
+                    setMobileSending(false);
+                    setCountdown(5);
+                    setShowDoneModal(true);
                 })
                 .catch((err) => {
-                    console.error('[PaymentResultPage] SMS 발송 실패:', err)
-                    setMobileSending(false)
-                    // 발송 실패 시에도 완료 처리 (재시도는 별도 모달에서)
-                    alert('SMS 발송 중 오류가 발생했습니다. 영수증 출력을 이용해 주세요.')
-                })
+                    console.error('[PaymentResultPage] SMS 발송 실패:', err);
+                    setMobileSending(false);
+                    alert('SMS 발송 중 오류가 발생했습니다. 영수증 출력을 이용해 주세요.');
+                });
         } else {
-            // 번호 미등록 시 입력 모달 오픈
-            setMobilePhoneRaw('')
-            setShowMobileModal(true)
+            setMobilePhoneRaw('');
+            setShowMobileModal(true);
         }
-    }
+    };
 
     const handleMobileSend = () => {
-        if (mobilePhoneRaw.length < 10) return
-        setMobileSending(true)
-        sendReceiptSms(mobilePhoneRaw)
+        if (mobilePhoneRaw.length < 10) return;
+        setMobileSending(true);
+        // 입력받은 번호와 함께 정보를 전달
+        sendReceiptSms(mobilePhoneRaw, bookingId)
             .then(() => {
-                setMobileSending(false)
-                setShowMobileModal(false)
-                setCountdown(5)
-                setShowDoneModal(true)
+                setMobileSending(false);
+                setShowMobileModal(false);
+                setCountdown(5);
+                setShowDoneModal(true);
             })
             .catch((err) => {
-                console.error('[PaymentResultPage] SMS 발송 실패:', err)
-                setMobileSending(false)
-                alert('SMS 발송 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.')
-            })
-    }
+                console.error('[PaymentResultPage] SMS 발송 실패:', err);
+                setMobileSending(false);
+                alert('SMS 발송 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+            });
+    };
 
     /* ── 메인 렌더 ── */
     return (
