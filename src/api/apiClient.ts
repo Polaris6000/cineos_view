@@ -18,7 +18,7 @@ import { showToast } from '../utils/toast'
 
 const apiClient = axios.create({
     baseURL: '/api',
-    timeout: 10_000,
+    timeout: 15_000,
     headers: {
         'Content-Type': 'application/json',
     },
