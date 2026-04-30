@@ -1,5 +1,5 @@
 /**
- * StatsDashboardPage.tsx — 통계 대시보드 (UC-12~16 진입점)
+ * StatsDashboardPage.tsx — 통계 대시보드
  *
  * 오늘/이번 달 요약 카드 + 박스오피스 1위 + 상세 통계 바로가기
  *

@@ -12,6 +12,22 @@ import {CheckCircle, RefreshCw, Search} from 'lucide-react'
 import apiClient from '../../../api/apiClient'
 import {BookingDTO, mapToBooking, PaymentDTO} from '../../../api/typeData'
 
+/**
+ * buildPageRange — 페이지 번호 배열 생성 (... 포함)
+ * 7 이하: 모두 표시 / 초과: 1 · ... · (현재±2) · ... · N 구조
+ */
+function buildPageRange(current: number, total: number): (number | '...')[] {
+    if (total <= 7) return Array.from({length: total}, (_, i) => i + 1)
+    const left = Math.max(2, current - 2)
+    const right = Math.min(total - 1, current + 2)
+    const items: (number | '...')[] = [1]
+    if (left > 2) items.push('...')
+    for (let i = left; i <= right; i++) items.push(i)
+    if (right < total - 1) items.push('...')
+    items.push(total)
+    return items
+}
+
 /** 결제내역 리스트에 표시할 간략 정보 */
 interface PaymentSummary {
     id: string            // 예매번호 (UUID)
@@ -148,6 +164,8 @@ function RefundPage() {
             })
             await new Promise((r) => setTimeout(r, 700))
             setRefunded(true)
+            // detail 카드의 status도 즉시 RETURN으로 반영 — 환불 버튼 재노출 방지
+            setResult(prev => prev ? { ...prev, status: 'RETURN' } : undefined)
             // 리스트 새로고침 — 현재 페이지 그대로 재조회 (RETURN 상태 반영)
             loadPaymentList(listPage)
         } catch {
@@ -156,8 +174,8 @@ function RefundPage() {
         setLoading(false)
     }
 
-    // 파생 상태
-    const isRefunded = result ? (result.status === 'REFUNDED' || refunded) : false
+    // 파생 상태 — 백엔드 환불 완료 상태값은 'RETURN'
+    const isRefunded = result ? (result.status === 'RETURN' || refunded) : false
     const canRefund = true  // TODO: 상영 시작 시각 기준 환불가능 여부
 
     return (
@@ -268,7 +286,6 @@ function RefundPage() {
                         {/* ── 페이지네이션 — totalPages >= 1이면 항상 표시 ── */}
                         {listTotalPages >= 1 && (
                             <div style={paginationWrap}>
-                                {/* 이전 버튼 */}
                                 <button
                                     disabled={listPage === 1}
                                     onClick={() => setListPage(p => Math.max(1, p - 1))}
@@ -277,26 +294,26 @@ function RefundPage() {
                                     이전
                                 </button>
 
-                                {/* 슬라이딩 윈도우 — 최대 5개 페이지 번호 표시 */}
-                                {Array.from({length: listTotalPages}, (_, i) => i + 1)
-                                    .filter(n => n >= Math.max(1, listPage - 2) && n <= Math.min(listTotalPages, listPage + 2))
-                                    .map(n => (
-                                        <button
-                                            key={n}
-                                            onClick={() => setListPage(n)}
-                                            style={{
-                                                ...pageNumBtn,
-                                                background: listPage === n ? 'var(--color-brand-default)' : 'transparent',
-                                                color: listPage === n ? '#fff' : 'var(--text-secondary)',
-                                                border: listPage === n ? 'none' : '1px solid var(--border-subtle)',
-                                            }}
-                                        >
-                                            {n}
-                                        </button>
-                                    ))
-                                }
+                                {/* buildPageRange: 1·...·(현재±2)·...·N 구조로 페이지 번호 생성 */}
+                                {buildPageRange(listPage, listTotalPages).map((n, idx) =>
+                                    n === '...'
+                                        ? <span key={`ellipsis-${idx}`} style={ellipsis}>…</span>
+                                        : (
+                                            <button
+                                                key={n}
+                                                onClick={() => setListPage(n)}
+                                                style={{
+                                                    ...pageNumBtn,
+                                                    background: listPage === n ? 'var(--color-brand-default)' : 'transparent',
+                                                    color: listPage === n ? '#fff' : 'var(--text-secondary)',
+                                                    border: listPage === n ? 'none' : '1px solid var(--border-subtle)',
+                                                }}
+                                            >
+                                                {n}
+                                            </button>
+                                        )
+                                )}
 
-                                {/* 다음 버튼 */}
                                 <button
                                     disabled={listPage === listTotalPages}
                                     onClick={() => setListPage(p => Math.min(listTotalPages, p + 1))}
@@ -305,10 +322,9 @@ function RefundPage() {
                                     다음
                                 </button>
 
-                                {/* 현재 페이지 위치 텍스트 */}
                                 <span style={{fontSize: 12, color: 'var(--text-muted)', marginLeft: 4}}>
-                  {listPage} / {listTotalPages} 페이지
-                </span>
+                                    {listPage} / {listTotalPages} 페이지
+                                </span>
                             </div>
                         )}
                     </>
@@ -452,7 +468,7 @@ const td: React.CSSProperties = {
     padding: '8px 10px', color: 'var(--text-primary)', verticalAlign: 'middle' as const,
 }
 const paginationWrap: React.CSSProperties = {
-    display: 'flex', gap: 6, alignItems: 'center', marginTop: 12,
+    display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, flexWrap: 'wrap',
 }
 const pageBtn: React.CSSProperties = {
     padding: '5px 11px', border: '1px solid var(--border-default)',
@@ -461,6 +477,9 @@ const pageBtn: React.CSSProperties = {
 }
 const pageNumBtn: React.CSSProperties = {
     width: 30, height: 30, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+}
+const ellipsis: React.CSSProperties = {
+    width: 24, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', lineHeight: '30px',
 }
 const selectBtn: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center',

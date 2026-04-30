@@ -1,5 +1,5 @@
 /**
- * StatsMonthlyPage.tsx — 월별 통계 (UC-14)
+ * StatsMonthlyPage.tsx — 월별 통계
  *
  * API: GET /api/admin/statistics?startDate=YYYY-01-01&endDate=YYYY-12-31&type=MONTH
  * 응답: { date('YYYY-MM-01'), revenue, customerCount }[]

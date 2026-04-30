@@ -21,6 +21,22 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import apiClient from '../../../api/apiClient'
 
+/**
+ * buildPageRange — 페이지 번호 배열 생성 (... 포함)
+ * 7 이하: 모두 표시 / 초과: 1 · ... · (현재±2) · ... · N 구조
+ */
+function buildPageRange(current: number, total: number): (number | '...')[] {
+    if (total <= 7) return Array.from({length: total}, (_, i) => i + 1)
+    const left = Math.max(2, current - 2)
+    const right = Math.min(total - 1, current + 2)
+    const items: (number | '...')[] = [1]
+    if (left > 2) items.push('...')
+    for (let i = left; i <= right; i++) items.push(i)
+    if (right < total - 1) items.push('...')
+    items.push(total)
+    return items
+}
+
 /* ── 타입 ── */
 interface PointHistory {
   pointId:    number
@@ -204,7 +220,6 @@ function ActivityLogPage() {
       {/* ── 페이지네이션 ── */}
       {totalPages >= 1 && (
         <div style={pagination}>
-          {/* 이전 버튼 */}
           <button
             style={{ ...pageBtn, opacity: currentPage <= 1 ? 0.4 : 1 }}
             disabled={currentPage <= 1}
@@ -213,27 +228,27 @@ function ActivityLogPage() {
             <ChevronLeft size={14} />
           </button>
 
-          {/* 페이지 번호 — 현재 기준 ±2 표시 */}
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(p => Math.abs(p - currentPage) <= 2)
-            .map(p => (
-              <button
-                key={p}
-                style={{
-                  ...pageBtn,
-                  minWidth: 34,
-                  background: p === currentPage ? 'var(--color-brand-default)' : 'var(--bg-surface)',
-                  color:      p === currentPage ? 'var(--btn-primary-text)'    : 'var(--text-secondary)',
-                  fontWeight: p === currentPage ? 700 : 400,
-                }}
-                onClick={() => setCurrentPage(p)}
-              >
-                {p}
-              </button>
-            ))
-          }
+          {/* buildPageRange: 1 · ... · (현재±2) · ... · N 구조 */}
+          {buildPageRange(currentPage, totalPages).map((p, idx) =>
+            p === '...'
+              ? <span key={`ellipsis-${idx}`} style={ellipsis}>…</span>
+              : (
+                <button
+                  key={p}
+                  style={{
+                    ...pageBtn,
+                    minWidth: 34,
+                    background: p === currentPage ? 'var(--color-brand-default)' : 'var(--bg-surface)',
+                    color:      p === currentPage ? 'var(--btn-primary-text)'    : 'var(--text-secondary)',
+                    fontWeight: p === currentPage ? 700 : 400,
+                  }}
+                  onClick={() => setCurrentPage(p)}
+                >
+                  {p}
+                </button>
+              )
+          )}
 
-          {/* 다음 버튼 */}
           <button
             style={{ ...pageBtn, opacity: currentPage >= totalPages ? 0.4 : 1 }}
             disabled={currentPage >= totalPages}
@@ -302,11 +317,15 @@ const emptyCell: React.CSSProperties = {
   color: 'var(--text-muted)', fontSize: 13,
 }
 const pagination: React.CSSProperties = {
-  display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, marginTop: 20,
+  display: 'flex', justifyContent: 'center', alignItems: 'center',
+  gap: 4, marginTop: 20, flexWrap: 'wrap',
 }
 const pageBtn: React.CSSProperties = {
-  padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border-default)',
+  padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-default)',
   background: 'var(--bg-surface)', cursor: 'pointer', fontSize: 12, fontWeight: 600,
   color: 'var(--text-secondary)',
+}
+const ellipsis: React.CSSProperties = {
+  width: 24, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', lineHeight: '32px',
 }
 export default ActivityLogPage

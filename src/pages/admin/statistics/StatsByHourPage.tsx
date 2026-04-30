@@ -1,5 +1,5 @@
 /**
- * StatsByHourPage.tsx — 시간대별 통계 (UC-16)
+ * StatsByHourPage.tsx — 시간대별 통계
  *
  * API: GET /api/admin/statistics?startDate=&endDate=&type=HOUR
  * 응답: { title("HH시"), revenue, customerCount }[]  — date=null

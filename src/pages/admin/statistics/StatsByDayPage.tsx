@@ -1,5 +1,5 @@
 /**
- * StatsByDayPage.tsx — 요일별 통계 (UC-15)
+ * StatsByDayPage.tsx — 요일별 통계
  *
  * API: GET /api/admin/statistics?startDate=&endDate=&type=DAY
  * 응답: { date, day(SUNDAY~SATURDAY), revenue, customerCount }[]

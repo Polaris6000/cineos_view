@@ -15,6 +15,22 @@ import { useNavigate } from 'react-router-dom'
 import { Search, Star, Activity, ChevronLeft, ChevronRight } from 'lucide-react'
 import apiClient from '../../../api/apiClient.ts'
 
+/**
+ * buildPageRange — 페이지 번호 배열 생성 (... 포함)
+ * 7 이하: 모두 표시 / 초과: 1 · ... · (현재±2) · ... · N 구조
+ */
+function buildPageRange(current: number, total: number): (number | '...')[] {
+    if (total <= 7) return Array.from({length: total}, (_, i) => i + 1)
+    const left = Math.max(2, current - 2)
+    const right = Math.min(total - 1, current + 2)
+    const items: (number | '...')[] = [1]
+    if (left > 2) items.push('...')
+    for (let i = left; i <= right; i++) items.push(i)
+    if (right < total - 1) items.push('...')
+    items.push(total)
+    return items
+}
+
 /* ── 타입 ──────────────────────────────────────────── */
 interface Member {
   phone: string
@@ -158,7 +174,6 @@ function MemberListPage() {
       {/* ── 페이지네이션 ── */}
       {totalPages >= 1 && (
         <div style={pagination}>
-          {/* 이전 버튼 */}
           <button
             style={{ ...pageBtn, opacity: currentPage <= 1 ? 0.4 : 1 }}
             disabled={currentPage <= 1}
@@ -167,26 +182,26 @@ function MemberListPage() {
             <ChevronLeft size={14} />
           </button>
 
-          {/* 페이지 번호 버튼 (최대 5개) */}
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(p => Math.abs(p - currentPage) <= 2) // 현재 페이지 기준 ±2
-            .map(p => (
-              <button
-                key={p}
-                style={{
-                  ...pageBtn,
-                  background: p === currentPage ? 'var(--color-brand-default)' : 'var(--bg-surface)',
-                  color:      p === currentPage ? 'var(--primitive-neutral-900)' : 'var(--text-secondary)',
-                  fontWeight: p === currentPage ? 700 : 400,
-                }}
-                onClick={() => setCurrentPage(p)}
-              >
-                {p}
-              </button>
-            ))
-          }
+          {/* buildPageRange: 1 · ... · (현재±2) · ... · N 구조 */}
+          {buildPageRange(currentPage, totalPages).map((p, idx) =>
+            p === '...'
+              ? <span key={`ellipsis-${idx}`} style={ellipsisStyle}>…</span>
+              : (
+                <button
+                  key={p}
+                  style={{
+                    ...pageBtn,
+                    background: p === currentPage ? 'var(--color-brand-default)' : 'var(--bg-surface)',
+                    color:      p === currentPage ? 'var(--primitive-neutral-900)' : 'var(--text-secondary)',
+                    fontWeight: p === currentPage ? 700 : 400,
+                  }}
+                  onClick={() => setCurrentPage(p)}
+                >
+                  {p}
+                </button>
+              )
+          )}
 
-          {/* 다음 버튼 */}
           <button
             style={{ ...pageBtn, opacity: currentPage >= totalPages ? 0.4 : 1 }}
             disabled={currentPage >= totalPages}
@@ -322,12 +337,18 @@ const pointBtn: React.CSSProperties    = {
   color: 'var(--primitive-brand-700)', fontSize: 12, fontWeight: 600,
   cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
 }
-const pagination: React.CSSProperties  = { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, marginTop: 20 }
+const pagination: React.CSSProperties  = {
+  display: 'flex', justifyContent: 'center', alignItems: 'center',
+  gap: 4, marginTop: 20, flexWrap: 'wrap',
+}
 const pageBtn: React.CSSProperties     = {
   padding: '6px 10px', background: 'var(--bg-surface)',
   border: '1px solid var(--border-default)', borderRadius: 6,
   fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer',
   display: 'flex', alignItems: 'center',
+}
+const ellipsisStyle: React.CSSProperties = {
+  width: 24, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', lineHeight: '32px',
 }
 // ── PointHistoryModal 전용 스타일 ──
 const modalOverlay: React.CSSProperties = {
@@ -339,17 +360,22 @@ const modalBox: React.CSSProperties    = {
   borderRadius: 14, padding: '24px 28px', width: '100%', maxWidth: 480,
   display: 'flex', flexDirection: 'column', gap: 0, maxHeight: '85vh', overflowY: 'auto',
 }
-const modalTitle: React.CSSProperties  = { fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }
-const closeIconBtn: React.CSSProperties = { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-muted)', padding: 4, flexShrink: 0 }
-const logRow: React.CSSProperties      = {
-  display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-  padding: '12px 0', borderBottom: '1px solid var(--border-default)',
+const modalTitle: React.CSSProperties = {
+  fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 16px',
+}
+const closeIconBtn: React.CSSProperties = {
+  position: 'absolute' as const, top: 16, right: 16,
+  background: 'none', border: 'none', cursor: 'pointer',
+  color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
+}
+const logRow: React.CSSProperties = {
+  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+  padding: '10px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 13,
 }
 const closeModalBtn: React.CSSProperties = {
-  width: '100%', padding: '12px 0',
+  marginTop: 20, width: '100%', padding: '12px 0',
   background: 'var(--bg-base)', border: '1px solid var(--border-default)',
-  borderRadius: 10, color: 'var(--text-secondary)', fontSize: 15, fontWeight: 600, cursor: 'pointer',
-  marginTop: 8,
+  borderRadius: 8, fontSize: 14, fontWeight: 700,
+  color: 'var(--text-secondary)', cursor: 'pointer',
 }
-
 export default MemberListPage

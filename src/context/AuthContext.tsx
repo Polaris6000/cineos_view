@@ -164,16 +164,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // 백엔드 로그아웃: DB UUID null 처리 + remember-me 쿠키 만료
       //
-      // 백엔드 시그니처: logout(String loginId, ...)
-      //   → @RequestParam 어노테이션 없이 선언된 String 파라미터
-      //   → Spring MVC가 쿼리 파라미터로 자동 바인딩함
-      //   → loginId가 null이면 adminRepository.findByLoginId(null).orElseThrow() 예외 발생
-      //   → catch에서 처리하고 finally에서 클라이언트 정리는 반드시 수행
+      // 백엔드: @RequestParam(required = false) String loginId
+      //   → loginId가 없거나 blank면 서버에서 UUID null 처리만 건너뜀 (쿠키 삭제는 항상 수행)
       //
-      // withCredentials: true — Set-Cookie: remember-me 쿠키를 함께 전송해야
-      //   서버에서 Max-Age=0 으로 만료 처리 가능
-      //   ※ 현재 백엔드가 cookie.setSecure(true) → HTTP 로컬 환경에서는 쿠키 자체가
-      //     브라우저에 저장되지 않으므로 UUID 쿠키 기반 자동로그인은 HTTPS 전환 전까지 비활성
+      // withCredentials: true — remember-me 쿠키를 함께 전송해야 서버에서 Max-Age=0 만료 처리 가능
+      // 백엔드 setSecure(false) 설정으로 HTTP 개발 환경에서도 쿠키 정상 동작
       const loginId = currentAdmin?.loginId ?? '';
       const url = loginId
         ? `/admin/logout?loginId=${encodeURIComponent(loginId)}`
@@ -193,8 +188,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [currentAdmin])  // currentAdmin 의존성 추가 — loginId를 참조하므로 stale closure 방지
 
   /**
-   * hasPermission — \ud2b9\uc815 \uad8c\ud55c \ubcf4\uc720 \uc5ec\ubd80 \ud655\uc778
-   * currentAdmin\uc774 null\uc774\uba74 \ud56d\uc0c1 false
+   * hasPermission — 특정 권한 보유 여부 확인
+   * currentAdmin이 null이면 항상 false
    */
   const hasPermission = useCallback((permission: Permission): boolean => {
     if (!currentAdmin) return false
@@ -210,13 +205,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 }
 
-/* \u2500\u2500 useAuth \ud6c4\ud06c \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+/* ── useAuth 후크 ──────────────────────────────────── */
 /**
- * useAuth \u2014 AuthContext \uac12\uc744 \uc27d\uac8c \uac00\uc838\uc624\ub294 \ud6c4\ud06c
- * AuthProvider \ub0b4\ubd80\uc5d0\uc11c\ub9cc \uc0ac\uc6a9 \uac00\ub2a5 (\uc678\ubd80\uc5d0\uc11c \ud638\ucd9c \uc2dc throw)
+ * useAuth — AuthContext 값을 쉽게 가져오는 후크
+ * AuthProvider 내부에서만 사용 가능 (외부에서 호출 시 throw)
  */
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth\ub294 AuthProvider \ub0b4\ubd80\uc5d0\uc11c\ub9cc \uc0ac\uc6a9\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4')
+  if (!ctx) throw new Error('useAuth는 AuthProvider 내부에서만 사용할 수 있습니다')
   return ctx
 }

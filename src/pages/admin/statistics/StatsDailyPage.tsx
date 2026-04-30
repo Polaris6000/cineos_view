@@ -1,5 +1,5 @@
 /**
- * StatsDailyPage.tsx — 일일 통계 (UC-13)
+ * StatsDailyPage.tsx — 일일 통계
  *
  * API: GET /api/admin/statistics?startDate=&endDate=&type=DAY
  * 응답: { date, revenue, customerCount }[] — 날짜별 1행

@@ -1,5 +1,5 @@
 /**
- * StatsByMoviePage.tsx — 영화별 통계 (UC-17)
+ * StatsByMoviePage.tsx — 영화별 통계
  *
  * API: GET /api/admin/statistics?startDate=&endDate=&type=MOVIE
  * 응답: { title(영화 제목), revenue, customerCount }[]  — date=null

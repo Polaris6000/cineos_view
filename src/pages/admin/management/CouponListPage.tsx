@@ -20,6 +20,22 @@ import apiClient from '../../../api/apiClient.ts'
 import {DiscountPolicy} from './PolicyListPage'
 import { useAuth } from '../../../context/AuthContext'
 
+/**
+ * buildPageRange — 페이지 번호 배열 생성 (... 포함)
+ * 7 이하: 모두 표시 / 초과: 1 · ... · (현재±2) · ... · N 구조
+ */
+function buildPageRange(current: number, total: number): (number | '...')[] {
+    if (total <= 7) return Array.from({length: total}, (_, i) => i + 1)
+    const left = Math.max(2, current - 2)
+    const right = Math.min(total - 1, current + 2)
+    const items: (number | '...')[] = [1]
+    if (left > 2) items.push('...')
+    for (let i = left; i <= right; i++) items.push(i)
+    if (right < total - 1) items.push('...')
+    items.push(total)
+    return items
+}
+
 /** 쿠폰 1건 타입 (CouponDTO 대응) */
 interface Coupon {
     couponNum: string   // 쿠폰 번호 (12자리 고유 식별자)
@@ -325,10 +341,9 @@ function CouponListPage() {
                     </table>
                 </div>
 
-                {/* ── [추가] 페이지네이션 UI ── */}
+                {/* ── 페이지네이션 UI ── */}
                 {!loading && totalPages > 0 && (
                     <div style={paginationWrap}>
-                        {/* 이전 페이지 버튼 */}
                         <button
                             disabled={currentPage === 1}
                             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
@@ -337,25 +352,26 @@ function CouponListPage() {
                             이전
                         </button>
 
-                        {/* 페이지 번호 목록: 1부터 totalPages까지 생성 */}
-                        <div style={{display: 'flex', gap: 6}}>
-                            {Array.from({length: totalPages}, (_, i) => i + 1).map(num => (
-                                <button
-                                    key={num}
-                                    onClick={() => setCurrentPage(num)}
-                                    style={{
-                                        ...pageNumberBtn,
-                                        backgroundColor: currentPage === num ? 'var(--color-brand-default)' : 'transparent',
-                                        color: currentPage === num ? '#fff' : 'var(--text-primary)',
-                                        border: currentPage === num ? 'none' : '1px solid var(--border-subtle)'
-                                    }}
-                                >
-                                    {num}
-                                </button>
-                            ))}
-                        </div>
+                        {/* buildPageRange: 1 · ... · (현재±2) · ... · N 구조 */}
+                        {buildPageRange(currentPage, totalPages).map((num, idx) =>
+                            num === '...'
+                                ? <span key={`ellipsis-${idx}`} style={ellipsisStyle}>…</span>
+                                : (
+                                    <button
+                                        key={num}
+                                        onClick={() => setCurrentPage(num)}
+                                        style={{
+                                            ...pageNumberBtn,
+                                            backgroundColor: currentPage === num ? 'var(--color-brand-default)' : 'transparent',
+                                            color: currentPage === num ? '#fff' : 'var(--text-primary)',
+                                            border: currentPage === num ? 'none' : '1px solid var(--border-subtle)'
+                                        }}
+                                    >
+                                        {num}
+                                    </button>
+                                )
+                        )}
 
-                        {/* 다음 페이지 버튼 */}
                         <button
                             disabled={currentPage === totalPages}
                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
@@ -426,17 +442,19 @@ const td: React.CSSProperties = {padding: '12px 16px', fontSize: 14, color: 'var
 /* 페이징 전용 스타일 */
 const paginationWrap: React.CSSProperties = {
     display: 'flex', justifyContent: 'center', alignItems: 'center',
-    gap: 16, marginTop: 24, paddingBottom: 8
+    gap: 4, marginTop: 24, paddingBottom: 8, flexWrap: 'wrap', maxWidth: '100%',
 }
 const pageBtn: React.CSSProperties = {
-    padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border-default)',
+    padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border-default)',
     background: 'var(--bg-surface)', cursor: 'pointer', fontSize: 13, fontWeight: 600,
-    color: 'var(--text-secondary)', transition: 'all 0.2s'
+    color: 'var(--text-secondary)',
 }
 const pageNumberBtn: React.CSSProperties = {
     width: 34, height: 34, borderRadius: 8, cursor: 'pointer',
     fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    transition: 'all 0.2s'
+}
+const ellipsisStyle: React.CSSProperties = {
+    width: 24, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', lineHeight: '34px',
 }
 
 export default CouponListPage

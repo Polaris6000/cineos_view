@@ -8,6 +8,22 @@
  *  4. 상세 버튼 클릭 → /admin/management/payment-log/:id 상세 페이지로 이동
  *     (이전: 모달 → 변경: 별도 페이지)
  */
+/**
+ * buildPageRange — 페이지 번호 배열 생성 (... 포함)
+ * 7 이하: 모두 표시 / 초과: 1 · ... · (현재±2) · ... · N 구조
+ */
+function buildPageRange(current: number, total: number): (number | '...')[] {
+    if (total <= 7) return Array.from({length: total}, (_, i) => i + 1)
+    const left = Math.max(2, current - 2)
+    const right = Math.min(total - 1, current + 2)
+    const items: (number | '...')[] = [1]
+    if (left > 2) items.push('...')
+    for (let i = left; i <= right; i++) items.push(i)
+    if (right < total - 1) items.push('...')
+    items.push(total)
+    return items
+}
+
 import {useEffect, useMemo, useState} from 'react'
 import {RefreshCw} from 'lucide-react'
 import {useNavigate} from 'react-router-dom'
@@ -200,24 +216,25 @@ function PaymentLogPage() {
                     >
                         이전
                     </button>
-                    {/* 페이지 번호: 최대 5개 슬라이딩 윈도우 표시 */}
-                    {Array.from({length: totalPages}, (_, i) => i + 1)
-                        .filter(n => n >= Math.max(1, currentPage - 2) && n <= Math.min(totalPages, currentPage + 2))
-                        .map(n => (
-                            <button
-                                key={n}
-                                onClick={() => setCurrentPage(n)}
-                                style={{
-                                    ...pageNumBtn,
-                                    background: currentPage === n ? 'var(--color-brand-default)' : 'transparent',
-                                    color: currentPage === n ? '#fff' : 'var(--text-secondary)',
-                                    border: currentPage === n ? 'none' : '1px solid var(--border-subtle)',
-                                }}
-                            >
-                                {n}
-                            </button>
-                        ))
-                    }
+                    {/* buildPageRange: 1 · ... · (현재±2) · ... · N 구조 */}
+                    {buildPageRange(currentPage, totalPages).map((n, idx) =>
+                        n === '...'
+                            ? <span key={`ellipsis-${idx}`} style={ellipsisStyle}>…</span>
+                            : (
+                                <button
+                                    key={n}
+                                    onClick={() => setCurrentPage(n)}
+                                    style={{
+                                        ...pageNumBtn,
+                                        background: currentPage === n ? 'var(--color-brand-default)' : 'transparent',
+                                        color: currentPage === n ? '#fff' : 'var(--text-secondary)',
+                                        border: currentPage === n ? 'none' : '1px solid var(--border-subtle)',
+                                    }}
+                                >
+                                    {n}
+                                </button>
+                            )
+                    )}
                     <button
                         disabled={currentPage === totalPages}
                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
@@ -340,7 +357,7 @@ const errorBox: React.CSSProperties = {
     borderRadius: 8, color: 'var(--color-error-text)', fontSize: 13, marginBottom: 12,
 }
 const paginationWrap: React.CSSProperties = {
-    display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12,
+    display: 'flex', gap: 4, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap',
 }
 const pageBtn: React.CSSProperties = {
     padding: '6px 12px', border: '1px solid var(--border-default)',
@@ -349,6 +366,9 @@ const pageBtn: React.CSSProperties = {
 }
 const pageNumBtn: React.CSSProperties = {
     width: 32, height: 32, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+}
+const ellipsisStyle: React.CSSProperties = {
+    width: 24, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', lineHeight: '32px',
 }
 const tableWrapper: React.CSSProperties = {overflowX: 'auto' as const}
 const table: React.CSSProperties = {
@@ -366,9 +386,8 @@ const tdStyle: React.CSSProperties = {
     padding: '10px 12px', color: 'var(--text-primary)', verticalAlign: 'middle' as const,
 }
 const detailBtn: React.CSSProperties = {
-    padding: '4px 10px', background: 'var(--bg-base)',
-    border: '1px solid var(--border-default)', borderRadius: 6,
-    fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', cursor: 'pointer',
+    padding: '4px 12px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
+    border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
 }
 
 export default PaymentLogPage
