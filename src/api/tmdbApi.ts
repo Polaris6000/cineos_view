@@ -17,16 +17,16 @@
  * popular / search 결과 모두 이 타입으로 반환됨
  */
 export interface TmdbMovieItem {
-  /** TMDB 영화 고유 ID */
-  id: number
-  /** 영화 제목 (한국어) */
-  title: string
-  /**
-   * 포스터 이미지 전체 URL
-   * 백엔드에서 이미 imageBaseUrl을 붙여서 반환함
-   * e.g. "https://image.tmdb.org/t/p/w500/abc123.jpg"
-   */
-  posterPath: string | null
+    /** TMDB 영화 고유 ID */
+    id: number
+    /** 영화 제목 (한국어) */
+    title: string
+    /**
+     * 포스터 이미지 전체 URL
+     * 백엔드에서 이미 imageBaseUrl을 붙여서 반환함
+     * e.g. "https://image.tmdb.org/t/p/w500/abc123.jpg"
+     */
+    posterPath: string | null
 }
 
 /**
@@ -39,29 +39,29 @@ export interface TmdbMovieItem {
  *   - posterPath  (full URL, 백엔드에서 붙여서 반환)
  */
 export interface TmdbMovieDetail {
-  /** 영화 제목 */
-  title: string
-  /** 장르 (쉼표 구분, e.g. "액션, SF") */
-  genre: string
-  /** 감독 이름 */
-  director: string
-  /** 출연 배우 상위 5명 (쉼표 구분) — 백엔드 필드명: actors */
-  actors: string
-  /** 상영시간 (분) */
-  runtime: number
-  /** 줄거리 (overview) — 백엔드 필드명: description */
-  description?: string
-  /**
-   * 포스터 이미지 전체 URL
-   * 백엔드에서 tmdbConfig.imageUrl + posterPath로 조합해서 반환
-   */
-  posterPath: string | null
-  /**
-   * 한국 관람 등급 (TMDB release_dates KR certification 기반)
-   * "ALL" | "12" | "15" | "19"
-   * 조회 실패 시 "ALL" 기본값
-   */
-  rating?: string
+    /** 영화 제목 */
+    title: string
+    /** 장르 (쉼표 구분, e.g. "액션, SF") */
+    genre: string
+    /** 감독 이름 */
+    director: string
+    /** 출연 배우 상위 5명 (쉼표 구분) — 백엔드 필드명: actors */
+    actors: string
+    /** 상영시간 (분) */
+    runtime: number
+    /** 줄거리 (overview) — 백엔드 필드명: description */
+    description?: string
+    /**
+     * 포스터 이미지 전체 URL
+     * 백엔드에서 tmdbConfig.imageUrl + posterPath로 조합해서 반환
+     */
+    posterPath: string | null
+    /**
+     * 한국 관람 등급 (TMDB release_dates KR certification 기반)
+     * "ALL" | "12" | "15" | "19"
+     * 조회 실패 시 "ALL" 기본값
+     */
+    rating?: string
 }
 
 /**
@@ -71,9 +71,9 @@ export interface TmdbMovieDetail {
  * @returns TMDB 인기 영화 목록 (posterPath는 full URL)
  */
 export async function getPopularMovies(page = 1): Promise<TmdbMovieItem[]> {
-  const res = await fetch(`/api/tmdb/popular?page=${page}`)
-  if (!res.ok) throw new Error(`인기 영화 조회 실패: ${res.status}`)
-  return res.json()
+    const res = await fetch(`/api/tmdb/popular?page=${page}`)
+    if (!res.ok) throw new Error(`인기 영화 조회 실패: ${res.status}`)
+    return res.json()
 }
 
 /**
@@ -83,9 +83,9 @@ export async function getPopularMovies(page = 1): Promise<TmdbMovieItem[]> {
  * @returns 검색 결과 목록 (posterPath는 full URL)
  */
 export async function searchTmdbMovies(title: string): Promise<TmdbMovieItem[]> {
-  const res = await fetch(`/api/tmdb/search?title=${encodeURIComponent(title)}`)
-  if (!res.ok) throw new Error(`영화 검색 실패: ${res.status}`)
-  return res.json()
+    const res = await fetch(`/api/tmdb/search?title=${encodeURIComponent(title)}`)
+    if (!res.ok) throw new Error(`영화 검색 실패: ${res.status}`)
+    return res.json()
 }
 
 /**
@@ -100,7 +100,7 @@ export async function searchTmdbMovies(title: string): Promise<TmdbMovieItem[]> 
  * @returns 폼 자동 입력에 사용할 영화 상세 정보
  */
 export async function getTmdbMovieDetail(tmdbId: number): Promise<TmdbMovieDetail> {
-  const res = await fetch(`/api/tmdb/${tmdbId}`)
-  if (!res.ok) throw new Error(`영화 상세 조회 실패: ${res.status}`)
-  return res.json()
+    const res = await fetch(`/api/tmdb/${tmdbId}`)
+    if (!res.ok) throw new Error(`영화 상세 조회 실패: ${res.status}`)
+    return res.json()
 }

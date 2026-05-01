@@ -16,10 +16,10 @@
  *     <TouchKeyboard />   ← 하단 fixed 키보드
  *   </div>
  */
-import {Outlet, Link} from 'react-router-dom'
+import {Link, Outlet} from 'react-router-dom'
 import {motion} from 'framer-motion'
 import {Clock} from 'lucide-react'
-import {pageVariants, pageTransition} from '../../styles/transitions'
+import {pageTransition, pageVariants} from '../../styles/transitions'
 import {IdleTimerProvider, useIdleTimer} from '../../context/IdleTimerContext'
 import styles from './CustomerLayout.module.css'
 
@@ -95,9 +95,9 @@ function InnerLayout() {
  */
 function CustomerLayout() {
     return (
-            <IdleTimerProvider>
-                <InnerLayout/>
-            </IdleTimerProvider>
+        <IdleTimerProvider>
+            <InnerLayout/>
+        </IdleTimerProvider>
     )
 }
 

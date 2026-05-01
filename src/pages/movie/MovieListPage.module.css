@@ -2,326 +2,361 @@
    FHD(1080×1920) 세로형 키오스크 기준 */
 
 .page {
-  max-width: 1080px;
-  margin: 0 auto;
-  width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    width: 100%;
 }
 
 /* ── 페이지 헤더 ── */
 .pageHeader {
-  display: flex;
-  align-items: center;
-  padding: 32px 24px 16px;
+    display: flex;
+    align-items: center;
+    padding: 32px 24px 16px;
 }
 
 .pageTitle {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
 }
 
 /* ── 탭 ── */
 .tabs {
-  display: flex;
-  padding: 0 24px;
-  border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .tab {
-  position: relative;
-  padding: 14px 24px;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: color 0.2s;
-  white-space: nowrap;
+    position: relative;
+    padding: 14px 24px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s;
+    white-space: nowrap;
 }
 
 .tab:hover {
-  color: var(--text-primary);
+    color: var(--text-primary);
 }
 
 .tabActive {
-  color: var(--color-brand-default); /* 활성 탭 골드 텍스트 */
+    color: var(--color-brand-default); /* 활성 탭 골드 텍스트 */
 }
 
 /* 활성 탭 하단 골드 라인 */
 .tabActive::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background-color: var(--color-brand-default);
-  border-radius: 2px 2px 0 0;
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--color-brand-default);
+    border-radius: 2px 2px 0 0;
 }
 
 /* ── 필터 바 ── */
 .filterBar {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 20px 24px;
-  background-color: var(--bg-surface);
-  border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px 24px;
+    background-color: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .filterRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 40px;
 }
 
 .filterRowSearch {
-  gap: 10px;
+    gap: 10px;
 }
 
 .filterLabel {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  min-width: 40px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    min-width: 40px;
 }
 
 /* 칩 그룹 */
 .chipGroup {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 /* 필터 칩 버튼 — 키오스크용으로 터치 타겟 크게 */
 .chip {
-  padding: 10px 20px;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  background-color: transparent;
-  border: 1px solid var(--border-default);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
-  white-space: nowrap;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
+    padding: 10px 20px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background-color: transparent;
+    border: 1px solid var(--border-default);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
 }
 
 .chip:hover {
-  color: var(--text-primary);
-  border-color: var(--color-brand-default); /* 골드 호버 보더 */
+    color: var(--text-primary);
+    border-color: var(--color-brand-default); /* 골드 호버 보더 */
 }
 
 /* 선택된 칩 */
 .chipActive {
-  color: var(--text-on-brand);
-  background-color: var(--color-brand-default);  /* 골드 배경 */
-  border-color: var(--color-brand-default);
+    color: var(--text-on-brand);
+    background-color: var(--color-brand-default); /* 골드 배경 */
+    border-color: var(--color-brand-default);
 }
 
 .chipActive:hover {
-  background-color: var(--color-brand-hover);    /* 골드 Hover (구 color-brand-500) */
-  border-color: var(--color-brand-hover);
-  color: var(--text-on-brand);
+    background-color: var(--color-brand-hover); /* 골드 Hover (구 color-brand-500) */
+    border-color: var(--color-brand-hover);
+    color: var(--text-on-brand);
 }
 
 /* ── 검색 영역 ── */
 .searchWrap {
-  position: relative;
-  flex: 1;
-  max-width: 500px;
+    position: relative;
+    flex: 1;
+    max-width: 500px;
 }
 
 /* 검색 아이콘 (Lucide) - input 왼쪽 안쪽 */
 .searchIcon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  pointer-events: none;
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
 }
 
 .searchInput {
-  width: 100%;
-  padding: 12px 44px 12px 44px; /* 좌측 아이콘 공간 확보 */
-  font-size: 1rem;
-  color: var(--text-primary);
-  background-color: var(--bg-modal);  /* 모달/입력 배경 (구 color-neutral-800) */
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  -webkit-appearance: none;
-  appearance: none;
+    width: 100%;
+    padding: 12px 44px 12px 44px; /* 좌측 아이콘 공간 확보 */
+    font-size: 1rem;
+    color: var(--text-primary);
+    background-color: var(--bg-modal); /* 모달/입력 배경 (구 color-neutral-800) */
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 .searchInput::placeholder {
-  color: var(--text-muted);
+    color: var(--text-muted);
 }
 
 .searchInput:focus {
-  border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(255, 184, 0, 0.18);
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(255, 184, 0, 0.18);
 }
 
 /* 검색어 X 버튼 */
 .searchClear {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  color: var(--text-secondary);
-  border-radius: 50%;
-  transition: color 0.15s, background-color 0.15s;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: var(--text-secondary);
+    border-radius: 50%;
+    transition: color 0.15s, background-color 0.15s;
 }
 
 .searchClear:hover {
-  color: var(--text-primary);
-  background-color: rgba(14, 11, 8, 0.4);
+    color: var(--text-primary);
+    background-color: rgba(14, 11, 8, 0.4);
 }
 
 /* ── 결과 영역 ── */
 .resultArea {
-  padding: 8px 0;
+    padding: 8px 0;
 }
 
 /* 빈 결과 */
 .empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 80px 24px;
-  color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 80px 24px;
+    color: var(--text-secondary);
 }
 
 .empty svg {
-  color: var(--text-muted);
-  opacity: 0.6;
+    color: var(--text-muted);
+    opacity: 0.6;
 }
 
 .emptyText {
-  font-size: 1rem;
-  color: var(--text-secondary);
-  text-align: center;
+    font-size: 1rem;
+    color: var(--text-secondary);
+    text-align: center;
 }
 
 /* ── 영화 카드 그리드 ── */
 /* FHD 1080px 기준: 4열 */
 .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 28px;
-  padding: 28px 32px;
-  list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 28px;
+    padding: 28px 32px;
+    list-style: none;
 }
 
 /* ── 영화 카드 ── */
 .card {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
-  display: block;
-  width: 100%;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    display: block;
+    width: 100%;
 }
 
 .card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .card:active {
-  transform: translateY(-2px);
+    transform: translateY(-2px);
 }
 
 /* 포스터 이미지 래퍼 */
 .cardImgWrap {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 2 / 3; /* 포스터 표준 비율 */
-  overflow: hidden;
-  background-color: var(--bg-modal);  /* 이미지 로딩 전 배경 (구 color-neutral-800) */
+    position: relative;
+    width: 100%;
+    aspect-ratio: 2 / 3; /* 포스터 표준 비율 */
+    overflow: hidden;
+    background-color: var(--bg-modal); /* 이미지 로딩 전 배경 (구 color-neutral-800) */
 }
 
 .cardImg {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
 }
 
 .card:hover .cardImg {
-  transform: scale(1.04);
+    transform: scale(1.04);
 }
 
 /* 카드 텍스트 */
 .cardBody {
-  padding: 12px;
+    padding: 12px;
 }
 
 .cardTitle {
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 6px;
-  /* 1줄 말줄임 */
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    /* 1줄 말줄임 */
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .cardMeta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  margin-bottom: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin-bottom: 4px;
 }
 
 .cardGenre {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .cardRuntime {
-  font-size: 0.8rem;
-  color: var(--text-muted);
+    font-size: 0.8rem;
+    color: var(--text-muted);
 }
 
 /* ── 등급 배지 ── */
 .badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  white-space: nowrap;
-  flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
-.badgeALL { background-color: var(--badge-all); color: #fff; }
-.badge12  { background-color: var(--badge-12);  color: #fff; }
-.badge15  { background-color: var(--badge-15);  color: var(--text-on-brand); }
-.badge19  { background-color: var(--badge-18);  color: #fff; }
+.badgeALL {
+    background-color: var(--badge-all);
+    color: #fff;
+}
+
+.badge12 {
+    background-color: var(--badge-12);
+    color: #fff;
+}
+
+.badge15 {
+    background-color: var(--badge-15);
+    color: var(--text-on-brand);
+}
+
+.badge19 {
+    background-color: var(--badge-18);
+    color: #fff;
+}
+
+.cardMetaRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 6px;
+}
+
+.reclinerBadge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #fff;
+    background: #2a88c8;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}

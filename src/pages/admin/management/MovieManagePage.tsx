@@ -14,7 +14,7 @@
 import {useEffect, useMemo, useState} from 'react'
 import {Theater} from './TheaterListPage'
 import apiClient from "../../../api/apiClient.ts";
-import { useAuth } from '../../../context/AuthContext'
+import {useAuth} from '../../../context/AuthContext'
 
 /* ── 타입 정의 ── */
 interface Schedule {
@@ -63,13 +63,20 @@ function timeToMin(time: string): number {
 
 /** 분 → 'HH:MM' 변환 */
 function minToTime(min: number): string {
-    // 1440분(24시간)으로 나눈 나머지를 사용해 00:00~23:59 사이로 고정
-    const totalMin = min % 1440;
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    const h = Math.floor(min / 60)
+    const m = min % 60
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
+
+/** 현재 시각을 'HH:MM' 형식으로 반환 */
+function getCurrentTime(): string {
+    const now = new Date()
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+}
+
+// 영화관 운영 시간 상수 (분 단위)
+const OPEN_MIN = 6 * 60   // 06:00
+const CLOSE_MIN = 24 * 60  // 24:00
 
 /**
  * 스케줄 상태 계산
@@ -88,7 +95,7 @@ function getScheduleStatus(
 }
 
 function MovieManagePage() {
-    const { hasPermission } = useAuth()
+    const {hasPermission} = useAuth()
     // 상영 관리(스케줄 등록/만료/복원) 버튼은 ROLE_MOVIE_DELETE 권한으로 제어
     // (ROLE_MOVIE_DELETE는 DB에서 '상영 관리' 용도로 재활용됨)
     const canEdit = hasPermission('ROLE_MOVIE_DELETE')
@@ -204,7 +211,7 @@ function MovieManagePage() {
 
     // ── 새 스케줄 입력 ──
     const [newDate, setNewDate] = useState<string>(TODAY)
-    const [newTime, setNewTime] = useState<string>('10:00')
+    const [newTime, setNewTime] = useState<string>(getCurrentTime)  // 초기값: 현재 시각
     const [newTheater, setNewTheater] = useState<number>(theaters[0]?.no ?? 1)
 
     const selectedMovie = movies.find((m) => m.movieId === selectedMovieId)
@@ -234,66 +241,97 @@ function MovieManagePage() {
         return active.length > 0 ? active[active.length - 1].endTime : null
     }, [theaterDaySchedules, cancelledIds])
 
-    /** 상영관/날짜 변경 시 시작시간 자동갱신 */
+    /** 상영관/날짜/스케줄 변경 시 시작시간 자동갱신
+     *
+     *  우선순위:
+     *   1. 스케줄 없음 → 현재 시각
+     *   2. 마지막 종영 + 1분 > 현재 시각 → 마지막 종영 + 1분 (빈 슬롯 첫 번째 시각)
+     *   3. 마지막 종영이 이미 지남 → 현재 시각
+     */
     useEffect(() => {
-        if (lastEndTime) {
-            // 만약 lastEndTime이 "2026-04-10T12:00:00" 형태라면 11번째 글자부터 5글자 추출
-            const formattedTime = lastEndTime.includes('T')
-                ? lastEndTime.slice(11, 16)
-                : lastEndTime;
-            setNewTime(formattedTime);
-        } else {
-            setNewTime('10:00');
-        }
-    }, [newTheater, newDate, lastEndTime]);
+        const currentTime = getCurrentTime()
+        const currentMin = timeToMin(currentTime)
 
-    /** 종료시간 미리보기 */
-    const previewEndTime = useMemo((): string => {
+        if (lastEndTime) {
+            const endStr = lastEndTime.includes('T') ? lastEndTime.slice(11, 16) : lastEndTime
+            const endMin = timeToMin(endStr)
+            // 마지막 종영 + 1분이 아직 현재 시각보다 늦으면 그 시각을 기본값으로 세팅
+            if (endMin + 1 > currentMin) {
+                const nextMin = endMin + 1
+                setNewTime(nextMin < CLOSE_MIN ? minToTime(nextMin) : currentTime)
+            } else {
+                setNewTime(currentTime)
+            }
+        } else {
+            setNewTime(currentTime)
+        }
+    }, [newTheater, newDate, lastEndTime, selectedMovieId])
+
+    /** 종료 예상 시간 (분 단위) — 유효성 검사·표시에 공통 사용 */
+    const previewEndMin = useMemo((): number => {
         const runtime = selectedMovie?.runtime ?? 120
         const cleanup = selectedTheater?.cleanupTime ?? 10
-        return minToTime(timeToMin(newTime) + runtime + cleanup)
+        return timeToMin(newTime) + runtime + cleanup
     }, [newTime, selectedMovie, selectedTheater])
+
+    /** 종료 예상 시간 문자열 — 24:00 초과 시 실제 시간 표시 (경고용) */
+    const previewEndTime = useMemo((): string => {
+        if (previewEndMin === CLOSE_MIN) return '24:00'
+        return minToTime(previewEndMin)
+    }, [previewEndMin])
+
+    /** 종영 시간이 운영 종료(24:00)를 넘는지 여부 */
+    const isEndOverLimit = previewEndMin > CLOSE_MIN
 
     /* ── 스케줄 등록 ── */
     const handleAddSchedule = async () => {
         if (!newDate || !newTime) {
-            alert('날짜와 시간을 선택해 주세요.');
+            alert('날짜와 시간을 선택해 주세요.')
             return
         }
         if (newDate < TODAY) {
-            alert('과거 날짜는 선택할 수 없습니다.');
+            alert('과거 날짜는 선택할 수 없습니다.')
             return
         }
-
-        // 영화 목록 미로드 시 등록 차단 — selectedMovieId=1(초기값)이라도 영화가 실제로 선택됐는지 확인
         if (movies.length === 0) {
             alert('영화 목록을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.')
             return
         }
 
-        const newStart = timeToMin(newTime)
-        const newEnd = timeToMin(previewEndTime)
-        const startMin = timeToMin(newTime);
-        const runtime = selectedMovie?.runtime ?? 120;
-        const cleanup = selectedTheater?.cleanupTime ?? 10;
-        const totalEndMin = startMin + runtime + cleanup;
+        const startMin = timeToMin(newTime)
 
-        let endDate = newDate;
-        if (totalEndMin >= 1440) {
-            const d = new Date(newDate);
-            d.setDate(d.getDate() + 1);
-            endDate = d.toISOString().slice(0, 10);
+        // 운영 시간 앞 경계 — 06:00 이전 시작 불가
+        if (startMin < OPEN_MIN) {
+            alert('운영 시간은 06:00부터입니다.\n시작 시간을 06:00 이후로 설정해 주세요.')
+            return
         }
 
+        // 운영 시간 뒤 경계 — 종영이 24:00 초과 불가
+        if (isEndOverLimit) {
+            alert(`종영 예상 시간(${previewEndTime})이 운영 종료(24:00)를 초과합니다.\n시작 시간을 앞당겨 주세요.`)
+            return
+        }
+
+        // 정각 24:00(= 1440분) 종영은 다음 날 00:00 ISO로 변환 (T24:00:00 는 유효하지 않은 형식)
+        let endDateStr = newDate
+        let endTimeForPayload = previewEndTime
+        if (previewEndMin === CLOSE_MIN) {
+            const d = new Date(newDate)
+            d.setDate(d.getDate() + 1)
+            endDateStr = d.toLocaleDateString('en-CA')
+            endTimeForPayload = '00:00'
+        }
+
+        // 프론트 겹침 선 검사 (백엔드 검증 전 빠른 피드백)
         const overlap = theaterDaySchedules
             .filter((s) => !cancelledIds.has(s.id))
-            .find((s) => newStart < timeToMin(s.endTime.slice(11, 16)) && newEnd > timeToMin(s.startTime.slice(11, 16)))
+            .find((s) => startMin < timeToMin(s.endTime.slice(11, 16)) && previewEndMin > timeToMin(s.startTime.slice(11, 16)))
 
         if (overlap) {
             alert(
-                ` 시간이 겹칩니다!\n\n` +
+                `시간이 겹칩니다!\n\n` +
                 `"${overlap.movieTitle}" (${overlap.startTime.slice(11, 16)} ~ ${overlap.endTime.slice(11, 16)})\n` +
-                `와(과) 겹쳐서 등록할 수 없습니다.`,
+                `와(과) 겹쳐서 등록할 수 없습니다.`
             )
             return
         }
@@ -303,18 +341,22 @@ function MovieManagePage() {
                 movieId: selectedMovieId,
                 no: newTheater,
                 startAt: `${newDate}T${newTime}:00`,
-                endAt: `${endDate}T${previewEndTime}:00`,
-            };
+                endAt: `${endDateStr}T${endTimeForPayload}:00`,
+            }
 
             const res = await apiClient.post('/admin/schedule', payload)
             console.log('스케줄 등록 응답 상태:', res.status)
 
-            // ⚠️ 백엔드 POST /admin/schedule 응답이 ResponseEntity<Void> (body 없음)
-            // → res.data = null이라 res.data?.id 체크하면 항상 false → loadSchedules() 미호출
-            // → 201(CREATED) 상태 코드만 확인해서 바로 재조회
+            // 202: 백엔드 IllegalStateException (시간 겹침 등) — body에 메시지 포함
+            // axios는 2xx를 모두 성공으로 처리하므로 catch가 아닌 여기서 별도 처리
+            if (res.status === 202) {
+                const msg = typeof res.data === 'string' ? res.data : '지정된 상영관에 시간이 겹칩니다.'
+                alert(`등록 실패: ${msg}`)
+                return
+            }
+
             if (res.status === 200 || res.status === 201) {
                 loadSchedules()
-                console.log('스케줄 등록 완료 → 목록 재조회')
             }
         } catch (e: any) {
             console.error('스케줄 등록 실패:', e)
@@ -322,12 +364,11 @@ function MovieManagePage() {
             const message = e?.response?.data
 
             if (status === 400) {
-                // 400 Bad Request: 시간 겹침 등 비즈니스 로직 오류
                 alert(`등록 실패: ${message || '해당 상영관 시간대에 이미 스케줄이 있습니다.'}`)
             } else if (status === 404) {
                 alert('등록 실패: 선택한 영화 또는 상영관이 존재하지 않습니다.')
             } else if (status === 500) {
-                alert('서버 오류가 발생했습니다.\n백엔드 로그를 확인해 주세요. (영화·상영관 ID 존재 여부 확인 필요)')
+                alert('서버 오류가 발생했습니다. 백엔드 로그를 확인해 주세요.')
             } else {
                 alert('스케줄 등록 중 오류가 발생했습니다.')
             }
@@ -489,6 +530,7 @@ function MovieManagePage() {
                         <input
                             type="time"
                             value={newTime}
+                            min="06:00"
                             onChange={(e) => setNewTime(e.target.value)}
                             style={inputS}
                         />
@@ -496,12 +538,24 @@ function MovieManagePage() {
                     {/* ROLE_MOVIE_EDIT 없으면 스케줄 등록 버튼 숨김 */}
                     {canEdit && <button onClick={handleAddSchedule} style={addBtn}>+ 등록</button>}
                 </div>
-                <div style={endTimePreview}>
+                <div style={{
+                    ...endTimePreview,
+                    borderColor: isEndOverLimit ? 'var(--color-error-text)' : 'transparent',
+                    border: isEndOverLimit ? '1px solid var(--color-error-text)' : undefined,
+                }}>
                     <span style={{color: 'var(--text-muted)', fontSize: 13}}>종료 예상:</span>
                     <span style={{fontWeight: 700, color: 'var(--text-primary)', fontSize: 14}}>
-            {newTime} + {selectedMovie?.runtime ?? 0}분(런타임) + {selectedTheater?.cleanupTime ?? 0}분(정리) ={' '}
-                        <span style={{color: 'var(--color-brand-default)'}}>{previewEndTime}</span>
-          </span>
+                        {newTime} + {selectedMovie?.runtime ?? 0}분(런타임) + {selectedTheater?.cleanupTime ?? 0}분(정리) ={' '}
+                        <span
+                            style={{color: isEndOverLimit ? 'var(--color-error-main)' : 'var(--color-brand-default)'}}>
+                            {previewEndTime}
+                        </span>
+                        {isEndOverLimit && (
+                            <span style={{color: 'var(--color-error-main)', fontSize: 12, marginLeft: 8}}>
+                                운영 종료(24:00) 초과
+                            </span>
+                        )}
+                    </span>
                 </div>
             </div>
 
@@ -788,7 +842,6 @@ const clearCheckBtn: React.CSSProperties = {
     borderRadius: 6, fontSize: 12, cursor: 'pointer',
 }
 
-// 날짜 그룹 헤더 (전체 선택 체크박스 + 날짜)
 const groupHeader: React.CSSProperties = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: 8,

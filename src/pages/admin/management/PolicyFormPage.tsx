@@ -1,29 +1,15 @@
-/**
- * PolicyFormPage.jsx — 가격 정책 등록
- * TODO: POST /api/admin/policies 연동
- */
 import {type CSSProperties, type ReactNode, useRef, useState} from 'react'
 import {useNavigate} from 'react-router-dom'
 import {CheckCircle} from 'lucide-react'
 import apiClient from "../../../api/apiClient.ts";
 
-
-/*
-TODO 할인정책에 할인율, 할인값이 0%인데도 추가가 됨
- */
-
-// 타입 정의 (필요에 따라 PolicyManagePage에서 가져온 타입을 확장하세요)
 interface DiscountPolicy {
-    // id: number // 인덱스
-    policyName: string // 정책 이름
-    conditionType: string // 할인대상
-    discountType: string // 할인유형
-    discountValue: number // 할인값
-    startAt: string // 시작일 (YYYY-MM-DD)
-    endAt: string | null // 만료일 (YYYY-MM-DD), 미설정 시 null
-    // activation: boolean // 만료여부 (생성이라 필요없음)
-
-    description: string // TODO 설명이 DB에 존재하지않음
+    policyName: string
+    conditionType: string
+    discountType: string
+    discountValue: number
+    startAt: string
+    endAt: string | null
 }
 
 const TYPE_CONDITION = ['AGE', 'COUPON', 'JOB', 'TIME']
@@ -45,28 +31,22 @@ function PolicyFormPage() {
     const [success, setSuccess] = useState(false)
     const [errors, setErrors] = useState<{ [key: string]: string }>({})
 
-    /**
-     * discountType 상태: 할인 방식 select 값을 추적
-     * → RATIO(%)면 step=1, WON(원)이면 step=500
-     * useRef만으로는 select 변경 시 리렌더가 안 되므로 useState로 관리
-     */
+    // select 변경 시 리렌더가 필요하므로 useRef 대신 useState로 관리
     const [discountType, setDiscountType] = useState<'RATIO' | 'WON'>('RATIO')
 
-    // 1. 각 입력 필드에 대한 Ref 생성
     const nameRef = useRef<HTMLInputElement>(null);
     const conditionRef = useRef<HTMLSelectElement>(null);
     const typeRef = useRef<HTMLSelectElement>(null);
     const amountRef = useRef<HTMLInputElement>(null);
-    const descriptionRef = useRef<HTMLInputElement>(null);
-    const startRef = useRef<HTMLInputElement>(null); // 시작일
-    const endRef = useRef<HTMLInputElement>(null);   // 종료일
+    const startRef = useRef<HTMLInputElement>(null);
+    const endRef = useRef<HTMLInputElement>(null);
 
     const validate = () => {
         const e: { [key: string]: string } = {}
         if (!nameRef.current?.value.trim()) e.name = '정책명을 입력해 주세요.'
 
         const amount = Number(amountRef.current?.value)
-        if (isNaN(amount) || amount < 0) e.discount = '할인금액은 0 이상이어야 합니다.'
+        if (isNaN(amount) || amount <= 0) e.discount = '할인값은 1 이상이어야 합니다.'
 
         if (!startRef.current?.value) e.startAt = '시작일을 입력해 주세요.'
 
@@ -89,8 +69,6 @@ function PolicyFormPage() {
             return
         }
 
-        // startRef/endRef 값을 DATETIME 형식으로 변환하여 payload 구성
-        // 이전 코드는 new Date().toISOString() 하드코딩으로 사용자 입력이 무시됐었음
         const formData: DiscountPolicy = {
             policyName: nameRef.current?.value || '',
             conditionType: conditionRef.current?.value || 'AGE',
@@ -98,7 +76,6 @@ function PolicyFormPage() {
             discountValue: Number(amountRef.current?.value) || 0,
             startAt: `${startRef.current!.value}T00:00:00`,
             endAt: endRef.current?.value ? `${endRef.current.value}T23:59:59` : null,
-            description: descriptionRef.current?.value || '',
         }
 
         try {
@@ -144,10 +121,6 @@ function PolicyFormPage() {
                 </Field>
 
                 <Field label="할인유형">
-                    {/*
-              onChange로 discountType 상태 업데이트
-              → 아래 할인 값 input의 step이 자동으로 바뀜
-            */}
                     <select
                         ref={typeRef}
                         style={input}
@@ -157,12 +130,6 @@ function PolicyFormPage() {
                     </select>
                 </Field>
 
-                {/*
-            할인 값 입력:
-            - RATIO(%) → step=1, max=100  (1%씩 조절, 100% 초과 불가)
-            - WON(원)  → step=500         (500원씩 조절)
-            step이 맞지 않으면 브라우저가 submit을 막으므로 반드시 타입에 맞게 설정해야 함
-          */}
                 <Field label={discountType === 'RATIO' ? '할인율 (%)' : '할인금액 (원)'} error={errors.discount}>
                     <input
                         ref={amountRef}
@@ -203,12 +170,11 @@ function PolicyFormPage() {
     )
 }
 
-/** Field 컴포넌트 props 타입 정의 */
 interface FieldProps {
     label: string
-    required?: boolean        // ✱ 표시 여부 (선택적)
-    error?: string            // 유효성 에러 메시지 (선택적)
-    children: ReactNode // 입력 요소를 children으로 전달
+    required?: boolean
+    error?: string
+    children: ReactNode
 }
 
 function Field({label, required, error, children}: FieldProps) {

@@ -1,6 +1,6 @@
 // TMDB 포스터 URL 변환 함수 import (apiClient에서 관리)
 // MovieDTO/ScheduleDTO/TheaterDTO는 이 파일에 직접 정의 — 중복 import 금지
-import { resolvePosterUrl, getKSTDateString } from './apiClient'
+import {getKSTDateString, resolvePosterUrl} from './apiClient'
 
 /* 공용 함수 정의 */
 // KST 기준 오늘 날짜 ('YYYY-MM-DD')
@@ -27,35 +27,35 @@ export interface Movie {
 
 //dto 정보
 export interface MovieDTO {
-    movieId:    number;
-    title:      string;
-    genre:      string;
-    rating:     string;
-    runtime:    number;
-    director:   string;
-    actors:     string;
+    movieId: number;
+    title: string;
+    genre: string;
+    rating: string;
+    runtime: number;
+    director: string;
+    actors: string;
     description: string;
-    startAt:    string;
-    endAt:      string;
-    createAt:   string;
+    startAt: string;
+    endAt: string;
+    createAt: string;
     posterPath: string | null;  // TMDB 경로 또는 null — resolvePosterUrl()로 변환
 }
 
 //변환 메소드
 export const mapToMovie = (movieDTO: MovieDTO): Movie => ({
-    id:        movieDTO.movieId,
-    title:     movieDTO.title,
-    genre:     movieDTO.genre,
-    rating:    movieDTO.rating,
+    id: movieDTO.movieId,
+    title: movieDTO.title,
+    genre: movieDTO.genre,
+    rating: movieDTO.rating,
     // posterPath → TMDB CDN URL 또는 절대 경로로 변환 (이전: "/poster" + title 잘못된 수식 수정)
     posterUrl: resolvePosterUrl(movieDTO.posterPath),
-    synopsis:  movieDTO.description,
-    director:  movieDTO.director,
-    cast:      movieDTO.actors,
-    runtime:   movieDTO.runtime,
+    synopsis: movieDTO.description,
+    director: movieDTO.director,
+    cast: movieDTO.actors,
+    runtime: movieDTO.runtime,
     // ?. + ?? '' : endAt이 null인 영화(상영 예정 등 종료일 미정)에도 안전하게 처리
-    startAt:   movieDTO.startAt?.slice(0, 10) ?? '',
-    endAt:     movieDTO.endAt?.slice(0, 10)   ?? '',
+    startAt: movieDTO.startAt?.slice(0, 10) ?? '',
+    endAt: movieDTO.endAt?.slice(0, 10) ?? '',
 })
 
 export interface Schedule {
@@ -68,6 +68,7 @@ export interface Schedule {
     availableSeats: number;
     totalSeats: number;
     movieId: number;
+    isRecliner: boolean; // 리클라이너 상영관 여부 (seatPolicy.name === "Recliner")
 }
 
 export interface ScheduleDTO {
@@ -90,7 +91,8 @@ export const mapToSchedule = (scheduleDTO: ScheduleDTO): Schedule => ({
     theaterName: scheduleDTO.theater.no + "관",
     availableSeats: (scheduleDTO.theater.no + 4) * (scheduleDTO.theater.no + 7),
     totalSeats: (scheduleDTO.theater.no + 4) * (scheduleDTO.theater.no + 7),
-    movieId: scheduleDTO.movie.movieId
+    movieId: scheduleDTO.movie.movieId,
+    isRecliner: scheduleDTO.theater.seatPolicy?.name === "리클라이너",
 })
 
 export interface Theater {
@@ -123,7 +125,7 @@ export const mapToTheater = (theaterDTO: TheaterDTO): Theater => ({
     rows: theaterDTO.no + 4,
     cols: theaterDTO.no + 7,
     basePrice: theaterDTO.seatPolicy.cost,
-    hasRecliner: theaterDTO.seatPolicy.name == "Recliner",
+    hasRecliner: theaterDTO.seatPolicy?.name === "리클라이너",
     hasCouple: false,
     cleanupTime: theaterDTO.cleanupTime
 })
@@ -226,26 +228,25 @@ export interface PaymentDTO {
     reservation: ReservationDetailesDTO
 }
 
-export const mapToBooking = (paymentDTO : PaymentDTO) : BookingDTO => ({
-    bookingId : paymentDTO.id,
+export const mapToBooking = (paymentDTO: PaymentDTO): BookingDTO => ({
+    bookingId: paymentDTO.id,
     // status가 PAY일 때만 환불 가능
-    canRefund : paymentDTO.status === "PAY",
-    date : paymentDTO.reservation.schedule.startAt.slice(0,10),
-    movieTitle : paymentDTO.reservation.schedule.movie.title,
-    paidAt : paymentDTO.createAt,
-    paymentKey : paymentDTO.paymentKey,
+    canRefund: paymentDTO.status === "PAY",
+    date: paymentDTO.reservation.schedule.startAt.slice(0, 10),
+    movieTitle: paymentDTO.reservation.schedule.movie.title,
+    paidAt: paymentDTO.createAt,
+    paymentKey: paymentDTO.paymentKey,
     // paymentKey가 "POINT"면 포인트 전액 결제, 아니면 카드 결제
-    paymentMethod : paymentDTO.paymentKey === "POINT" ? "POINT" : "CARD" ,
-    phone : paymentDTO.reservation.phone.phone,
+    paymentMethod: paymentDTO.paymentKey === "POINT" ? "POINT" : "CARD",
+    phone: paymentDTO.reservation.phone.phone,
     // 포인트 적립량: 결제금액 × 적립비율(%) / 100
     pointEarned: paymentDTO.cost * paymentDTO.bonusPolicy.giveValue / 100,
     pointUsed: paymentDTO.usePoint,
     seats: paymentDTO.reservation.seats.map(s => s.seatNumber),
-    startTime:paymentDTO.reservation.schedule.startAt.slice(11,16),
-    status:paymentDTO.status,
+    startTime: paymentDTO.reservation.schedule.startAt.slice(11, 16),
+    status: paymentDTO.status,
     theaterName: paymentDTO.reservation.schedule.theater.no + "관",
     // ticketCount: 예매 좌석 개수 = 인원 수 (이전 버그: 파일 잘려서 truncated 상태였음)
     ticketCount: paymentDTO.reservation.seats.length,
-    // totalAmount: 결제 금액 (BookingDTO 인터페이스 필수 필드)
     totalAmount: paymentDTO.cost,
 })

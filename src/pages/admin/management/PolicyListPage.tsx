@@ -17,13 +17,12 @@
 import {useEffect, useState} from 'react'
 import {useNavigate} from 'react-router-dom'
 import apiClient from '../../../api/apiClient.ts'
-import { useAuth } from '../../../context/AuthContext'
-// mockData 의존성 제거 — 백엔드 연동 완료로 목데이터 불필요, 인라인 상수 사용
+import {useAuth} from '../../../context/AuthContext'
 
 /** 좌석 타입별 기본 단가 (백엔드 seat_policy에서 관리하지만 UI 초기값으로 사용) */
 const SEAT_PRICES = {
-    NORMAL: 14000,
-    RECLINER: 20000,
+    NORMAL: 5000,
+    RECLINER: 10000,
 } as const
 
 /** 좌석 타입 → 표시 레이블 */
@@ -34,10 +33,9 @@ const SEAT_TYPE_LABEL: Record<string, string> = {
 
 type SeatType = keyof typeof SEAT_PRICES
 
-/** 좌석 타입별 색상 (NORMAL / RECLINER만) */
 const SEAT_TYPE_COLOR: Record<SeatType, string> = {
-    NORMAL: '#2563eb',
-    RECLINER: '#7c3aed',
+    NORMAL: '#4f4537',
+    RECLINER: '#2a88c8',
 }
 
 /** discount_policy 테이블 전체 컬럼 대응 타입 */
@@ -66,7 +64,7 @@ function PolicyListPage() {
     const navigate = useNavigate()
 
     // ROLE_POLICY_EDIT 권한이 있어야 좌석 요금 수정, 정책 등록, 활성화 토글 버튼이 표시됨
-    const { hasPermission } = useAuth()
+    const {hasPermission} = useAuth()
     const canEdit = hasPermission('ROLE_POLICY_EDIT')
 
     const [loading, setLoading] = useState(true)

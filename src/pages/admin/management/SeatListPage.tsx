@@ -18,7 +18,7 @@
  *     - WS UPDATE_OCCUPANCY → occupied Map (관리자는 RESERVE 안 하므로 전부 'other')
  *  4. generateSeats(theaterNo) → seatUtils 좌석 배치 (SeatPage와 동일 로직)
  *
- * ⚠ 관리자는 좌석 클릭 불가 (read-only 뷰어)
+ * !!! 관리자는 좌석 클릭 불가 (read-only 뷰어)
  */
 import {useEffect, useMemo, useState} from 'react'
 import {Loader2, Wifi, WifiOff} from 'lucide-react'

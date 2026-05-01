@@ -24,21 +24,21 @@
  *
  * FHD(1080×1920) 세로형 키오스크 기준
  */
-import { useMemo, useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { ChevronLeft, Info, CreditCard, Wifi, WifiOff } from 'lucide-react'
+import {useEffect, useMemo, useState} from 'react'
+import {useLocation, useNavigate} from 'react-router-dom'
+import {ChevronLeft, CreditCard, Info, Wifi, WifiOff} from 'lucide-react'
 // 좌석 배치 생성 및 통로 분할 유틸 — SeatListPage(관리자)와 동일 로직 공유
-import { generateSeats, splitRowByAisle, type SeatItem } from '../../utils/seatUtils'
+import {generateSeats, type SeatItem, splitRowByAisle} from '../../utils/seatUtils'
 // 인원 타입 / 할인 금액은 상수 파일에서 관리 — 변경 시 discount.ts 한 곳만 수정
-import { PERSON_TYPES } from '../../constants/discount'
+import {PERSON_TYPES} from '../../constants/discount'
+import apiClient, {type ScheduleDTO, type SeatPolicyDTO, type TheaterDTO} from '../../api/apiClient'
+import {useWebSocket} from '../../hooks/useWebSocket'
 
 /** 좌석 타입 → 표시 레이블 */
 const SEAT_TYPE_LABEL: Record<string, string> = {
-  NORMAL:   '일반',
-  RECLINER: '리클라이너',
+    NORMAL: '일반',
+    RECLINER: '리클라이너',
 }
-import apiClient, { type TheaterDTO, type SeatPolicyDTO, type ScheduleDTO } from '../../api/apiClient'
-import { useWebSocket } from '../../hooks/useWebSocket'
 
 /**
  * SeatItem 타입은 seatUtils.ts에서 import.
@@ -49,488 +49,500 @@ import { useWebSocket } from '../../hooks/useWebSocket'
 /* ── 컴포넌트 ───────────────────────────────────────────────── */
 
 function SeatPage() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const state    = location.state ?? {}
+    const navigate = useNavigate()
+    const location = useLocation()
+    const state = location.state ?? {}
 
-  // location.state에서 전달받은 값 구조분해
-  // movieTitle: 영화 제목, schedule: ScheduleDTO, persons: 인원 타입별 수, totalPersons: 총 인원
-  const {
-    movieTitle,
-    schedule,
-    persons = {},
-    totalPersons = 0,
-  } = state as {
-    movieTitle:    string
-    schedule:      ScheduleDTO & { theaterName?: string; startTime?: string }
-    persons:       Record<string, number>
-    totalPersons:  number
-  }
+    // location.state에서 전달받은 값 구조분해
+    // movieTitle: 영화 제목, schedule: ScheduleDTO, persons: 인원 타입별 수, totalPersons: 총 인원
+    const {
+        movieTitle,
+        schedule,
+        persons = {},
+        totalPersons = 0,
+    } = state as {
+        movieTitle: string
+        schedule: ScheduleDTO & { theaterName?: string; startTime?: string }
+        persons: Record<string, number>
+        totalPersons: number
+    }
 
-  // state 없으면 홈으로 이동
-  if (!schedule) {
-    navigate('/')
-    return null
-  }
+    // state 없으면 홈으로 이동
+    if (!schedule) {
+        navigate('/')
+        return null
+    }
 
-  /* ── API 상태 ──────────────────────────────────────────── */
-  /**
-   * 상영관 정보 (API에서 로드)
-   * TheaterDTO: { no, policyId, cleanupTime }
-   */
-  const [theater,     setTheater]     = useState<TheaterDTO | null>(null)
-  /**
-   * 좌석 정책 정보 (API에서 로드)
-   * SeatPolicyDTO: { policyId, name, cost }
-   */
-  const [seatPolicy,  setSeatPolicy]  = useState<SeatPolicyDTO | null>(null)
-  const [apiLoading,  setApiLoading]  = useState(true)
-  const [apiError,    setApiError]    = useState('')
+    /* ── API 상태 ──────────────────────────────────────────── */
+    /**
+     * 상영관 정보 (API에서 로드)
+     * TheaterDTO: { no, policyId, cleanupTime }
+     */
+    const [theater, setTheater] = useState<TheaterDTO | null>(null)
+    /**
+     * 좌석 정책 정보 (API에서 로드)
+     * SeatPolicyDTO: { policyId, name, cost }
+     */
+    const [seatPolicy, setSeatPolicy] = useState<SeatPolicyDTO | null>(null)
+    const [apiLoading, setApiLoading] = useState(true)
+    const [apiError, setApiError] = useState('')
 
-  /**
-   * 상영관 + 좌석 정책 API 호출
-   * - GET /api/theater/list → schedule.no 와 일치하는 상영관 찾기 (고객용 — 토큰 불필요)
-   * - GET /api/seat-policy/list → theater.policyId 와 일치하는 정책 찾기 (고객용 — 토큰 불필요)
-   *
-   * 두 API가 모두 성공해야 좌석 배치를 렌더링할 수 있으므로 Promise.all 사용
-   */
-  useEffect(() => {
-    const loadTheaterData = async () => {
-      setApiLoading(true)
-      setApiError('')
-      try {
-        // CustomerController: GET /api/theater/list, GET /api/seat-policy/list (인증 불필요)
-        const [theaterRes, policyRes] = await Promise.all([
-          apiClient.get<TheaterDTO[]>('/theater/list'),
-          apiClient.get<SeatPolicyDTO[]>('/seat-policy/list'),
-        ])
+    /**
+     * 상영관 + 좌석 정책 API 호출
+     * - GET /api/theater/list → schedule.no 와 일치하는 상영관 찾기 (고객용 — 토큰 불필요)
+     * - GET /api/seat-policy/list → theater.policyId 와 일치하는 정책 찾기 (고객용 — 토큰 불필요)
+     *
+     * 두 API가 모두 성공해야 좌석 배치를 렌더링할 수 있으므로 Promise.all 사용
+     */
+    useEffect(() => {
+        const loadTheaterData = async () => {
+            setApiLoading(true)
+            setApiError('')
+            try {
+                // CustomerController: GET /api/theater/list, GET /api/seat-policy/list (인증 불필요)
+                const [theaterRes, policyRes] = await Promise.all([
+                    apiClient.get<TheaterDTO[]>('/theater/list'),
+                    apiClient.get<SeatPolicyDTO[]>('/seat-policy/list'),
+                ])
 
-        // schedule.no로 해당 상영관 찾기
-        const found = theaterRes.data.find((t) => t.no === schedule.no)
-        if (!found) {
-          setApiError(`${schedule.no}관 정보를 찾을 수 없습니다.`)
-          return
+                // schedule.no로 해당 상영관 찾기
+                const found = theaterRes.data.find((t) => t.no === schedule.no)
+                if (!found) {
+                    setApiError(`${schedule.no}관 정보를 찾을 수 없습니다.`)
+                    return
+                }
+
+                // policyId로 좌석 정책 찾기
+                // 고객용 /api/theater/list 응답 구조에 따라 두 가지 경우를 처리:
+                //   - apiClient.ts의 TheaterDTO: found.policyId (숫자 직접)
+                //   - typeData.ts의 TheaterDTO:  found.seatPolicy.policyId (객체 내부)
+                const policyId = (found as any).policyId ?? (found as any).seatPolicy?.policyId
+                const policy = policyRes.data.find((p) => p.policyId === policyId)
+                if (!policy) {
+                    // policy를 못 찾아도 seatPolicy 객체가 있으면 그걸 사용 (fallback)
+                    const fallbackPolicy = (found as any).seatPolicy
+                    if (fallbackPolicy) {
+                        setTheater(found)
+                        setSeatPolicy(fallbackPolicy)
+                        return
+                    }
+                    setApiError('좌석 정책 정보를 불러오지 못했습니다.')
+                    return
+                }
+
+                setTheater(found)
+                setSeatPolicy(policy)
+            } catch (e) {
+                console.error('[SeatPage] 상영관 정보 로드 실패', e)
+                setApiError('상영관 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+            } finally {
+                setApiLoading(false)
+            }
         }
 
-        // policyId로 좌석 정책 찾기
-        // 고객용 /api/theater/list 응답 구조에 따라 두 가지 경우를 처리:
-        //   - apiClient.ts의 TheaterDTO: found.policyId (숫자 직접)
-        //   - typeData.ts의 TheaterDTO:  found.seatPolicy.policyId (객체 내부)
-        const policyId = (found as any).policyId ?? (found as any).seatPolicy?.policyId
-        const policy = policyRes.data.find((p) => p.policyId === policyId)
-        if (!policy) {
-          // policy를 못 찾아도 seatPolicy 객체가 있으면 그걸 사용 (fallback)
-          const fallbackPolicy = (found as any).seatPolicy
-          if (fallbackPolicy) {
-            setTheater(found)
-            setSeatPolicy(fallbackPolicy)
+        void loadTheaterData()
+        // schedule.no는 마운트 시 고정값이므로 의존성 배열에서 제외해도 무방하지만 명시적으로 포함
+    }, [schedule.no])
+
+    /* ── WebSocket 연결 ──────────────────────────────────────── */
+    /**
+     * useWebSocket — 좌석 실시간 상태 구독
+     * schedule.id가 있을 때만 연결 (null이면 훅 내부에서 연결 안 함)
+     *
+     * wsState.reserved  - DB 예약 완료 좌석 번호 Set
+     * wsState.occupied  - 임시점유 Map (seatNumber → userId)
+     * wsState.myId      - 내 UUID
+     * wsState.connected - 연결 상태
+     * sendToggle        - 좌석 토글 메시지 송신 함수
+     */
+    const {wsState, sendToggle} = useWebSocket(schedule.id ?? null)
+
+    /* ── 좌석 배치 생성 (메모이제이션) ──────────────────────── */
+    /**
+     * theaterConfig.ts 고정 상수 기반으로 좌석 배치 생성.
+     *
+     * 백엔드 TheaterDTO에 rows/cols/hasRecliner 필드가 없어도 동작함.
+     * schedule.no(상영관 번호)를 키로 THEATER_CONFIG에서 배치 정보를 조회.
+     *
+     * SeatListPage(관리자)도 동일한 generateSeats(theaterNo)를 사용하므로
+     * 고객 화면과 관리자 화면의 배치가 항상 일치함.
+     *
+     * API 로딩 완료 전에도 배치 생성이 가능하므로 seatPolicy 로드 여부와 무관.
+     */
+    const seats = useMemo<SeatItem[]>(
+        () => generateSeats(schedule.no),
+        [schedule.no],
+    )
+
+    /* ── 좌석 상태 파생 ─────────────────────────────────────── */
+    /**
+     * 내가 현재 선택(점유)한 좌석 번호 목록
+     * occupied Map에서 userId === myId 인 항목 추출
+     */
+    const mySelectedIds = useMemo<string[]>(() => {
+        const result: string[] = []
+        wsState.occupied.forEach((userId, seatNumber) => {
+            if (userId === wsState.myId) result.push(seatNumber)
+        })
+        return result
+    }, [wsState.occupied, wsState.myId])
+
+    /**
+     * 좌석 번호 → 좌석 표시 상태 결정
+     * 우선순위: 내 선택 > DB 예약완료 > 타인 임시점유 > 빈자리
+     */
+    const getSeatDisplayStatus = (seatId: string): 'selected' | 'sold_out' | 'occupied' | 'empty' => {
+        // 1. 내가 선택한 좌석
+        if (wsState.myId && wsState.occupied.get(seatId) === wsState.myId) return 'selected'
+        // 2. DB 예약 완료 좌석
+        if (wsState.reserved.has(seatId)) return 'sold_out'
+        // 3. 타인이 임시 점유한 좌석
+        if (wsState.occupied.has(seatId)) return 'occupied'
+        // 4. 빈자리
+        return 'empty'
+    }
+
+    /* ── 이벤트 핸들러 ─────────────────────────────────────── */
+    /**
+     * 좌석 클릭 처리
+     * - sold_out (예약완료): 클릭 무시
+     * - occupied (타인점유): 클릭 무시
+     * - selected (내 선택): 선택 해제 (WS sendToggle)
+     * - empty (빈자리): 선택 가능 (총 인원 수 초과 시 무시, WS sendToggle)
+     */
+    const handleSeatClick = (seat: SeatItem) => {
+        const status = getSeatDisplayStatus(seat.id)
+
+        // 예약완료 · 타인점유는 클릭 불가
+        if (status === 'sold_out' || status === 'occupied') return
+
+        // 이미 내가 선택한 좌석 → 해제
+        if (status === 'selected') {
+            sendToggle(seat.id)
             return
-          }
-          setApiError('좌석 정책 정보를 불러오지 못했습니다.')
-          return
         }
 
-        setTheater(found)
-        setSeatPolicy(policy)
-      } catch (e) {
-        console.error('[SeatPage] 상영관 정보 로드 실패', e)
-        setApiError('상영관 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
-      } finally {
-        setApiLoading(false)
-      }
+        // 빈자리: 인원 수 초과 시 무시
+        if (mySelectedIds.length >= totalPersons) return
+
+        // WebSocket 연결 안 된 경우 안내 (폴백)
+        if (!wsState.connected) {
+            alert('실시간 연결이 끊겼습니다. 잠시 후 다시 시도해 주세요.')
+            return
+        }
+
+        // 선택 (WS sendToggle 호출 → 서버가 OCCUPIED 브로드캐스트)
+        sendToggle(seat.id)
     }
 
-    void loadTheaterData()
-  // schedule.no는 마운트 시 고정값이므로 의존성 배열에서 제외해도 무방하지만 명시적으로 포함
-  }, [schedule.no])
+    /* ── 요금 계산 ─────────────────────────────────────────── */
+    /**
+     * 좌석 단가 반환
+     * 실제 좌석 가격 = seatPolicy.cost (API에서 로드한 값)
+     * 로드 전엔 0 반환
+     */
+    const getSeatPrice = (_seatType: string): number => seatPolicy?.cost ?? 0
 
-  /* ── WebSocket 연결 ──────────────────────────────────────── */
-  /**
-   * useWebSocket — 좌석 실시간 상태 구독
-   * schedule.id가 있을 때만 연결 (null이면 훅 내부에서 연결 안 함)
-   *
-   * wsState.reserved  - DB 예약 완료 좌석 번호 Set
-   * wsState.occupied  - 임시점유 Map (seatNumber → userId)
-   * wsState.myId      - 내 UUID
-   * wsState.connected - 연결 상태
-   * sendToggle        - 좌석 토글 메시지 송신 함수
-   */
-  const { wsState, sendToggle } = useWebSocket(schedule.id ?? null)
+    /**
+     * 총 결제 예정 금액 계산
+     * = 선택 좌석 단가 합산 - 인원 타입별 할인 합산
+     */
+    const calcTotal = (): number => {
+        // 선택 좌석 단가 합산
+        const seatTotal = mySelectedIds.reduce((acc, id) => {
+            const seat = seats.find((s) => s.id === id)
+            return acc + getSeatPrice(seat?.seatType ?? 'NORMAL')
+        }, 0)
 
-  /* ── 좌석 배치 생성 (메모이제이션) ──────────────────────── */
-  /**
-   * theaterConfig.ts 고정 상수 기반으로 좌석 배치 생성.
-   *
-   * 백엔드 TheaterDTO에 rows/cols/hasRecliner 필드가 없어도 동작함.
-   * schedule.no(상영관 번호)를 키로 THEATER_CONFIG에서 배치 정보를 조회.
-   *
-   * SeatListPage(관리자)도 동일한 generateSeats(theaterNo)를 사용하므로
-   * 고객 화면과 관리자 화면의 배치가 항상 일치함.
-   *
-   * API 로딩 완료 전에도 배치 생성이 가능하므로 seatPolicy 로드 여부와 무관.
-   */
-  const seats = useMemo<SeatItem[]>(
-    () => generateSeats(schedule.no),
-    [schedule.no],
-  )
+        // 인원 타입별 할인 합산 (mockData의 PERSON_TYPES 사용)
+        const discountTotal = PERSON_TYPES.reduce((acc, {type, discount}) => {
+            return acc + (persons[type] ?? 0) * discount
+        }, 0)
 
-  /* ── 좌석 상태 파생 ─────────────────────────────────────── */
-  /**
-   * 내가 현재 선택(점유)한 좌석 번호 목록
-   * occupied Map에서 userId === myId 인 항목 추출
-   */
-  const mySelectedIds = useMemo<string[]>(() => {
-    const result: string[] = []
-    wsState.occupied.forEach((userId, seatNumber) => {
-      if (userId === wsState.myId) result.push(seatNumber)
-    })
-    return result
-  }, [wsState.occupied, wsState.myId])
-
-  /**
-   * 좌석 번호 → 좌석 표시 상태 결정
-   * 우선순위: 내 선택 > DB 예약완료 > 타인 임시점유 > 빈자리
-   */
-  const getSeatDisplayStatus = (seatId: string): 'selected' | 'sold_out' | 'occupied' | 'empty' => {
-    // 1. 내가 선택한 좌석
-    if (wsState.myId && wsState.occupied.get(seatId) === wsState.myId) return 'selected'
-    // 2. DB 예약 완료 좌석
-    if (wsState.reserved.has(seatId)) return 'sold_out'
-    // 3. 타인이 임시 점유한 좌석
-    if (wsState.occupied.has(seatId)) return 'occupied'
-    // 4. 빈자리
-    return 'empty'
-  }
-
-  /* ── 이벤트 핸들러 ─────────────────────────────────────── */
-  /**
-   * 좌석 클릭 처리
-   * - sold_out (예약완료): 클릭 무시
-   * - occupied (타인점유): 클릭 무시
-   * - selected (내 선택): 선택 해제 (WS sendToggle)
-   * - empty (빈자리): 선택 가능 (총 인원 수 초과 시 무시, WS sendToggle)
-   */
-  const handleSeatClick = (seat: SeatItem) => {
-    const status = getSeatDisplayStatus(seat.id)
-
-    // 예약완료 · 타인점유는 클릭 불가
-    if (status === 'sold_out' || status === 'occupied') return
-
-    // 이미 내가 선택한 좌석 → 해제
-    if (status === 'selected') {
-      sendToggle(seat.id)
-      return
+        return Math.max(seatTotal - discountTotal, 0)
     }
 
-    // 빈자리: 인원 수 초과 시 무시
-    if (mySelectedIds.length >= totalPersons) return
+    /** 모든 인원 좌석 선택 완료 여부 */
+    const isReady = mySelectedIds.length === totalPersons && totalPersons > 0
 
-    // WebSocket 연결 안 된 경우 안내 (폴백)
-    if (!wsState.connected) {
-      alert('실시간 연결이 끊겼습니다. 잠시 후 다시 시도해 주세요.')
-      return
+    /** 안내 메시지: 남은 선택 수 */
+    const getHintMessage = (): string => {
+        const remaining = totalPersons - mySelectedIds.length
+        if (remaining > 0) {
+            return `좌석을 선택해 주세요. (${mySelectedIds.length}/${totalPersons}석 선택됨, ${remaining}석 남음)`
+        }
+        return ''
     }
 
-    // 선택 (WS sendToggle 호출 → 서버가 OCCUPIED 브로드캐스트)
-    sendToggle(seat.id)
-  }
-
-  /* ── 요금 계산 ─────────────────────────────────────────── */
-  /**
-   * 좌석 단가 반환
-   * 실제 좌석 가격 = seatPolicy.cost (API에서 로드한 값)
-   * 로드 전엔 0 반환
-   */
-  const getSeatPrice = (_seatType: string): number => seatPolicy?.cost ?? 0
-
-  /**
-   * 총 결제 예정 금액 계산
-   * = 선택 좌석 단가 합산 - 인원 타입별 할인 합산
-   */
-  const calcTotal = (): number => {
-    // 선택 좌석 단가 합산
-    const seatTotal = mySelectedIds.reduce((acc, id) => {
-      const seat = seats.find((s) => s.id === id)
-      return acc + getSeatPrice(seat?.seatType ?? 'NORMAL')
-    }, 0)
-
-    // 인원 타입별 할인 합산 (mockData의 PERSON_TYPES 사용)
-    const discountTotal = PERSON_TYPES.reduce((acc, { type, discount }) => {
-      return acc + (persons[type] ?? 0) * discount
-    }, 0)
-
-    return Math.max(seatTotal - discountTotal, 0)
-  }
-
-  /** 모든 인원 좌석 선택 완료 여부 */
-  const isReady = mySelectedIds.length === totalPersons && totalPersons > 0
-
-  /** 안내 메시지: 남은 선택 수 */
-  const getHintMessage = (): string => {
-    const remaining = totalPersons - mySelectedIds.length
-    if (remaining > 0) {
-      return `좌석을 선택해 주세요. (${mySelectedIds.length}/${totalPersons}석 선택됨, ${remaining}석 남음)`
+    /** 결제 페이지로 이동 */
+    const handlePayment = () => {
+        if (!isReady) return
+        navigate('/payment', {
+            state: {
+                ...state,
+                selectedSeats: mySelectedIds,
+                selectedSeatObjects: mySelectedIds.map((id) => seats.find((s) => s.id === id)),
+                totalAmount: calcTotal(),
+                theater,
+                seatPolicy,
+            },
+        })
     }
-    return ''
-  }
 
-  /** 결제 페이지로 이동 */
-  const handlePayment = () => {
-    if (!isReady) return
-    navigate('/payment', {
-      state: {
-        ...state,
-        selectedSeats:       mySelectedIds,
-        selectedSeatObjects: mySelectedIds.map((id) => seats.find((s) => s.id === id)),
-        totalAmount:         calcTotal(),
-        theater,
-        seatPolicy,
-      },
-    })
-  }
+    /* ── 좌석 배치 렌더링 유틸 ─────────────────────────────── */
+    // 행(row) 목록 추출 (A, B, C ...)
+    const rows = useMemo(() => [...new Set(seats.map((s) => s.row))], [seats])
 
-  /* ── 좌석 배치 렌더링 유틸 ─────────────────────────────── */
-  // 행(row) 목록 추출 (A, B, C ...)
-  const rows = useMemo(() => [...new Set(seats.map((s) => s.row))], [seats])
+    // 열 번호 목록 (첫 번째 행 기준)
+    const colNumbers = useMemo(() => {
+        if (rows.length === 0) return []
+        return seats
+            .filter((s) => s.row === rows[0])
+            .sort((a, b) => a.col - b.col)
+            .map((s) => s.col)
+    }, [seats, rows])
 
-  // 열 번호 목록 (첫 번째 행 기준)
-  const colNumbers = useMemo(() => {
-    if (rows.length === 0) return []
-    return seats
-      .filter((s) => s.row === rows[0])
-      .sort((a, b) => a.col - b.col)
-      .map((s) => s.col)
-  }, [seats, rows])
+    /**
+     * 통로 좌/우 그룹 크기 — seatUtils.splitRowByAisle와 동일 규칙
+     * - 열 수 ≤ 6 → 0 (통로 없음, 리클라이너 전용관)
+     * - 열 수 > 6 → 2 고정 (양쪽 가장자리 2칸)
+     * 열 번호 헤더와 좌석 행 모두 동일한 sideCount로 렌더링해야 열 정렬이 맞음.
+     */
+    const sideCount = colNumbers.length > 6 ? 2 : 0
 
-  /**
-   * 통로 좌/우 그룹 크기 — seatUtils.splitRowByAisle와 동일 규칙
-   * - 열 수 ≤ 6 → 0 (통로 없음, 리클라이너 전용관)
-   * - 열 수 > 6 → 2 고정 (양쪽 가장자리 2칸)
-   * 열 번호 헤더와 좌석 행 모두 동일한 sideCount로 렌더링해야 열 정렬이 맞음.
-   */
-  const sideCount = colNumbers.length > 6 ? 2 : 0
+    // 선택된 좌석들의 타입별 요약 (요금 표시용)
+    const selectedSeatsSummary = useMemo<Record<string, number>>(() => {
+        const byType: Record<string, number> = {}
+        mySelectedIds.forEach((id) => {
+            const seat = seats.find((s) => s.id === id)
+            const type = seat?.seatType ?? 'NORMAL'
+            byType[type] = (byType[type] ?? 0) + 1
+        })
+        return byType
+    }, [mySelectedIds, seats])
 
-  // 선택된 좌석들의 타입별 요약 (요금 표시용)
-  const selectedSeatsSummary = useMemo<Record<string, number>>(() => {
-    const byType: Record<string, number> = {}
-    mySelectedIds.forEach((id) => {
-      const seat = seats.find((s) => s.id === id)
-      const type = seat?.seatType ?? 'NORMAL'
-      byType[type] = (byType[type] ?? 0) + 1
-    })
-    return byType
-  }, [mySelectedIds, seats])
+    /* ── 로딩 / 에러 렌더링 ──────────────────────────────────── */
+    if (apiLoading) {
+        return (
+            <div style={pageWrap}>
+                <p style={{color: 'var(--text-muted)', fontSize: 16}}>상영관 정보를 불러오는 중...</p>
+            </div>
+        )
+    }
+    if (apiError) {
+        return (
+            <div style={pageWrap}>
+                <p style={{color: 'var(--color-error-text)', fontSize: 16}}>{apiError}</p>
+                <button onClick={() => navigate(-1)} style={backBtn}>← 뒤로</button>
+            </div>
+        )
+    }
 
-  /* ── 로딩 / 에러 렌더링 ──────────────────────────────────── */
-  if (apiLoading) {
+    /* ── 메인 렌더링 ──────────────────────────────────────────── */
     return (
-      <div style={pageWrap}>
-        <p style={{ color: 'var(--text-muted)', fontSize: 16 }}>상영관 정보를 불러오는 중...</p>
-      </div>
-    )
-  }
-  if (apiError) {
-    return (
-      <div style={pageWrap}>
-        <p style={{ color: 'var(--color-error-text)', fontSize: 16 }}>{apiError}</p>
-        <button onClick={() => navigate(-1)} style={backBtn}>← 뒤로</button>
-      </div>
-    )
-  }
+        <div style={pageWrap}>
 
-  /* ── 메인 렌더링 ──────────────────────────────────────────── */
-  return (
-    <div style={pageWrap}>
+            {/* ── 뒤로 가기 ── */}
+            <button onClick={() => navigate(-1)} style={backBtn}>
+                <ChevronLeft size={20}/>
+                날짜 · 시간 선택
+            </button>
 
-      {/* ── 뒤로 가기 ── */}
-      <button onClick={() => navigate(-1)} style={backBtn}>
-        <ChevronLeft size={20} />
-        날짜 · 시간 선택
-      </button>
+            {/* ── 헤더 정보 ── */}
+            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4}}>
+                <h2 style={pageTitle}>좌석 선택</h2>
+                {/* WebSocket 연결 상태 표시 */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 13,
+                    color: wsState.connected ? 'var(--color-success-main)' : 'var(--color-error-text)'
+                }}>
+                    {wsState.connected
+                        ? <><Wifi size={14}/> 실시간 연결됨</>
+                        : <><WifiOff size={14}/> 연결 중...</>
+                    }
+                </div>
+            </div>
 
-      {/* ── 헤더 정보 ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-        <h2 style={pageTitle}>좌석 선택</h2>
-        {/* WebSocket 연결 상태 표시 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: wsState.connected ? 'var(--color-success-main)' : 'var(--color-error-text)' }}>
-          {wsState.connected
-            ? <><Wifi size={14} /> 실시간 연결됨</>
-            : <><WifiOff size={14} /> 연결 중...</>
-          }
-        </div>
-      </div>
-
-      <p style={subInfo}>
-        {movieTitle} · {schedule.theaterName ?? `${schedule.no}관`} · {schedule.startTime ?? ''}
-      </p>
-      <p style={subInfo}>
-        선택:{' '}
-        <strong style={{ color: 'var(--color-brand-default)' }}>{mySelectedIds.length}</strong>
-        {' '}/ {totalPersons}석
-        {seatPolicy && (
-          <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text-muted)' }}>
+            <p style={subInfo}>
+                {movieTitle} · {schedule.theaterName ?? `${schedule.no}관`} · {schedule.startTime ?? ''}
+            </p>
+            <p style={subInfo}>
+                선택:{' '}
+                <strong style={{color: 'var(--color-brand-default)'}}>{mySelectedIds.length}</strong>
+                {' '}/ {totalPersons}석
+                {seatPolicy && (
+                    <span style={{marginLeft: 12, fontSize: 13, color: 'var(--text-muted)'}}>
             ({seatPolicy.name} · 1석 {seatPolicy.cost.toLocaleString()}원)
           </span>
-        )}
-      </p>
+                )}
+            </p>
 
-      {/* ── 스크린 표시 ── */}
-      <div style={screenWrap}>
-        <div style={screen}>SCREEN</div>
-      </div>
+            {/* ── 스크린 표시 ── */}
+            <div style={screenWrap}>
+                <div style={screen}>SCREEN</div>
+            </div>
 
-      {/* ── 좌석 타입 범례 ── */}
-      <div style={legend}>
-        {[
-          { label: '일반',     color: 'var(--color-seat-empty)',    border: 'var(--color-seat-empty-border)' },
-          { label: '리클라이너', color: '#1a5c3a',                  border: '#00ad74' },
-          { label: '선택됨',   color: 'var(--color-seat-selected)', border: 'var(--color-brand-hover)' },
-          { label: '타인선택', color: '#6b3fa0',                    border: '#9b6fd4' },  // 임시점유
-          { label: '매진',     color: 'var(--color-seat-sold-out)', border: 'transparent' },
-        ].map(({ label, color, border }) => (
-          <div key={label} style={legendItem}>
-            <div style={{ ...seatBase, background: color, border: `1px solid ${border}`, width: 22, height: 22 }} />
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{label}</span>
-          </div>
-        ))}
-      </div>
+            {/* ── 좌석 타입 범례 ── */}
+            <div style={legend}>
+                {[
+                    {label: '일반', color: 'var(--color-seat-empty)', border: 'var(--color-seat-empty-border)'},
+                    {label: '리클라이너', color: '#0d2035', border: '#2a88c8'},
+                    {label: '선택됨', color: 'var(--color-seat-selected)', border: 'var(--color-brand-hover)'},
+                    {label: '타인선택', color: '#380808', border: '#e03c3c'},
+                    {label: '매진', color: 'var(--color-seat-sold-out)', border: 'transparent'},
+                ].map(({label, color, border}) => (
+                    <div key={label} style={legendItem}>
+                        <div style={{
+                            ...seatBase,
+                            background: color,
+                            border: `1px solid ${border}`,
+                            width: 22,
+                            height: 22
+                        }}/>
+                        <span style={{fontSize: 12, color: 'var(--text-secondary)'}}>{label}</span>
+                    </div>
+                ))}
+            </div>
 
-      {/* ── 좌석 그리드 (통로 구분) ── */}
-      <div style={gridOuter}>
-        <div style={gridScroll}>
+            {/* ── 좌석 그리드 (통로 구분) ── */}
+            <div style={gridOuter}>
+                <div style={gridScroll}>
 
-          {/* 열 번호 헤더 행 — sideCount 기반 통로 위치 */}
-          <div style={colHeaderRow}>
-            <span style={rowLabel} />
-            {/* 왼쪽 그룹 */}
-            {colNumbers.slice(0, sideCount || colNumbers.length).map((n) => (
-              <span key={n} style={colNumLabel}>{n}</span>
-            ))}
-            {/* 왼쪽 통로 */}
-            {sideCount > 0 && <span style={aisleGap} />}
-            {/* 중앙 그룹 */}
-            {sideCount > 0 && colNumbers.slice(sideCount, colNumbers.length - sideCount).map((n) => (
-              <span key={n} style={colNumLabel}>{n}</span>
-            ))}
-            {/* 오른쪽 통로 */}
-            {sideCount > 0 && <span style={aisleGap} />}
-            {/* 오른쪽 그룹 */}
-            {sideCount > 0 && colNumbers.slice(colNumbers.length - sideCount).map((n) => (
-              <span key={n} style={colNumLabel}>{n}</span>
-            ))}
-            <span style={rowLabel} />
-          </div>
+                    {/* 열 번호 헤더 행 — sideCount 기반 통로 위치 */}
+                    <div style={colHeaderRow}>
+                        <span style={rowLabel}/>
+                        {/* 왼쪽 그룹 */}
+                        {colNumbers.slice(0, sideCount || colNumbers.length).map((n) => (
+                            <span key={n} style={colNumLabel}>{n}</span>
+                        ))}
+                        {/* 왼쪽 통로 */}
+                        {sideCount > 0 && <span style={aisleGap}/>}
+                        {/* 중앙 그룹 */}
+                        {sideCount > 0 && colNumbers.slice(sideCount, colNumbers.length - sideCount).map((n) => (
+                            <span key={n} style={colNumLabel}>{n}</span>
+                        ))}
+                        {/* 오른쪽 통로 */}
+                        {sideCount > 0 && <span style={aisleGap}/>}
+                        {/* 오른쪽 그룹 */}
+                        {sideCount > 0 && colNumbers.slice(colNumbers.length - sideCount).map((n) => (
+                            <span key={n} style={colNumLabel}>{n}</span>
+                        ))}
+                        <span style={rowLabel}/>
+                    </div>
 
-          {/* 좌석 행 — seatUtils.splitRowByAisle 사용 (SeatListPage와 동일 로직) */}
-          {rows.map((row) => {
-            const rowSeats = seats.filter((s) => s.row === row)
-            // sideCount 반환값은 헤더에서 이미 계산했으므로 구조분해만
-            const { left, middle, right } = splitRowByAisle(rowSeats)
+                    {/* 좌석 행 — seatUtils.splitRowByAisle 사용 (SeatListPage와 동일 로직) */}
+                    {rows.map((row) => {
+                        const rowSeats = seats.filter((s) => s.row === row)
+                        // sideCount 반환값은 헤더에서 이미 계산했으므로 구조분해만
+                        const {left, middle, right} = splitRowByAisle(rowSeats)
 
-            /** 좌석 버튼 렌더 헬퍼 */
-            const renderSeat = (seat: SeatItem) => {
-              const displayStatus = getSeatDisplayStatus(seat.id)
-              const isClickable   = displayStatus === 'empty' || displayStatus === 'selected'
+                        /** 좌석 버튼 렌더 헬퍼 */
+                        const renderSeat = (seat: SeatItem) => {
+                            const displayStatus = getSeatDisplayStatus(seat.id)
+                            const isClickable = displayStatus === 'empty' || displayStatus === 'selected'
 
-              return (
-                <button
-                  key={seat.id}
-                  onClick={() => handleSeatClick(seat)}
-                  title={`${seat.id} (${SEAT_TYPE_LABEL[seat.seatType] ?? '일반'} · ${getSeatPrice(seat.seatType).toLocaleString()}원)`}
-                  style={{
-                    ...seatBase,
-                    ...getSeatStyle(displayStatus, seat.seatType),
-                    position: 'relative',
-                    overflow: 'hidden',
-                  }}
-                  disabled={!isClickable}
-                  aria-label={`${seat.id} ${displayStatus}`}
-                >
-                  {/* 매진 / 타인점유 좌석: X 표시 */}
-                  {(displayStatus === 'sold_out' || displayStatus === 'occupied') && (
-                    <span style={{
-                      position: 'absolute', inset: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 13, fontWeight: 900,
-                      color: displayStatus === 'occupied' ? 'rgba(200,150,255,0.9)' : 'rgba(255,255,255,0.7)',
-                      pointerEvents: 'none',
-                    }}>✕</span>
-                  )}
-                </button>
-              )
-            }
+                            return (
+                                <button
+                                    key={seat.id}
+                                    onClick={() => handleSeatClick(seat)}
+                                    title={`${seat.id} (${SEAT_TYPE_LABEL[seat.seatType] ?? '일반'} · ${getSeatPrice(seat.seatType).toLocaleString()}원)`}
+                                    style={{
+                                        ...seatBase,
+                                        ...getSeatStyle(displayStatus, seat.seatType),
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                    }}
+                                    disabled={!isClickable}
+                                    aria-label={`${seat.id} ${displayStatus}`}
+                                >
+                                    {/* 매진 / 타인점유 좌석: X 표시 */}
+                                    {(displayStatus === 'sold_out' || displayStatus === 'occupied') && (
+                                        <span style={{
+                                            position: 'absolute', inset: 0,
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontSize: 13, fontWeight: 900,
+                                            color: displayStatus === 'occupied' ? 'rgba(240,128,128,0.9)' : 'rgba(255,255,255,0.7)',
+                                            pointerEvents: 'none',
+                                        }}>✕</span>
+                                    )}
+                                </button>
+                            )
+                        }
 
-            return (
-              <div key={row} style={rowWrap}>
-                <span style={rowLabel}>{row}</span>
-                {/* 왼쪽 그룹 (통로 없으면 left에 전 좌석이 들어있음) */}
-                <div style={colWrap}>{left.map(renderSeat)}</div>
-                {/* 왼쪽 통로 */}
-                {sideCount > 0 && <span style={aisleGap} />}
-                {/* 중앙 그룹 */}
-                {middle.length > 0 && <div style={colWrap}>{middle.map(renderSeat)}</div>}
-                {/* 오른쪽 통로 */}
-                {sideCount > 0 && <span style={aisleGap} />}
-                {/* 오른쪽 그룹 */}
-                {right.length > 0 && <div style={colWrap}>{right.map(renderSeat)}</div>}
-                <span style={rowLabel}>{row}</span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
+                        return (
+                            <div key={row} style={rowWrap}>
+                                <span style={rowLabel}>{row}</span>
+                                {/* 왼쪽 그룹 (통로 없으면 left에 전 좌석이 들어있음) */}
+                                <div style={colWrap}>{left.map(renderSeat)}</div>
+                                {/* 왼쪽 통로 */}
+                                {sideCount > 0 && <span style={aisleGap}/>}
+                                {/* 중앙 그룹 */}
+                                {middle.length > 0 && <div style={colWrap}>{middle.map(renderSeat)}</div>}
+                                {/* 오른쪽 통로 */}
+                                {sideCount > 0 && <span style={aisleGap}/>}
+                                {/* 오른쪽 그룹 */}
+                                {right.length > 0 && <div style={colWrap}>{right.map(renderSeat)}</div>}
+                                <span style={rowLabel}>{row}</span>
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
 
-      {/* ── 선택된 좌석 목록 ── */}
-      {mySelectedIds.length > 0 && (
-        <div style={selectedBox}>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>
-            선택된 좌석
-          </p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-            {mySelectedIds.map((id) => (
-              <span key={id} style={seatTag}>{id}</span>
-            ))}
-          </div>
-          {/* 좌석 타입별 요금 요약 */}
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            {Object.entries(selectedSeatsSummary).map(([type, cnt]) => (
-              <span key={type} style={{ marginRight: 12 }}>
+            {/* ── 선택된 좌석 목록 ── */}
+            {mySelectedIds.length > 0 && (
+                <div style={selectedBox}>
+                    <p style={{fontSize: 13, color: 'var(--text-muted)', marginBottom: 8}}>
+                        선택된 좌석
+                    </p>
+                    <div style={{display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8}}>
+                        {mySelectedIds.map((id) => (
+                            <span key={id} style={seatTag}>{id}</span>
+                        ))}
+                    </div>
+                    {/* 좌석 타입별 요금 요약 */}
+                    <div style={{fontSize: 13, color: 'var(--text-secondary)'}}>
+                        {Object.entries(selectedSeatsSummary).map(([type, cnt]) => (
+                            <span key={type} style={{marginRight: 12}}>
                 {SEAT_TYPE_LABEL[type as keyof typeof SEAT_TYPE_LABEL] ?? '일반'} {cnt as number}석 · {(getSeatPrice(type) * (cnt as number)).toLocaleString()}원
               </span>
-            ))}
-          </div>
-        </div>
-      )}
+                        ))}
+                    </div>
+                </div>
+            )}
 
-      {/* ── 결제 버튼 영역 ── */}
-      <div style={nextArea}>
-        {/* 안내 메시지 */}
-        {!isReady && (
-          <div style={hintBox}>
-            <Info size={16} style={{ marginRight: 6, flexShrink: 0 }} />
-            {getHintMessage()}
-          </div>
-        )}
-        {/* 금액 표시 */}
-        {isReady && (
-          <div style={amountBox}>
-            <span style={{ fontSize: 15, color: 'var(--text-secondary)' }}>결제 예정 금액</span>
-            <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-brand-default)' }}>
+            {/* ── 결제 버튼 영역 ── */}
+            <div style={nextArea}>
+                {/* 안내 메시지 */}
+                {!isReady && (
+                    <div style={hintBox}>
+                        <Info size={16} style={{marginRight: 6, flexShrink: 0}}/>
+                        {getHintMessage()}
+                    </div>
+                )}
+                {/* 금액 표시 */}
+                {isReady && (
+                    <div style={amountBox}>
+                        <span style={{fontSize: 15, color: 'var(--text-secondary)'}}>결제 예정 금액</span>
+                        <span style={{fontSize: 22, fontWeight: 800, color: 'var(--color-brand-default)'}}>
               {calcTotal().toLocaleString()}원
             </span>
-          </div>
-        )}
-        <button
-          onClick={handlePayment}
-          disabled={!isReady}
-          style={{ ...nextBtn, ...(!isReady ? nextBtnDisabled : {}) }}
-        >
-          <CreditCard size={22} />
-          결제하기
-        </button>
-      </div>
-    </div>
-  )
+                    </div>
+                )}
+                <button
+                    onClick={handlePayment}
+                    disabled={!isReady}
+                    style={{...nextBtn, ...(!isReady ? nextBtnDisabled : {})}}
+                >
+                    <CreditCard size={22}/>
+                    결제하기
+                </button>
+            </div>
+        </div>
+    )
 }
 
 /* ── 좌석 상태·타입별 스타일 반환 ─────────────────────────── */
@@ -539,93 +551,130 @@ function SeatPage() {
  * @param seatType      - 'NORMAL' | 'RECLINER'
  */
 function getSeatStyle(
-  displayStatus: 'selected' | 'sold_out' | 'occupied' | 'empty',
-  seatType: string,
+    displayStatus: 'selected' | 'sold_out' | 'occupied' | 'empty',
+    seatType: string,
 ): React.CSSProperties {
-  switch (displayStatus) {
-    case 'selected':
-      return { background: 'var(--color-seat-selected)', border: '1px solid var(--color-brand-hover)', cursor: 'pointer' }
-    case 'sold_out':
-      return { background: 'var(--color-seat-sold-out)', border: '1px solid transparent', cursor: 'not-allowed' }
-    case 'occupied':
-      // 타인 임시점유: 보라색 계열로 표시
-      return { background: '#4a1c7a', border: '1px solid #9b6fd4', cursor: 'not-allowed' }
-    default:
-      // 빈자리: 좌석 타입별 색상
-      if (seatType === 'RECLINER') {
-        return { background: '#1a5c3a', border: '1px solid #00ad74', cursor: 'pointer' }
-      }
-      return { background: 'var(--color-seat-empty)', border: '1px solid var(--color-seat-empty-border)', cursor: 'pointer' }
-  }
+    switch (displayStatus) {
+        case 'selected':
+            return {
+                background: 'var(--color-seat-selected)',
+                border: '1px solid var(--color-brand-hover)',
+                cursor: 'pointer'
+            }
+        case 'sold_out':
+            return {background: 'var(--color-seat-sold-out)', border: '1px solid transparent', cursor: 'not-allowed'}
+        case 'occupied':
+            return {background: '#380808', border: '1px solid #e03c3c', cursor: 'not-allowed'}
+        default:
+            if (seatType === 'RECLINER') {
+                return {background: '#0d2035', border: '1px solid #2a88c8', cursor: 'pointer'}
+            }
+            return {
+                background: 'var(--color-seat-empty)',
+                border: '1px solid var(--color-seat-empty-border)',
+                cursor: 'pointer'
+            }
+    }
 }
 
 /* ── 스타일 정의 ─────────────────────────────────────────── */
-const pageWrap: React.CSSProperties  = { maxWidth: 960, margin: '0 auto', padding: '32px 40px 80px' }
-const backBtn: React.CSSProperties   = {
-  display: 'flex', alignItems: 'center', gap: 6,
-  background: 'none', border: 'none',
-  color: 'var(--text-secondary)', fontSize: 16,
-  cursor: 'pointer', padding: '10px 0', marginBottom: 16,
+const pageWrap: React.CSSProperties = {maxWidth: 960, margin: '0 auto', padding: '32px 40px 80px'}
+const backBtn: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 6,
+    background: 'none', border: 'none',
+    color: 'var(--text-secondary)', fontSize: 16,
+    cursor: 'pointer', padding: '10px 0', marginBottom: 16,
 }
-const pageTitle: React.CSSProperties = { fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }
-const subInfo: React.CSSProperties   = { color: 'var(--text-secondary)', fontSize: 15, marginBottom: 4 }
+const pageTitle: React.CSSProperties = {fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', margin: 0}
+const subInfo: React.CSSProperties = {color: 'var(--text-secondary)', fontSize: 15, marginBottom: 4}
 
-const screenWrap: React.CSSProperties = { textAlign: 'center', margin: '24px 0 16px' }
-const screen: React.CSSProperties     = {
-  display: 'inline-block', width: '70%', maxWidth: 500, padding: '10px 0',
-  background: 'var(--bg-surface)', border: '2px solid var(--border-default)',
-  borderRadius: '50% 50% 0 0 / 20px 20px 0 0',
-  color: 'var(--text-muted)', fontSize: 13, letterSpacing: 4,
+const screenWrap: React.CSSProperties = {textAlign: 'center', margin: '24px 0 16px'}
+const screen: React.CSSProperties = {
+    display: 'inline-block', width: '70%', maxWidth: 500, padding: '10px 0',
+    background: 'var(--bg-surface)', border: '2px solid var(--border-default)',
+    borderRadius: '50% 50% 0 0 / 20px 20px 0 0',
+    color: 'var(--text-muted)', fontSize: 13, letterSpacing: 4,
 }
 
-const legend: React.CSSProperties     = { display: 'flex', gap: 16, justifyContent: 'center', marginBottom: 20, flexWrap: 'wrap' }
-const legendItem: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6 }
+const legend: React.CSSProperties = {
+    display: 'flex',
+    gap: 16,
+    justifyContent: 'center',
+    marginBottom: 20,
+    flexWrap: 'wrap'
+}
+const legendItem: React.CSSProperties = {display: 'flex', alignItems: 'center', gap: 6}
 
-const gridOuter: React.CSSProperties  = { overflowX: 'auto', paddingBottom: 8, display: 'flex', justifyContent: 'center' }
-const gridScroll: React.CSSProperties = { display: 'inline-flex', flexDirection: 'column', gap: 7, minWidth: 'fit-content' }
-const rowWrap: React.CSSProperties    = { display: 'flex', alignItems: 'center', gap: 6 }
-const colHeaderRow: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }
-const rowLabel: React.CSSProperties   = { width: 22, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', flexShrink: 0, fontWeight: 600 }
-const colNumLabel: React.CSSProperties = { width: 32, textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }
-const aisleGap: React.CSSProperties   = { display: 'inline-block', width: 20, flexShrink: 0 }
-const colWrap: React.CSSProperties    = { display: 'flex', gap: 6 }
+const gridOuter: React.CSSProperties = {overflowX: 'auto', paddingBottom: 8, display: 'flex', justifyContent: 'center'}
+const gridScroll: React.CSSProperties = {
+    display: 'inline-flex',
+    flexDirection: 'column',
+    gap: 7,
+    minWidth: 'fit-content'
+}
+const rowWrap: React.CSSProperties = {display: 'flex', alignItems: 'center', gap: 6}
+const colHeaderRow: React.CSSProperties = {display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2}
+const rowLabel: React.CSSProperties = {
+    width: 22,
+    textAlign: 'center',
+    fontSize: 12,
+    color: 'var(--text-muted)',
+    flexShrink: 0,
+    fontWeight: 600
+}
+const colNumLabel: React.CSSProperties = {
+    width: 32,
+    textAlign: 'center',
+    fontSize: 11,
+    color: 'var(--text-muted)',
+    flexShrink: 0
+}
+const aisleGap: React.CSSProperties = {display: 'inline-block', width: 20, flexShrink: 0}
+const colWrap: React.CSSProperties = {display: 'flex', gap: 6}
 
-const seatBase: React.CSSProperties   = { width: 32, height: 32, borderRadius: 6, border: 'none', flexShrink: 0, transition: 'all 0.1s' }
+const seatBase: React.CSSProperties = {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    border: 'none',
+    flexShrink: 0,
+    transition: 'all 0.1s'
+}
 
 const selectedBox: React.CSSProperties = {
-  margin: '20px 0', padding: '16px 20px',
-  background: 'var(--bg-surface)',
-  border: '1px solid var(--border-default)', borderRadius: 14,
+    margin: '20px 0', padding: '16px 20px',
+    background: 'var(--bg-surface)',
+    border: '1px solid var(--border-default)', borderRadius: 14,
 }
-const seatTag: React.CSSProperties     = {
-  padding: '4px 12px', background: 'rgba(255,184,0,0.15)',
-  border: '1px solid var(--color-brand-default)',
-  borderRadius: 8, fontSize: 14, color: 'var(--color-brand-default)', fontWeight: 700,
+const seatTag: React.CSSProperties = {
+    padding: '4px 12px', background: 'rgba(255,184,0,0.15)',
+    border: '1px solid var(--color-brand-default)',
+    borderRadius: 8, fontSize: 14, color: 'var(--color-brand-default)', fontWeight: 700,
 }
 
-const nextArea: React.CSSProperties  = { marginTop: 16, padding: '24px 0 0', borderTop: '1px solid var(--border-subtle)' }
-const hintBox: React.CSSProperties   = {
-  display: 'flex', alignItems: 'center',
-  padding: '14px 20px', marginBottom: 16,
-  background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
-  borderRadius: 12, fontSize: 15, color: 'var(--text-muted)',
+const nextArea: React.CSSProperties = {marginTop: 16, padding: '24px 0 0', borderTop: '1px solid var(--border-subtle)'}
+const hintBox: React.CSSProperties = {
+    display: 'flex', alignItems: 'center',
+    padding: '14px 20px', marginBottom: 16,
+    background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
+    borderRadius: 12, fontSize: 15, color: 'var(--text-muted)',
 }
 const amountBox: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  padding: '14px 20px', background: 'var(--bg-surface)', borderRadius: 12,
-  border: '1px solid var(--border-default)',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '14px 20px', background: 'var(--bg-surface)', borderRadius: 12,
+    border: '1px solid var(--border-default)',
 }
 const nextBtn: React.CSSProperties = {
-  width: '100%', padding: '18px 0',
-  background: 'var(--color-brand-default)', border: 'none',
-  borderRadius: 14, color: '#000', fontSize: 18, fontWeight: 800, cursor: 'pointer',
-  marginTop: 12,
+    width: '100%', padding: '18px 0',
+    background: 'var(--color-brand-default)', border: 'none',
+    borderRadius: 14, color: '#000', fontSize: 18, fontWeight: 800, cursor: 'pointer',
+    marginTop: 12,
 }
 const nextBtnDisabled: React.CSSProperties = {
-  background: 'var(--bg-surface)',
-  color: 'var(--text-muted)',
-  cursor: 'not-allowed',
-  border: '1px solid var(--border-default)',
+    background: 'var(--bg-surface)',
+    color: 'var(--text-muted)',
+    cursor: 'not-allowed',
+    border: '1px solid var(--border-default)',
 }
 
 export default SeatPage

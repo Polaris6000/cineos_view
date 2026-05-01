@@ -7,11 +7,11 @@ import './styles/global.css'
 import App from './App'
 
 document.getElementById('root')
-const rootElemet = document.getElementById('root');
+const rootElement = document.getElementById('root');
 
-if (!rootElemet) throw new Error('Root element를 찾을 수 없습니다!');
+if (!rootElement) throw new Error('Root element를 찾을 수 없습니다!');
 
-createRoot(rootElemet).render(
+createRoot(rootElement).render(
     <StrictMode>
         <App/>
     </StrictMode>,

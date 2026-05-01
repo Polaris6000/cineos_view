@@ -20,20 +20,20 @@ type SeatStatus = 'empty' | 'selected' | 'sold_out' | 'occupied'
 
 /** 좌석 인터페이스 */
 interface Seat {
-  id:       string
-  row:      string
-  col:      number
-  seatType: 'NORMAL' | 'RECLINER'
-  status:   SeatStatus
+    id: string
+    row: string
+    col: number
+    seatType: 'NORMAL' | 'RECLINER'
+    status: SeatStatus
 }
 
 /** 상영관 인터페이스 (미사용 — 타입 재export용 유지) */
 interface Theater {
-  id:          number
-  name:        string
-  rows:        number
-  cols:        number
-  hasRecliner: boolean
+    id: number
+    name: string
+    rows: number
+    cols: number
+    hasRecliner: boolean
 }
 
 /** theaterId → Seat[] 매핑 */
@@ -50,14 +50,14 @@ const store = new Map<number, Seat[]>()
  * - 없으면 빈 배열 반환 (실 API 기반으로 교체 예정)
  */
 export function getSeatLayout(theaterId: number, soldOutSeats: string[]): Seat[] {
-  if (!store.has(theaterId)) return []
+    if (!store.has(theaterId)) return []
 
-  const baseSeats = store.get(theaterId)!
-  // 저장된 배치에 현재 매진 좌석 상태 반영
-  return baseSeats.map((s) => ({
-    ...s,
-    status: soldOutSeats.includes(s.id) ? 'sold_out' : s.status,
-  }))
+    const baseSeats = store.get(theaterId)!
+    // 저장된 배치에 현재 매진 좌석 상태 반영
+    return baseSeats.map((s) => ({
+        ...s,
+        status: soldOutSeats.includes(s.id) ? 'sold_out' : s.status,
+    }))
 }
 
 /**
@@ -65,7 +65,7 @@ export function getSeatLayout(theaterId: number, soldOutSeats: string[]): Seat[]
  * 이후 고객 SeatPage에서 getSeatLayout() 호출 시 이 데이터를 받습니다.
  */
 export function setSeatLayout(theaterId: number, seats: Seat[]): void {
-  store.set(theaterId, seats.map((s) => ({ ...s })))
+    store.set(theaterId, seats.map((s) => ({...s})))
 }
 
 /**
@@ -75,16 +75,16 @@ export function setSeatLayout(theaterId: number, seats: Seat[]): void {
  * 특정 상영관 배치를 초기화합니다. (실 API 연동 전까지 빈 배열 반환)
  */
 export function resetSeatLayout(theaterId: number): Seat[] {
-  store.delete(theaterId)
-  return []
+    store.delete(theaterId)
+    return []
 }
 
 /**
  * 변경 사항 여부 확인 (어드민 UI에서 "저장 전 변경됨" 표시용)
  */
 export function hasCustomLayout(theaterId: number): boolean {
-  return store.has(theaterId)
+    return store.has(theaterId)
 }
 
 // ── 유틸: theater 타입 재export (사용처 편의용) ──
-export type { Seat, Theater }
+export type {Seat, Theater}

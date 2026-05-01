@@ -14,7 +14,7 @@
  *   401/403 — 토큰 인증 오류: 기존 재발급 로직 유지 (Toast 미사용)
  */
 import axios from 'axios'
-import { showToast } from '../utils/toast'
+import {showToast} from '../utils/toast'
 
 const apiClient = axios.create({
     baseURL: '/api',
@@ -47,31 +47,31 @@ apiClient.interceptors.response.use(
            없으면 기본 메시지를 사용.
         ──────────────────────────────────────────────────────────── */
         if (status === 400) {
-          // 400: IllegalArgumentException — 잘못된 요청 (body에 상세 메시지)
-          const detail = typeof error.response?.data === 'string'
-            ? error.response.data
-            : '잘못된 요청입니다.'
-          showToast(detail, 'error')
+            // 400: IllegalArgumentException — 잘못된 요청 (body에 상세 메시지)
+            const detail = typeof error.response?.data === 'string'
+                ? error.response.data
+                : '잘못된 요청입니다.'
+            showToast(detail, 'error')
         } else if (status === 202 && error.response?.data) {
-          // 202: IllegalStateException — 중복·이미 처리됨 (body에 상세 메시지)
-          // ※ 정상 202 응답과 구분하기 위해 body가 있을 때만 경고로 표시
-          const detail = typeof error.response.data === 'string'
-            ? error.response.data
-            : '이미 처리된 요청입니다.'
-          showToast(detail, 'warning')
+            // 202: IllegalStateException — 중복·이미 처리됨 (body에 상세 메시지)
+            // ※ 정상 202 응답과 구분하기 위해 body가 있을 때만 경고로 표시
+            const detail = typeof error.response.data === 'string'
+                ? error.response.data
+                : '이미 처리된 요청입니다.'
+            showToast(detail, 'warning')
         } else if (status === 404 && !url.includes('/member/')) {
-          // 404: NoSuchElementException — 데이터 없음
-          // /member/ 경로는 PaymentPage에서 신규 회원 판단용으로 404를 직접 사용하므로 제외
-          showToast('해당 정보를 찾을 수 없습니다.', 'error')
+            // 404: NoSuchElementException — 데이터 없음
+            // /member/ 경로는 PaymentPage에서 신규 회원 판단용으로 404를 직접 사용하므로 제외
+            showToast('해당 정보를 찾을 수 없습니다.', 'error')
         } else if (status === 500) {
-          // 500: RuntimeException — 서버 내부 오류
-          const detail = typeof error.response?.data === 'string'
-            ? error.response.data
-            : '서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
-          showToast(detail, 'error')
+            // 500: RuntimeException — 서버 내부 오류
+            const detail = typeof error.response?.data === 'string'
+                ? error.response.data
+                : '서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+            showToast(detail, 'error')
         } else if (!status) {
-          // 네트워크 오류 (서버 응답 자체가 없음)
-          showToast('서버에 연결할 수 없습니다. 네트워크를 확인해 주세요.', 'error')
+            // 네트워크 오류 (서버 응답 자체가 없음)
+            showToast('서버에 연결할 수 없습니다. 네트워크를 확인해 주세요.', 'error')
         }
 
         // 401 처리

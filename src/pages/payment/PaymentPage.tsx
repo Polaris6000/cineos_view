@@ -32,7 +32,7 @@ import {CheckCircle, Coins, CreditCard, Gift, Info, Phone, Tag, X} from 'lucide-
 import {loadTossPayments} from '@tosspayments/tosspayments-sdk'
 import apiClient from '../../api/apiClient'
 // 인원 타입 / 할인 금액 / 포인트 적립률은 상수 파일에서 관리 — 변경 시 discount.ts 한 곳만 수정
-import { PERSON_TYPES, POINT_RATE } from '../../constants/discount'
+import {PERSON_TYPES, POINT_RATE} from '../../constants/discount'
 
 
 /* ── 좌석 타입 라벨 ── */

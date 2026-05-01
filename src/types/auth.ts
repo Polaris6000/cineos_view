@@ -26,30 +26,30 @@ export type Permission =
 
 /* ── 역할별 기본 권한 셋 ────────────────────────────── */
 export const ROLE_PERMISSIONS: Record<AdminRole, Permission[]> = {
-  MASTER: [
-    'ROLE_REFUND',
-    'ROLE_MOVIE_LIST', 'ROLE_MOVIE_REGISTER', 'ROLE_MOVIE_EDIT', 'ROLE_MOVIE_DELETE',
-    'ROLE_THEATER_LIST', 'ROLE_THEATER_EDIT',
-    'ROLE_POLICY_LIST', 'ROLE_POLICY_EDIT',
-    'ROLE_STATISTICS',
-    'ROLE_MEMBER_MANAGEMENT',
-    'ROLE_ADMIN_MANAGEMENT',
-  ],
-  STAFF: [],
+    MASTER: [
+        'ROLE_REFUND',
+        'ROLE_MOVIE_LIST', 'ROLE_MOVIE_REGISTER', 'ROLE_MOVIE_EDIT', 'ROLE_MOVIE_DELETE',
+        'ROLE_THEATER_LIST', 'ROLE_THEATER_EDIT',
+        'ROLE_POLICY_LIST', 'ROLE_POLICY_EDIT',
+        'ROLE_STATISTICS',
+        'ROLE_MEMBER_MANAGEMENT',
+        'ROLE_ADMIN_MANAGEMENT',
+    ],
+    STAFF: [],
 }
 
 /* ── 관리자 계정 타입 ────────────────────────────────── */
 export interface AdminUser {
-  adminId: number // 관리자 인덱스
-  loginId: string // 로그인한 아이디
-  password: string
-  name?: string // 관리자 이름
-  adminPhone: string // 관리자 전화번호
-  level: boolean // false: MASTER, true: STAFF
-  uuid: string // 자동로그인을 위한 토큰
-  createdAt: string // 생성일
+    adminId: number // 관리자 인덱스
+    loginId: string // 로그인한 아이디
+    password: string
+    name?: string // 관리자 이름
+    adminPhone: string // 관리자 전화번호
+    level: boolean // false: MASTER, true: STAFF
+    uuid: string // 자동로그인을 위한 토큰
+    createdAt: string // 생성일
 
-  permissions: string[] // 권한 리스트 — 동적 API 응답이므로 string[]로 처리
+    permissions: string[] // 권한 리스트 — 동적 API 응답이므로 string[]로 처리
 }
 
 /* ── 더미 계정 데이터 (TODO: 백엔드 API 연동 시 제거) ── */

@@ -366,7 +366,8 @@ ${pointEarned > 0 ? `<div class="divider"></div><div class="row"><span class="la
             {showTicketModal && (
                 <div style={modalOverlay}>
                     <div style={ticketModalBox}>
-                        <Ticket size={56} color="var(--color-brand-default)" strokeWidth={1.5} style={{marginBottom: 20}}/>
+                        <Ticket size={56} color="var(--color-brand-default)" strokeWidth={1.5}
+                                style={{marginBottom: 20}}/>
                         <h3 style={ticketModalTitle}>티켓을 꼭 챙겨 가세요!</h3>
                         <p style={ticketModalDesc}>
                             발권된 티켓은 입장 시 반드시 필요합니다.<br/>
@@ -617,8 +618,18 @@ const ticketModalBox: React.CSSProperties = {
     textAlign: 'center', boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
     display: 'flex', flexDirection: 'column', alignItems: 'center',
 }
-const ticketModalTitle: React.CSSProperties = {fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 14}
-const ticketModalDesc: React.CSSProperties = {fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: 28}
+const ticketModalTitle: React.CSSProperties = {
+    fontSize: 26,
+    fontWeight: 800,
+    color: 'var(--text-primary)',
+    marginBottom: 14
+}
+const ticketModalDesc: React.CSSProperties = {
+    fontSize: 15,
+    color: 'var(--text-secondary)',
+    lineHeight: 1.8,
+    marginBottom: 28
+}
 const ticketModalCloseBtn: React.CSSProperties = {
     padding: '14px 48px', background: 'var(--color-brand-default)',
     border: 'none', borderRadius: 14,
@@ -634,60 +645,77 @@ const countdownNum: React.CSSProperties = {
     lineHeight: 1, minWidth: 28, textAlign: 'center',
 }
 const goHomeBtn: React.CSSProperties = {
-  padding: '14px 40px', background: 'transparent',
-  border: '1px solid var(--border-default)',
-  borderRadius: 12, color: 'var(--text-muted)', fontSize: 15, cursor: 'pointer',
+    padding: '14px 40px', background: 'transparent',
+    border: '1px solid var(--border-default)',
+    borderRadius: 12, color: 'var(--text-muted)', fontSize: 15, cursor: 'pointer',
 }
 const mobileModalBox: React.CSSProperties = {
-  position: 'relative', width: '100%', maxWidth: 480,
-  background: 'var(--bg-surface)', borderRadius: 20, padding: '40px 36px 32px',
-  boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+    position: 'relative', width: '100%', maxWidth: 480,
+    background: 'var(--bg-surface)', borderRadius: 20, padding: '40px 36px 32px',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
 }
 const modalCloseBtn: React.CSSProperties = {
-  position: 'absolute', top: 16, right: 16,
-  background: 'none', border: 'none',
-  color: 'var(--text-muted)', cursor: 'pointer', padding: 6, lineHeight: 0,
+    position: 'absolute', top: 16, right: 16,
+    background: 'none', border: 'none',
+    color: 'var(--text-muted)', cursor: 'pointer', padding: 6, lineHeight: 0,
 }
-const mobileModalTitle: React.CSSProperties = { fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10 }
-const mobileModalDesc: React.CSSProperties  = { fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }
-const mobileInput: React.CSSProperties      = {
-  width: '100%', padding: '16px 18px', background: 'var(--bg-base)',
-  border: '1px solid var(--border-default)', borderRadius: 12,
-  color: 'var(--text-primary)', fontSize: 18, outline: 'none',
-  boxSizing: 'border-box', textAlign: 'center', letterSpacing: 2,
+const mobileModalTitle: React.CSSProperties = {
+    fontSize: 22,
+    fontWeight: 800,
+    color: 'var(--text-primary)',
+    marginBottom: 10
+}
+const mobileModalDesc: React.CSSProperties = {fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0}
+const mobileInput: React.CSSProperties = {
+    width: '100%', padding: '16px 18px', background: 'var(--bg-base)',
+    border: '1px solid var(--border-default)', borderRadius: 12,
+    color: 'var(--text-primary)', fontSize: 18, outline: 'none',
+    boxSizing: 'border-box', textAlign: 'center', letterSpacing: 2,
 }
 const sendBtn: React.CSSProperties = {
-  display: 'block', width: '100%', padding: '18px 0',
-  background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',
-  border: 'none', borderRadius: 14, fontSize: 18, fontWeight: 800, cursor: 'pointer',
+    display: 'block', width: '100%', padding: '18px 0',
+    background: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)',
+    border: 'none', borderRadius: 14, fontSize: 18, fontWeight: 800, cursor: 'pointer',
 }
-const pageWrap: React.CSSProperties  = { maxWidth: 560, margin: '0 auto', padding: '40px 40px 80px', textAlign: 'center' }
-const mainTitle: React.CSSProperties = { fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10 }
-const subTitle: React.CSSProperties  = { fontSize: 16, color: 'var(--text-secondary)', marginBottom: 28 }
+const pageWrap: React.CSSProperties = {maxWidth: 560, margin: '0 auto', padding: '40px 40px 80px', textAlign: 'center'}
+const mainTitle: React.CSSProperties = {fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10}
+const subTitle: React.CSSProperties = {fontSize: 16, color: 'var(--text-secondary)', marginBottom: 28}
 const bookingIdBox: React.CSSProperties = {
-  background: 'var(--bg-surface)', borderRadius: 14, padding: '18px 28px',
-  marginBottom: 24, display: 'inline-block', minWidth: 280,
+    background: 'var(--bg-surface)', borderRadius: 14, padding: '18px 28px',
+    marginBottom: 24, display: 'inline-block', minWidth: 280,
 }
-const card: React.CSSProperties      = { background: 'var(--bg-surface)', borderRadius: 16, padding: '20px 24px', marginBottom: 16, textAlign: 'left' }
-const cardTitle: React.CSSProperties = { fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }
-const dl: React.CSSProperties        = { display: 'grid', gridTemplateColumns: '64px 1fr', gap: '10px 14px' }
-const dt: React.CSSProperties        = { color: 'var(--text-muted)', fontSize: 14, fontWeight: 600 }
-const dd: React.CSSProperties        = { color: 'var(--text-secondary)', fontSize: 14, margin: 0 }
-const priceRow: React.CSSProperties  = { display: 'flex', justifyContent: 'space-between', fontSize: 16, color: 'var(--text-secondary)', marginBottom: 8 }
-const btnRow: React.CSSProperties    = { display: 'flex', gap: 14, marginTop: 8 }
+const card: React.CSSProperties = {
+    background: 'var(--bg-surface)',
+    borderRadius: 16,
+    padding: '20px 24px',
+    marginBottom: 16,
+    textAlign: 'left'
+}
+const cardTitle: React.CSSProperties = {fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14}
+const dl: React.CSSProperties = {display: 'grid', gridTemplateColumns: '64px 1fr', gap: '10px 14px'}
+const dt: React.CSSProperties = {color: 'var(--text-muted)', fontSize: 14, fontWeight: 600}
+const dd: React.CSSProperties = {color: 'var(--text-secondary)', fontSize: 14, margin: 0}
+const priceRow: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: 16,
+    color: 'var(--text-secondary)',
+    marginBottom: 8
+}
+const btnRow: React.CSSProperties = {display: 'flex', gap: 14, marginTop: 8}
 const receiptBtn: React.CSSProperties = {
-  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-  padding: '22px 0', background: 'var(--bg-surface)',
-  border: '1px solid var(--border-default)',
-  borderRadius: 16, color: 'var(--text-secondary)', fontSize: 15, cursor: 'pointer',
-  gap: 0, transition: 'background 0.15s',
+    flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    padding: '22px 0', background: 'var(--bg-surface)',
+    border: '1px solid var(--border-default)',
+    borderRadius: 16, color: 'var(--text-secondary)', fontSize: 15, cursor: 'pointer',
+    gap: 0, transition: 'background 0.15s',
 }
 const mobileBtn: React.CSSProperties = {
-  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-  padding: '22px 0', background: 'var(--color-brand-default)',
-  border: 'none',
-  borderRadius: 16, color: '#000', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-  gap: 0, transition: 'opacity 0.15s',
+    flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    padding: '22px 0', background: 'var(--color-brand-default)',
+    border: 'none',
+    borderRadius: 16, color: '#000', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+    gap: 0, transition: 'opacity 0.15s',
 }
 
 export default PaymentResultPage

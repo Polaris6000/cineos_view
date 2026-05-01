@@ -3,12 +3,12 @@
  *
  * API 연동:
  *  - GET  /api/movie/readAll       → 전체 영화 목록
- *  - DELETE /api/movie/remove?movieId={id} → 영화 삭제 (TODO: 낙관적 처리)
+ *  - DELETE /api/movie/remove?movieId={id} → 영화 삭제
  */
 import {useEffect, useMemo, useState} from 'react'
 import {useNavigate} from 'react-router-dom'
 import apiClient, {type MovieDTO, resolvePosterUrl} from '../../../api/apiClient'
-import { useAuth } from '../../../context/AuthContext'
+import {useAuth} from '../../../context/AuthContext'
 
 /* ── 타입 ──────────────────────────────────────────── */
 type MovieStatus = 'NOW_PLAYING' | 'UPCOMING' | 'ENDED' | 'DELETE_PENDING'
@@ -87,13 +87,13 @@ function StatusBadge({status}: { status: MovieStatus }) {
 
 function MovieListAdminPage() {
     const navigate = useNavigate()
-    const { hasPermission } = useAuth()
+    const {hasPermission} = useAuth()
 
     // 버튼 표시 여부
     // canRegister: 영화 등록 버튼 (ROLE_MOVIE_REGISTER)
     // canEdit: 영화 목록의 수정·삭제 버튼 (ROLE_MOVIE_EDIT = 영화 편집 권한)
     const canRegister = hasPermission('ROLE_MOVIE_REGISTER')
-    const canEdit     = hasPermission('ROLE_MOVIE_EDIT')
+    const canEdit = hasPermission('ROLE_MOVIE_EDIT')
 
     const [movies, setMovies] = useState<AdminMovie[]>([])
     const [loading, setLoading] = useState(true)

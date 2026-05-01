@@ -22,21 +22,21 @@
  * - exit: 언마운트될 때 (위로 올라가며 페이드아웃)
  */
 export const pageVariants = {
-  initial: {
-    opacity: 0,
-    y: 12,        // 12px 아래에서 시작
-    scale: 0.98,  // 살짝 작은 상태에서 시작
-  },
-  animate: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-  },
-  exit: {
-    opacity: 0,
-    y: -10,       // 10px 위로 나가며
-    scale: 0.98,
-  },
+    initial: {
+        opacity: 0,
+        y: 12,        // 12px 아래에서 시작
+        scale: 0.98,  // 살짝 작은 상태에서 시작
+    },
+    animate: {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+    },
+    exit: {
+        opacity: 0,
+        y: -10,       // 10px 위로 나가며
+        scale: 0.98,
+    },
 };
 
 /**
@@ -45,8 +45,8 @@ export const pageVariants = {
  * - duration: 0.25초 (빠릿빠릿하게)
  */
 export const pageTransition = {
-  ease: 'easeOut' as const,
-  duration: 0.25,
+    ease: 'easeOut' as const,
+    duration: 0.25,
 };
 
 /**
@@ -54,12 +54,12 @@ export const pageTransition = {
  * 라이트 테마라 너무 드라마틱하면 어색함
  */
 export const adminPageVariants = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  exit:    { opacity: 0, y: -6 },
+    initial: {opacity: 0, y: 8},
+    animate: {opacity: 1, y: 0},
+    exit: {opacity: 0, y: -6},
 };
 
 export const adminPageTransition = {
-  ease: 'easeOut' as const,
-  duration: 0.2,
+    ease: 'easeOut' as const,
+    duration: 0.2,
 };
