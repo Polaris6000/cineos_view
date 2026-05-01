@@ -194,14 +194,6 @@ function PolicyFormPage() {
                     </Field>
                 </div>
 
-                <Field label="설명">
-                    <input
-                        ref={descriptionRef}
-                        style={input}
-                        placeholder="적용 조건 설명"
-                    />
-                </Field>
-
                 <div style={{display: 'flex', gap: 10, marginTop: 8}}>
                     <button type="button" onClick={() => navigate(-1)} style={cancelBtn}>취소</button>
                     <button type="submit" style={submitBtn}>등록</button>

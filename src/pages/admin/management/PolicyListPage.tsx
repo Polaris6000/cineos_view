@@ -347,7 +347,7 @@ function PolicyListPage() {
                         <tr style={thead}>
                             <th style={th}>ID</th>
                             <th style={th}>정책명</th>
-                            <th style={{...th, textAlign: 'center'}}>조건</th>
+                            <th style={{...th, textAlign: 'center'}}>구분</th>
                             <th style={{...th, textAlign: 'center'}}>할인 방식</th>
                             <th style={{...th, textAlign: 'right'}}>할인 값</th>
                             {/* DB: start_at — 시작일 */}
