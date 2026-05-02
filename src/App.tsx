@@ -23,13 +23,13 @@
  *   SUPER_ADMIN — 전 페이지 접근
  *   MANAGER     — 통계·정책·회원·계정 페이지 접근 불가 (ForbiddenPage 리다이렉트)
  */
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
-import { AnimatePresence } from 'framer-motion'
+import {BrowserRouter, Route, Routes, useLocation} from 'react-router-dom'
+import {useEffect} from 'react'
+import {AnimatePresence} from 'framer-motion'
 
 // 전역 Context
-import { AuthProvider } from './context/AuthContext'
-import { IdleTimerProvider } from './context/IdleTimerContext'
+import {AuthProvider} from './context/AuthContext'
+import {IdleTimerProvider} from './context/IdleTimerContext'
 
 // 레이아웃 컴포넌트
 import CustomerLayout from './components/Layout/CustomerLayout'
@@ -90,106 +90,106 @@ import EtlUploadPage from './pages/admin/management/EtlUploadPage'
  * useLocation 으로 현재 경로를 key 로 넘겨야 URL이 바뀔 때마다 재렌더링이 트리거됨.
  */
 function AnimatedRoutes() {
-  const location = useLocation()
+    const location = useLocation()
 
-  /**
-   * 페이지 이동 시 스크롤 최상단으로 이동
-   * pathname이 바뀔 때마다 실행 — 영화 목록 → 상세 등 모든 네비게이션에 적용
-   */
-  useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [location.pathname])
+    /**
+     * 페이지 이동 시 스크롤 최상단으로 이동
+     * pathname이 바뀔 때마다 실행 — 영화 목록 → 상세 등 모든 네비게이션에 적용
+     */
+    useEffect(() => {
+        window.scrollTo(0, 0)
+    }, [location.pathname])
 
-  return (
-    /* mode="wait": 이전 페이지 exit 끝난 후 다음 페이지 enter 시작 */
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+    return (
+        /* mode="wait": 이전 페이지 exit 끝난 후 다음 페이지 enter 시작 */
+        <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
 
-        {/* ─── 고객 영역 ─── */}
-        <Route element={<CustomerLayout />}>
-          <Route index element={<HomePage />} />
-          <Route path="movie/list" element={<MovieListPage />} />
-          <Route path="movie/detail/:id" element={<MovieDetailPage />} />
-          <Route path="booking/schedule" element={<SchedulePage />} />
-          <Route path="booking/seat" element={<SeatPage />} />
-          <Route path="payment" element={<PaymentPage />} />
-          <Route path="payment/result" element={<PaymentResultPage />} />
-        </Route>
+                {/* ─── 고객 영역 ─── */}
+                <Route element={<CustomerLayout/>}>
+                    <Route index element={<HomePage/>}/>
+                    <Route path="movie/list" element={<MovieListPage/>}/>
+                    <Route path="movie/detail/:id" element={<MovieDetailPage/>}/>
+                    <Route path="booking/schedule" element={<SchedulePage/>}/>
+                    <Route path="booking/seat" element={<SeatPage/>}/>
+                    <Route path="payment" element={<PaymentPage/>}/>
+                    <Route path="payment/result" element={<PaymentResultPage/>}/>
+                </Route>
 
-        {/* ─── 에러 페이지 ─── */}
-        <Route path="500" element={<ServerErrorPage />} />
-        <Route path="*" element={<NotFoundPage />} />
+                {/* ─── 에러 페이지 ─── */}
+                <Route path="500" element={<ServerErrorPage/>}/>
+                <Route path="*" element={<NotFoundPage/>}/>
 
-        {/* ─── 관리자 영역 ─── */}
-        <Route path="admin">
-          {/* 로그인·접근거부는 인증 없이 접근 가능 */}
-          <Route path="login"     element={<AdminLoginPage />} />
-          <Route path="forbidden" element={<ForbiddenPage />} />
+                {/* ─── 관리자 영역 ─── */}
+                <Route path="admin">
+                    {/* 로그인·접근거부는 인증 없이 접근 가능 */}
+                    <Route path="login" element={<AdminLoginPage/>}/>
+                    <Route path="forbidden" element={<ForbiddenPage/>}/>
 
-          {/* AdminLayout 내부 — 전부 로그인 필요 */}
-          <Route element={<AdminLayout />}>
+                    {/* AdminLayout 내부 — 전부 로그인 필요 */}
+                    <Route element={<AdminLayout/>}>
 
-            {/* 로그인만 확인 (권한 무관 — 모든 MANAGER 접근 가능) */}
-            <Route element={<PrivateRoute />}>
-              <Route path="refund" element={<RefundPage />} />
-              <Route path="management/movie/list"   element={<MovieListAdminPage />} />
-              <Route path="management/movie/form"   element={<MovieFormPage />} />
-              <Route path="management/movie/manage" element={<MovieManagePage />} />
-              <Route path="management/theater/list" element={<TheaterListPage />} />
-              <Route path="management/theater/edit" element={<TheaterEditPage />} />
-              <Route path="management/seat/list"    element={<SeatListPage />} />
-              {/* 결제 로그 목록 */}
-              <Route path="management/payment-log"     element={<PaymentLogPage />} />
-              {/* 결제 로그 상세 — 네비 미노출, PaymentLogPage에서 navigate로 진입 */}
-              <Route path="management/payment-log/:id" element={<PaymentLogDetailPage />} />
-            </Route>
+                        {/* 로그인만 확인 (권한 무관 — 모든 MANAGER 접근 가능) */}
+                        <Route element={<PrivateRoute/>}>
+                            <Route path="refund" element={<RefundPage/>}/>
+                            <Route path="management/movie/list" element={<MovieListAdminPage/>}/>
+                            <Route path="management/movie/form" element={<MovieFormPage/>}/>
+                            <Route path="management/movie/manage" element={<MovieManagePage/>}/>
+                            <Route path="management/theater/list" element={<TheaterListPage/>}/>
+                            <Route path="management/theater/edit" element={<TheaterEditPage/>}/>
+                            <Route path="management/seat/list" element={<SeatListPage/>}/>
+                            {/* 결제 로그 목록 */}
+                            <Route path="management/payment-log" element={<PaymentLogPage/>}/>
+                            {/* 결제 로그 상세 — 네비 미노출, PaymentLogPage에서 navigate로 진입 */}
+                            <Route path="management/payment-log/:id" element={<PaymentLogDetailPage/>}/>
+                        </Route>
 
-            {/* 정책 — policy.view 권한 필요 (SUPER_ADMIN 전용) */}
-            <Route element={<PrivateRoute permission="ROLE_POLICY_LIST" />}>
-              <Route path="management/policy/list"       element={<PolicyListPage />} />
-              <Route path="management/policy/form"       element={<PolicyFormPage />} />
-              <Route path="management/policy/manage"     element={<PolicyManagePage />} />
-              {/* 적립 정책 전용 등록 페이지 (할인 정책 form과 동일 패턴) */}
-              <Route path="management/policy/bonus-form" element={<BonusPolicyFormPage />} />
-              {/* 쿠폰 관리 — 쿠폰 목록 조회 + 발행 */}
-              <Route path="management/coupon/list"       element={<CouponListPage />} />
-            </Route>
+                        {/* 정책 — policy.view 권한 필요 (SUPER_ADMIN 전용) */}
+                        <Route element={<PrivateRoute permission="ROLE_POLICY_LIST"/>}>
+                            <Route path="management/policy/list" element={<PolicyListPage/>}/>
+                            <Route path="management/policy/form" element={<PolicyFormPage/>}/>
+                            <Route path="management/policy/manage" element={<PolicyManagePage/>}/>
+                            {/* 적립 정책 전용 등록 페이지 (할인 정책 form과 동일 패턴) */}
+                            <Route path="management/policy/bonus-form" element={<BonusPolicyFormPage/>}/>
+                            {/* 쿠폰 관리 — 쿠폰 목록 조회 + 발행 */}
+                            <Route path="management/coupon/list" element={<CouponListPage/>}/>
+                        </Route>
 
-            {/* 통계 — statistics 권한 필요 (SUPER_ADMIN 전용) */}
-            <Route element={<PrivateRoute permission="ROLE_STATISTICS" />}>
-              <Route path="statistics/dashboard"      element={<StatsDashboardPage />} />
-              <Route path="statistics/stats/daily"    element={<StatsDailyPage />} />
-              <Route path="statistics/stats/monthly"  element={<StatsMonthlyPage />} />
-              <Route path="statistics/stats/by-day"   element={<StatsByDayPage />} />
-              <Route path="statistics/stats/by-hour"  element={<StatsByHourPage />} />
-              <Route path="statistics/stats/by-movie" element={<StatsByMoviePage />} />
-            </Route>
+                        {/* 통계 — statistics 권한 필요 (SUPER_ADMIN 전용) */}
+                        <Route element={<PrivateRoute permission="ROLE_STATISTICS"/>}>
+                            <Route path="statistics/dashboard" element={<StatsDashboardPage/>}/>
+                            <Route path="statistics/stats/daily" element={<StatsDailyPage/>}/>
+                            <Route path="statistics/stats/monthly" element={<StatsMonthlyPage/>}/>
+                            <Route path="statistics/stats/by-day" element={<StatsByDayPage/>}/>
+                            <Route path="statistics/stats/by-hour" element={<StatsByHourPage/>}/>
+                            <Route path="statistics/stats/by-movie" element={<StatsByMoviePage/>}/>
+                        </Route>
 
-            {/* 회원 정보 관리 — member.view 권한 필요 (SUPER_ADMIN 전용) */}
-            <Route element={<PrivateRoute permission="ROLE_MEMBER_MANAGEMENT" />}>
-              <Route path="management/members" element={<MemberListPage />} />
-              {/* 전체 활동 로그 — 사이드바 미노출, MemberListPage 버튼에서 navigate로 진입 */}
-              <Route path="management/members/activity-log" element={<ActivityLogPage />} />
-            </Route>
+                        {/* 회원 정보 관리 — member.view 권한 필요 (SUPER_ADMIN 전용) */}
+                        <Route element={<PrivateRoute permission="ROLE_MEMBER_MANAGEMENT"/>}>
+                            <Route path="management/members" element={<MemberListPage/>}/>
+                            {/* 전체 활동 로그 — 사이드바 미노출, MemberListPage 버튼에서 navigate로 진입 */}
+                            <Route path="management/members/activity-log" element={<ActivityLogPage/>}/>
+                        </Route>
 
-            {/* 계정/권한 관리 — 로그인만 필요 (컴포넌트 내부에서 SUPER_ADMIN/MANAGER 역할 분기)
+                        {/* 계정/권한 관리 — 로그인만 필요 (컴포넌트 내부에서 SUPER_ADMIN/MANAGER 역할 분기)
                 SUPER_ADMIN: 모든 계정 권한 조회·수정 가능
                 MANAGER: 본인 계정 권한 조회만 가능 (읽기 전용) */}
-            <Route element={<PrivateRoute />}>
-              <Route path="management/accounts" element={<AdminAccountPage />} />
-            </Route>
+                        <Route element={<PrivateRoute/>}>
+                            <Route path="management/accounts" element={<AdminAccountPage/>}/>
+                        </Route>
 
-            {/* AI 매뉴얼 업로드 — 계정 관리 권한 필요 (SUPER_ADMIN 전용) */}
-            <Route element={<PrivateRoute permission="ROLE_ADMIN_MANAGEMENT" />}>
-              <Route path="management/etl" element={<EtlUploadPage />} />
-            </Route>
+                        {/* AI 매뉴얼 업로드 — 계정 관리 권한 필요 (SUPER_ADMIN 전용) */}
+                        <Route element={<PrivateRoute permission="ROLE_ADMIN_MANAGEMENT"/>}>
+                            <Route path="management/etl" element={<EtlUploadPage/>}/>
+                        </Route>
 
-          </Route>
-        </Route>
+                    </Route>
+                </Route>
 
-      </Routes>
-    </AnimatePresence>
-  )
+            </Routes>
+        </AnimatePresence>
+    )
 }
 
 /**
@@ -197,21 +197,21 @@ function AnimatedRoutes() {
  * Context 는 BrowserRouter 안에서 선언해야 useNavigate 등 라우터 훅 사용 가능
  */
 function App() {
-  return (
-    <BrowserRouter>
-      {/* AuthProvider: 관리자 로그인 상태 전역 관리 */}
-      <AuthProvider>
-          {/* IdleTimerProvider: 고객 화면 유휴 감지 → 홈으로 이동 */}
-          <IdleTimerProvider>
-            <AnimatedRoutes />
-            {/* 개발용 네비게이션 — 프로덕션 빌드 전 제거 예정 */}
-            <DevNav />
-          </IdleTimerProvider>
-        {/* 전역 Toast 알림 — 우하단 고정, apiClient 에맬 인터셉터와 연동 */}
-        <GlobalToast />
-      </AuthProvider>
-    </BrowserRouter>
-  )
+    return (
+        <BrowserRouter>
+            {/* AuthProvider: 관리자 로그인 상태 전역 관리 */}
+            <AuthProvider>
+                {/* IdleTimerProvider: 고객 화면 유휴 감지 → 홈으로 이동 */}
+                <IdleTimerProvider>
+                    <AnimatedRoutes/>
+                    {/* 개발용 네비게이션 — 프로덕션 빌드 전 제거 예정 */}
+                    <DevNav/>
+                </IdleTimerProvider>
+                {/* 전역 Toast 알림 — 우하단 고정, apiClient 에맬 인터셉터와 연동 */}
+                <GlobalToast/>
+            </AuthProvider>
+        </BrowserRouter>
+    )
 }
 
 export default App

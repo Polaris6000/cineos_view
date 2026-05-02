@@ -18,7 +18,7 @@
 import {useCallback, useEffect, useState} from 'react'
 import apiClient from '../../../api/apiClient.ts'
 import {DiscountPolicy} from './PolicyListPage'
-import { useAuth } from '../../../context/AuthContext'
+import {useAuth} from '../../../context/AuthContext'
 
 /**
  * buildPageRange — 페이지 번호 배열 생성 (... 포함)
@@ -45,7 +45,7 @@ interface Coupon {
 
 function CouponListPage() {
     // ROLE_POLICY_EDIT 권한이 있어야 쿠폰 발행 폼이 표시됨
-    const { hasPermission } = useAuth()
+    const {hasPermission} = useAuth()
     const canEdit = hasPermission('ROLE_POLICY_EDIT')
 
     const [loading, setLoading] = useState(true)

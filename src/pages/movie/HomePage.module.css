@@ -60,14 +60,14 @@
 
 /* 포스터 이미지 */
 .slidePoster {
-    position: fixed;  /* 부모 컨테이너를 기준으로 삼지 않고, 화면(window)을 기준으로 삼음 */
-    top: 50%;   /* 화면 정중앙 좌표 설정 */
+    position: fixed; /* 부모 컨테이너를 기준으로 삼지 않고, 화면(window)을 기준으로 삼음 */
+    top: 50%; /* 화면 정중앙 좌표 설정 */
     left: 50%;
-    transform: translate(-50%, -50%);   /* 이미지 자체의 중심을 중앙 좌표와 맞춤 (X, Y축 -50% 이동) */
+    transform: translate(-50%, -50%); /* 이미지 자체의 중심을 중앙 좌표와 맞춤 (X, Y축 -50% 이동) */
     /* 원하는 크기 설정 (예: 화면 높이의 80%, 너비는 비율에 맞게) */
     /* FHD 키오스크(1080x1920)라면 구체적인 픽셀 값을 줘도 됨 */
     height: 100vh; /* viewport height 기준 80% */
-    width: auto;  /* 원본 비율 유지 */
+    width: auto; /* 원본 비율 유지 */
     /* 만약 크기를 고정하고 싶다면 (FHD 세로 기준 예시) */
     /* width: 800px; */
     /* height: 1200px; */

@@ -645,7 +645,7 @@ function MovieFormPage() {
                         <p style={tmdbListLabel}>
                             {isSearchMode
                                 ? `"${tmdbQuery}" (${tmdbMovies.length}건)`
-                                : '🔥 인기 영화'}
+                                : '인기 영화'}
                         </p>
 
                         {/* 로딩 */}

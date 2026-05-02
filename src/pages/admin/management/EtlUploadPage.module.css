@@ -1,337 +1,339 @@
 /* EtlUploadPage.module.css — AI 매뉴얼 업로드 페이지 스타일 */
 
 .page {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 32px 24px;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 32px 24px;
 }
 
 /* ══ 헤더 ══ */
 .header {
-  margin-bottom: 28px;
+    margin-bottom: 28px;
 }
 
 .title {
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--text-primary);
-  margin: 0 0 8px;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 8px;
 }
 
 .subtitle {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin: 0;
-  line-height: 1.6;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.6;
 }
 
 /* ══ 경고 박스 ══ */
 .warningBox {
-  display: flex;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 10px;
-  background: rgba(255, 165, 0, 0.08);
-  border: 1px solid rgba(255, 165, 0, 0.3);
-  margin-bottom: 24px;
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: rgba(255, 165, 0, 0.08);
+    border: 1px solid rgba(255, 165, 0, 0.3);
+    margin-bottom: 24px;
 }
 
 .warningIcon {
-  color: #ffb800;
-  flex-shrink: 0;
-  margin-top: 1px;
+    color: #ffb800;
+    flex-shrink: 0;
+    margin-top: 1px;
 }
 
 .warningText {
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.6;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
 }
 
 .warningText strong {
-  display: block;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 4px;
+    display: block;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
 }
 
 .warningText p {
-  margin: 0;
+    margin: 0;
 }
 
 /* ══ 폼 ══ */
 .form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
 .field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .optional {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-muted);
 }
 
 .required {
-  color: var(--color-gold);
-  font-size: 14px;
+    color: var(--color-brand-default);
+    font-size: 14px;
 }
 
 .input {
-  padding: 10px 14px;
-  border-radius: 8px;
-  /* --bg-surface: 라이트 모드 #ffffff — 페이지 배경(#f5f3ef)과 명확히 구분됨 */
-  border: 1px solid var(--border-default);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font-size: 13px;
-  outline: none;
-  transition: border-color 0.15s;
-  font-family: inherit;
+    padding: 10px 14px;
+    border-radius: 8px;
+    /* --bg-surface: 라이트 모드 #ffffff — 페이지 배경(#f5f3ef)과 명확히 구분됨 */
+    border: 1px solid var(--border-default);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
 }
 
 .input:focus {
-  border-color: var(--color-brand-default);
-  box-shadow: 0 0 0 2px rgba(255, 184, 0, 0.12);
+    border-color: var(--color-brand-default);
+    box-shadow: 0 0 0 2px rgba(255, 184, 0, 0.12);
 }
 
 .input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .input::placeholder {
-  color: var(--text-muted);
+    color: var(--text-muted);
 }
 
 /* ══ 드롭존 ══ */
 .dropzone {
-  border: 2px dashed var(--border-default);
-  border-radius: 10px;
-  padding: 36px 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  background: var(--bg-surface);
-  text-align: center;
-  outline: none;
+    border: 2px dashed var(--border-default);
+    border-radius: 10px;
+    padding: 36px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    background: var(--bg-surface);
+    text-align: center;
+    outline: none;
 }
 
 .dropzone:hover,
 .dropzone:focus {
-  border-color: var(--color-gold);
-  background: rgba(255, 184, 0, 0.04);
+    border-color: var(--color-brand-default);
+    background: rgba(255, 184, 0, 0.04);
 }
 
 .dropzoneDragging {
-  border-color: var(--color-gold);
-  background: rgba(255, 184, 0, 0.08);
+    border-color: var(--color-brand-default);
+    background: rgba(255, 184, 0, 0.08);
 }
 
 .dropzoneIcon {
-  color: var(--color-gold);
-  opacity: 0.6;
+    color: var(--color-brand-default);
+    opacity: 0.6;
 }
 
 .dropzoneText {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
 }
 
 .dropzoneHint {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 0;
 }
 
 /* ══ 선택된 파일 카드 ══ */
 .fileCard {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--border-default);
-  background: var(--bg-surface);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-default);
+    background: var(--bg-surface);
 }
 
 .fileIcon {
-  color: var(--color-gold);
-  flex-shrink: 0;
+    color: var(--color-brand-default);
+    flex-shrink: 0;
 }
 
 .fileInfo {
-  flex: 1;
-  min-width: 0;
+    flex: 1;
+    min-width: 0;
 }
 
 .fileName {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .fileMeta {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin: 2px 0 0;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 2px 0 0;
 }
 
 .fileRemoveBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-  flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
 }
 
 .fileRemoveBtn:hover:not(:disabled) {
-  background: rgba(255, 80, 80, 0.12);
-  color: var(--color-error-main);
+    background: rgba(255, 80, 80, 0.12);
+    color: var(--color-error-main);
 }
 
 .fileRemoveBtn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 /* ══ 안내 박스 ══ */
 .infoBox {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px 13px;
-  border-radius: 8px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-default);
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.6;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 13px;
+    border-radius: 8px;
+    background: var(--bg-modal);
+    border: 1px solid var(--border-default);
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
 }
 
 .infoBox svg {
-  flex-shrink: 0;
-  margin-top: 1px;
+    flex-shrink: 0;
+    margin-top: 1px;
 }
 
 /* ══ 확인 체크박스 ══ */
 .checkboxLabel {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  line-height: 1.5;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    line-height: 1.5;
 }
 
 .checkbox {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  margin-top: 1px;
-  accent-color: var(--color-gold);
-  cursor: pointer;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    accent-color: var(--color-brand-default);
+    cursor: pointer;
 }
 
 /* ══ 업로드 버튼 ══ */
 .uploadBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border-radius: 8px;
-  border: none;
-  /* 호버 색(#ffc933)을 기본값으로 사용 — 항상 버튼임을 알 수 있게 */
-  background: #ffc933;
-  color: #1a1a1a;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s;
-  font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    border: none;
+    /* 호버 색(#ffc933)을 기본값으로 사용 — 항상 버튼임을 알 수 있게 */
+    background: #ffc933;
+    color: #1a1a1a;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-family: inherit;
 }
 
 .uploadBtn:hover:not(:disabled) {
-  background: var(--color-brand-default);
+    background: var(--color-brand-default);
 }
 
 /* disabled 상태에서도 색상은 유지, cursor만 변경 — "버튼이구나" 인지 가능 */
 .uploadBtn:disabled {
-  cursor: not-allowed;
+    cursor: not-allowed;
 }
 
 /* 업로드 중 스피너 */
 .spinner {
-  width: 15px;
-  height: 15px;
-  border: 2px solid rgba(26, 26, 26, 0.3);
-  border-top-color: #1a1a1a;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    border: 2px solid rgba(26, 26, 26, 0.3);
+    border-top-color: #1a1a1a;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* ══ 결과 메시지 ══ */
 .resultMsg {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  line-height: 1.5;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 .resultSuccess {
-  background: rgba(80, 200, 120, 0.1);
-  border: 1px solid rgba(80, 200, 120, 0.3);
-  color: #50c878;
+    background: rgba(80, 200, 120, 0.1);
+    border: 1px solid rgba(80, 200, 120, 0.3);
+    color: #50c878;
 }
 
 .resultError {
-  background: rgba(255, 80, 80, 0.08);
-  border: 1px solid rgba(255, 80, 80, 0.3);
-  color: var(--color-error-main);
+    background: rgba(255, 80, 80, 0.08);
+    border: 1px solid rgba(255, 80, 80, 0.3);
+    color: var(--color-error-main);
 }
 
 .resultMsg svg {
-  flex-shrink: 0;
-  margin-top: 1px;
+    flex-shrink: 0;
+    margin-top: 1px;
 }

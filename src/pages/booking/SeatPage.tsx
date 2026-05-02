@@ -29,8 +29,9 @@ import {useLocation, useNavigate} from 'react-router-dom'
 import {ChevronLeft, CreditCard, Info, Wifi, WifiOff} from 'lucide-react'
 // 좌석 배치 생성 및 통로 분할 유틸 — SeatListPage(관리자)와 동일 로직 공유
 import {generateSeats, type SeatItem, splitRowByAisle} from '../../utils/seatUtils'
-// 인원 타입 / 할인 금액은 상수 파일에서 관리 — 변경 시 discount.ts 한 곳만 수정
+// PERSON_TYPES: API 로드 실패 시 폴백용으로만 사용 (정상 흐름은 SchedulePage에서 state로 전달)
 import {PERSON_TYPES} from '../../constants/discount'
+import type {PersonType} from '../../api/discountApi'
 import apiClient, {type ScheduleDTO, type SeatPolicyDTO, type TheaterDTO} from '../../api/apiClient'
 import {useWebSocket} from '../../hooks/useWebSocket'
 
@@ -54,17 +55,20 @@ function SeatPage() {
     const state = location.state ?? {}
 
     // location.state에서 전달받은 값 구조분해
-    // movieTitle: 영화 제목, schedule: ScheduleDTO, persons: 인원 타입별 수, totalPersons: 총 인원
     const {
         movieTitle,
         schedule,
         persons = {},
         totalPersons = 0,
+        personTypes = PERSON_TYPES as PersonType[], // API 로드 실패 폴백
+        earlyBirdAmount = 0,                        // 조조 할인 1인당 금액 (미적용이면 0)
     } = state as {
         movieTitle: string
         schedule: ScheduleDTO & { theaterName?: string; startTime?: string }
         persons: Record<string, number>
         totalPersons: number
+        personTypes: PersonType[]
+        earlyBirdAmount: number
     }
 
     // state 없으면 홈으로 이동
@@ -245,7 +249,7 @@ function SeatPage() {
 
     /**
      * 총 결제 예정 금액 계산
-     * = 선택 좌석 단가 합산 - 인원 타입별 할인 합산
+     * = 선택 좌석 단가 합산 - 인원 타입별 할인 합산 - 조조 할인 합산
      */
     const calcTotal = (): number => {
         // 선택 좌석 단가 합산
@@ -254,12 +258,15 @@ function SeatPage() {
             return acc + getSeatPrice(seat?.seatType ?? 'NORMAL')
         }, 0)
 
-        // 인원 타입별 할인 합산 (mockData의 PERSON_TYPES 사용)
-        const discountTotal = PERSON_TYPES.reduce((acc, {type, discount}) => {
+        // 인원 타입별 할인 합산 (SchedulePage에서 state로 전달받은 personTypes 사용)
+        const ageDiscountTotal = personTypes.reduce((acc, {type, discount}) => {
             return acc + (persons[type] ?? 0) * discount
         }, 0)
 
-        return Math.max(seatTotal - discountTotal, 0)
+        // 조조 할인: 1인당 earlyBirdAmount × 총 인원 수
+        const earlyBirdTotal = earlyBirdAmount * totalPersons
+
+        return Math.max(seatTotal - ageDiscountTotal - earlyBirdTotal, 0)
     }
 
     /** 모든 인원 좌석 선택 완료 여부 */
@@ -285,6 +292,7 @@ function SeatPage() {
                 totalAmount: calcTotal(),
                 theater,
                 seatPolicy,
+                earlyBirdAmount, // 조조 할인 내역 표시용으로 PaymentPage에 전달
             },
         })
     }
@@ -389,9 +397,9 @@ function SeatPage() {
             <div style={legend}>
                 {[
                     {label: '일반', color: 'var(--color-seat-empty)', border: 'var(--color-seat-empty-border)'},
-                    {label: '리클라이너', color: '#0d2035', border: '#2a88c8'},
+                    {label: '리클라이너', color: 'var(--color-seat-recliner-bg)', border: 'var(--color-seat-recliner-border)'},
                     {label: '선택됨', color: 'var(--color-seat-selected)', border: 'var(--color-brand-hover)'},
-                    {label: '타인선택', color: '#380808', border: '#e03c3c'},
+                    {label: '타인선택', color: 'var(--color-seat-occupied-bg)', border: 'var(--color-seat-occupied-border)'},
                     {label: '매진', color: 'var(--color-seat-sold-out)', border: 'transparent'},
                 ].map(({label, color, border}) => (
                     <div key={label} style={legendItem}>
@@ -464,7 +472,7 @@ function SeatPage() {
                                             position: 'absolute', inset: 0,
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                             fontSize: 13, fontWeight: 900,
-                                            color: displayStatus === 'occupied' ? 'rgba(240,128,128,0.9)' : 'rgba(255,255,255,0.7)',
+                                            color: displayStatus === 'occupied' ? 'var(--color-error-text)' : 'rgba(255,255,255,0.7)',
                                             pointerEvents: 'none',
                                         }}>✕</span>
                                     )}
@@ -564,10 +572,10 @@ function getSeatStyle(
         case 'sold_out':
             return {background: 'var(--color-seat-sold-out)', border: '1px solid transparent', cursor: 'not-allowed'}
         case 'occupied':
-            return {background: '#380808', border: '1px solid #e03c3c', cursor: 'not-allowed'}
+            return {background: 'var(--color-seat-occupied-bg)', border: '1px solid var(--color-seat-occupied-border)', cursor: 'not-allowed'}
         default:
             if (seatType === 'RECLINER') {
-                return {background: '#0d2035', border: '1px solid #2a88c8', cursor: 'pointer'}
+                return {background: 'var(--color-seat-recliner-bg)', border: '1px solid var(--color-seat-recliner-border)', cursor: 'pointer'}
             }
             return {
                 background: 'var(--color-seat-empty)',

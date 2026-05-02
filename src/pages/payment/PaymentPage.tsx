@@ -98,9 +98,10 @@ function PaymentPage() {
         totalPersons = 0,
         selectedSeats = [],
         selectedSeatObjects = [],
-        totalAmount = 0,   // SeatPage에서 이미 좌석비 - 인원할인 계산 완료된 금액
+        totalAmount = 0,   // SeatPage에서 좌석비 - 인원할인 - 조조할인 계산 완료된 금액
         theater,
         seatPolicy,
+        earlyBirdAmount = 0, // 조조 할인 1인당 금액 (표시 전용 — 이미 totalAmount에 반영됨)
     } = state
 
     /**
@@ -820,6 +821,14 @@ function PaymentPage() {
                     <span>결제 금액</span>
                     <span>{totalAmount.toLocaleString()}원</span>
                 </div>
+
+                {/* 조조 할인 내역 표시 — totalAmount에 이미 반영된 금액을 정보성으로 보여줌 */}
+                {earlyBirdAmount > 0 && totalPersons > 0 && (
+                    <div style={{...priceRow, color: 'var(--color-brand-default)', fontSize: 13}}>
+                        <span>조조 할인 ({totalPersons}명)</span>
+                        <span>−{(earlyBirdAmount * totalPersons).toLocaleString()}원 포함</span>
+                    </div>
+                )}
 
                 {/* 쿠폰 할인 표시
             - CouponDTO 반환 시: couponDiscount.amount 기반 실제 금액 표시

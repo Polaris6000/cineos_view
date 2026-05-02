@@ -22,11 +22,13 @@ import {ChevronDown, ChevronLeft, ChevronUp, Clock, Film, Info, Users} from 'luc
 import axios from 'axios'
 
 import {mapToSchedule, mapToTheater, ReservationDetailesDTO, Schedule, ScheduleDTO, Theater} from '../../api/typeData'
-// mockData 의존성 제거 — 백엔드 연동 완료로 목데이터 불필요, 인라인 상수 사용
-const PERSON_TYPES: { type: string; label: string; discount: number }[] = [
-    {type: 'adult', label: '성인', discount: 0},
-    {type: 'teen', label: '청소년', discount: 2000},
-    {type: 'senior', label: '경로', discount: 3000},
+import {fetchEarlyBirdAmount, fetchPersonTypes, isEarlyBirdTime, PersonType} from '../../api/discountApi'
+
+// API 호출 실패 시 사용하는 하드코딩 폴백값
+const DEFAULT_PERSON_TYPES: PersonType[] = [
+    {type: 'adult',  label: '성인',  discount: 0},
+    {type: 'teen',   label: '청소년', discount: 2000},
+    {type: 'senior', label: '경로',  discount: 3000},
 ]
 
 /** 날짜 포맷: "03/29(토)" */
@@ -56,26 +58,31 @@ function SchedulePage() {
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [theater, setTheater] = useState<Theater>();
 
-
     // 전체 ScheduleDTO 목록 저장 — selectedSched 변경 시 올바른 theater 매핑에 사용
     const [rawScheduleDTOs, setRawScheduleDTOs] = useState<ScheduleDTO[]>([])
+
+    // 인원 타입별 할인 정보 (API에서 로드, 실패 시 폴백값 사용)
+    const [personTypes, setPersonTypes] = useState<PersonType[]>(DEFAULT_PERSON_TYPES)
+
+    // 조조 할인 1인당 금액 (API에서 로드, 오전 10시 이전 상영에만 적용)
+    const [earlyBirdPerPerson, setEarlyBirdPerPerson] = useState<number>(0)
 
     useEffect(() => {
         const axiosSchedule = async () => {
             try {
-                const {data} = await axios.get<ScheduleDTO[]>('/api/schedule/DTOlist')
+                // movieId에 해당하는 스케줄만 반환하는 고객용 API 사용
+                // 기존 /schedule/DTOlist(전체조회 후 클라이언트 필터)에서 변경
+                const {data} = await axios.get<ScheduleDTO[]>(`/api/schedule/${movieId}/movie`)
 
-                console.log("스케쥴 정보", data)
+                const formattedSchedule = data.map((dto) => mapToSchedule(dto))
 
-                const movieDTOs = data.filter(dto => dto.movie.movieId === movieId)
-                const formattedSchedule = movieDTOs.map((dto) => mapToSchedule(dto))
-
-                setRawScheduleDTOs(movieDTOs) // theater 역참조용으로 원본 DTO 보관
+                setRawScheduleDTOs(data)
                 setSchedules(formattedSchedule)
 
-                // 초기 theater: 첫 번째 스케줄의 상영관 (선택 전 기본값)
-                if (movieDTOs.length > 0) {
-                    setTheater(mapToTheater(movieDTOs[0].theater))
+                // customer API는 theater 객체를 null로 반환 → null일 때는 세팅 스킵
+                // (SeatPage가 /api/theater/list로 자체 조회하므로 없어도 동작함)
+                if (data.length > 0 && data[0].theater) {
+                    setTheater(mapToTheater(data[0].theater))
                 }
             } catch (error) {
                 console.error("스케쥴 로딩 중 에러:", error)
@@ -83,7 +90,30 @@ function SchedulePage() {
         }
 
         axiosSchedule()
-    }, []) //첫 로딩에 사용
+    }, [])
+
+    // 할인 정책 로드 (인원 타입 + 조조 할인)
+    useEffect(() => {
+        const loadDiscounts = async () => {
+            try {
+                // 두 API를 동시에 호출해 로딩 시간 단축
+                const [types, earlyBird] = await Promise.all([
+                    fetchPersonTypes(),
+                    fetchEarlyBirdAmount(),
+                ])
+                setPersonTypes(types)
+                setEarlyBirdPerPerson(earlyBird)
+
+                // 인원 초기 상태도 API 결과 기준으로 재구성 (성인 1명, 나머지 0명)
+                const initial = Object.fromEntries(types.map(t => [t.type, 0]))
+                setPersons({...initial, adult: 1})
+            } catch (e) {
+                console.error('할인 정책 로딩 실패, 기본값 유지:', e)
+                // 폴백: DEFAULT_PERSON_TYPES가 이미 초기값으로 세팅돼 있으므로 별도 처리 불필요
+            }
+        }
+        loadDiscounts()
+    }, [])
 
     //스케쥴에 남은 좌석에 대한 표기
     useEffect(() => {
@@ -133,7 +163,7 @@ function SchedulePage() {
     // ── 선택 상태 ──
     // preSelectedSchedule: 상세 페이지에서 시간 클릭 시 초기값으로 세팅
     const [selectedSched, setSelectedSched] = useState(preSelectedSchedule ?? null)
-    // 인원: SeatPage, PaymentPage와 동일하게 소문자 키 사용
+    // 인원: 할인 정책 로드 useEffect에서 personTypes 기준으로 재초기화됨
     const [persons, setPersons] = useState<Record<string, number>>({adult: 1, teen: 0, senior: 0})
 
     /**
@@ -146,7 +176,8 @@ function SchedulePage() {
         const matchedDTO = rawScheduleDTOs.find(
             (dto) => dto.id === (selectedSched.scheduleId ?? selectedSched.id)
         )
-        if (matchedDTO) {
+        // customer API는 theater null 반환 → 객체가 있을 때만 theater 업데이트
+        if (matchedDTO && matchedDTO.theater) {
             setTheater(mapToTheater(matchedDTO.theater))
         }
     }, [selectedSched, rawScheduleDTOs])
@@ -169,6 +200,12 @@ function SchedulePage() {
     }
 
     const totalPersons = Object.values(persons).reduce((a, b) => a + b, 0)
+
+    // 선택된 시간이 오전 10시 이전이면 조조 할인 적용
+    // earlyBirdPerPerson은 API에서 로드한 1인당 할인액 (예: 1000원)
+    const earlyBirdAmount = selectedSched && isEarlyBirdTime(selectedSched.startTime)
+        ? earlyBirdPerPerson
+        : 0
 
     // 다음 버튼 활성화 조건
     const canProceed = selectedSched !== null && totalPersons > 0
@@ -213,6 +250,8 @@ function SchedulePage() {
                 theater,
                 persons,
                 totalPersons,
+                personTypes,        // SeatPage에서 calcTotal() 할인 계산에 사용
+                earlyBirdAmount,    // 조조 할인 1인당 금액 (미적용이면 0)
             },
         })
     }
@@ -283,19 +322,35 @@ function SchedulePage() {
                                                 padding: '1px 6px',
                                                 fontSize: 11,
                                                 fontWeight: 700,
-                                                color: '#fff',
-                                                background: '#2a88c8',
+                                                color: 'var(--primitive-neutral-0)',
+                                                background: 'var(--color-seat-recliner-border)',
                                                 borderRadius: 4,
                                                 verticalAlign: 'middle',
                                                 letterSpacing: '0.03em',
                                             }}>
-                        리클라이너
-                      </span>
+                                                리클라이너
+                                            </span>
+                                        )}
+                                        {/* 오전 10시 이전 상영이면 조조 할인 배지 표시 */}
+                                        {earlyBirdPerPerson > 0 && isEarlyBirdTime(s.startTime) && (
+                                            <span style={{
+                                                display: 'inline-block',
+                                                marginLeft: 6,
+                                                padding: '1px 6px',
+                                                fontSize: 11,
+                                                fontWeight: 700,
+                                                color: '#fff',
+                                                background: 'var(--color-brand-default)',
+                                                borderRadius: 4,
+                                                verticalAlign: 'middle',
+                                            }}>
+                                                조조 -{earlyBirdPerPerson.toLocaleString()}원
+                                            </span>
                                         )}
                                     </p>
                                     <p style={{
                                         fontSize: 13,
-                                        color: soldOut ? '#e03c3c' : '#00ad74',
+                                        color: soldOut ? 'var(--color-error-main)' : 'var(--color-success-main)',
                                         margin: '6px 0 0',
                                         fontWeight: 600,
                                     }}>
@@ -317,15 +372,24 @@ function SchedulePage() {
             (최대 8명)
           </span>
                 </h3>
+                {/* 선택된 시간이 조조 시간대면 인원 선택 위에 조조 할인 안내 표시 */}
+                {earlyBirdAmount > 0 && (
+                    <div style={earlyBirdBanner}>
+                        <span style={{fontWeight: 700}}>조조 할인 적용중</span>
+                        <span style={{marginLeft: 6}}>
+                            1인당 {earlyBirdAmount.toLocaleString()}원 추가 할인
+                        </span>
+                    </div>
+                )}
                 <div style={personList}>
-                    {PERSON_TYPES.map(({type, label, discount}) => (
+                    {personTypes.map(({type, label, discount}) => (
                         <div key={type} style={personRow}>
                             <div>
                 <span style={{fontSize: 17, color: 'var(--text-primary)', fontWeight: 600}}>
                   {label}
                 </span>
                                 {discount > 0 && (
-                                    <span style={{fontSize: 13, color: '#00ad74', marginLeft: 8}}>
+                                    <span style={{fontSize: 13, color: 'var(--color-success-main)', marginLeft: 8}}>
                     -{discount.toLocaleString()}원 할인
                   </span>
                                 )}
@@ -375,6 +439,19 @@ function SchedulePage() {
                     <div style={summaryBox}>
                         <Users size={16} style={{marginRight: 6}}/>
                         {fmtDateLabel(today)} · {selectedSched.startTime} · {selectedSched.theaterName} · {totalPersons}명
+                        {earlyBirdAmount > 0 && (
+                            <span style={{
+                                marginLeft: 10,
+                                padding: '2px 8px',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                background: 'var(--color-brand-default)',
+                                color: '#111',
+                                borderRadius: 6,
+                            }}>
+                                조조 -{(earlyBirdAmount * totalPersons).toLocaleString()}원
+                            </span>
+                        )}
                     </div>
                 ) : (
                     <div style={hintBox}>
@@ -446,6 +523,16 @@ void _dateRow;
 void _dateBtn;
 void _dateBtnActive;
 void _todayLabel // 미사용 경고 억제
+
+// 조조 할인 적용 안내 배너 (인원 선택 섹션 상단)
+const earlyBirdBanner: React.CSSProperties = {
+    display: 'flex', alignItems: 'center',
+    padding: '10px 16px', marginBottom: 12,
+    background: 'rgba(255,184,0,0.12)',
+    border: '1px solid var(--color-brand-default)',
+    borderRadius: 10,
+    fontSize: 14, color: 'var(--color-brand-default)',
+}
 
 const timeGrid: React.CSSProperties = {display: 'flex', gap: 16, flexWrap: 'wrap'}
 const timeBtn: React.CSSProperties = {

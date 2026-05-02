@@ -193,10 +193,10 @@ const dd: React.CSSProperties = {fontSize: 14, color: 'var(--text-primary)', mar
 const editBtn = {
     width: '100%',
     padding: '10px 0',
-    background: 'var(--color-info-bg)',
+    background: 'var(--color-brand-default)',
     border: '1px solid var(--color-brand-default)',
     borderRadius: 8,
-    color: 'var(--color-brand-default)',
+    color: 'var(--text-on-brand)',
     fontSize: 13,
     fontWeight: 600,
     cursor: 'pointer'

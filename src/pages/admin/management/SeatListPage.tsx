@@ -22,7 +22,7 @@
  */
 import {useEffect, useMemo, useState} from 'react'
 import {Loader2, Wifi, WifiOff} from 'lucide-react'
-import apiClient, {type ScheduleDTO} from '../../../api/apiClient'
+import apiClient, {type MovieDTO, type ScheduleDTO} from '../../../api/apiClient'
 import {useWebSocket} from '../../../hooks/useWebSocket'
 import {generateSeats, type SeatItem, splitRowByAisle} from '../../../utils/seatUtils'
 import {THEATER_CONFIG} from '../../../config/theaterConfig'
@@ -35,20 +35,26 @@ const SEAT_TYPE_LABEL: Record<SeatItem['seatType'], string> = {
     RECLINER: '리클라이너',
 }
 
-/** 좌석 상태 표시 색상 */
+/**
+ * 좌석 상태 표시 색상 — SeatPage(고객)의 getSeatStyle과 동일한 색상 사용
+ * tokens.css의 시맨틱 변수를 통해 관리
+ */
 const STATUS_COLOR = {
-    sold_out: {bg: 'var(--color-seat-sold-out)', border: 'transparent', label: '매진'},
-    occupied: {bg: '#4a1c7a', border: '#9b6fd4', label: '점유 중'},
-    empty_normal: {bg: 'var(--bg-base)', border: 'var(--color-seat-empty-border)', label: '일반 빈자리'},
-    empty_recliner: {bg: '#1a5c3a', border: '#00ad74', label: '리클라이너 빈자리'},
+    sold_out:      {bg: 'var(--color-seat-sold-out)',       border: 'transparent',                          label: '매진'},
+    occupied:      {bg: 'var(--color-seat-occupied-bg)',    border: 'var(--color-seat-occupied-border)',    label: '점유 중'},
+    empty_normal:  {bg: 'var(--color-seat-empty)',          border: 'var(--color-seat-empty-border)',       label: '일반 빈자리'},
+    empty_recliner:{bg: 'var(--color-seat-recliner-bg)',   border: 'var(--color-seat-recliner-border)',    label: '리클라이너 빈자리'},
 }
 
-/* ── 유틸: 스케줄 시간 포맷 ──────────────────────────────────── */
+/* ── 유틸: 스케줄 드롭다운 레이블 포맷 ──────────────────────── */
 /**
- * ISO datetime → '4/19(토) 14:30' 형식으로 변환
- * 스케줄 드롭다운 옵션 레이블에 사용
+ * 스케줄 드롭다운 옵션 텍스트 생성
+ * '영화제목 · 4/19(토) 14:30' 형식으로 표시
+ *
+ * @param schedule      - ScheduleDTO
+ * @param movieTitleMap - movieId → 영화 제목 매핑 (API 조회 후 전달)
  */
-function formatScheduleLabel(schedule: ScheduleDTO): string {
+function formatScheduleLabel(schedule: ScheduleDTO, movieTitleMap: Record<number, string>): string {
     const d = new Date(schedule.startAt)
     const days = ['일', '월', '화', '수', '목', '금', '토']
     const month = d.getMonth() + 1
@@ -56,7 +62,8 @@ function formatScheduleLabel(schedule: ScheduleDTO): string {
     const dow = days[d.getDay()]
     const hh = String(d.getHours()).padStart(2, '0')
     const mm = String(d.getMinutes()).padStart(2, '0')
-    return `#${schedule.id} · ${month}/${day}(${dow}) ${hh}:${mm}${!schedule.activation ? ' [비활성]' : ''}`
+    const title = movieTitleMap[schedule.movieId] ?? `영화 #${schedule.movieId}`
+    return `${title} · ${month}/${day}(${dow}) ${hh}:${mm}${!schedule.activation ? ' [비활성]' : ''}`
 }
 
 /* ── 컴포넌트 ───────────────────────────────────────────────── */
@@ -68,6 +75,10 @@ function SeatListPage() {
     const theaterNos = Object.keys(THEATER_CONFIG).map(Number).sort((a, b) => a - b)
     const [selectedTheaterNo, setSelectedTheaterNo] = useState<number>(theaterNos[0])
 
+    /* ── 영화 제목 맵 ── */
+    // movieId → 영화 제목 매핑. 스케줄 드롭다운 레이블에 #1 대신 제목 표시용.
+    const [movieTitleMap, setMovieTitleMap] = useState<Record<number, string>>({})
+
     /* ── 스케줄 목록 ── */
     // 전체 스케줄을 한 번 조회 후 클라이언트에서 상영관 번호로 필터링
     const [allSchedules, setAllSchedules] = useState<ScheduleDTO[]>([])
@@ -75,25 +86,36 @@ function SeatListPage() {
     const [schedulesError, setSchedulesError] = useState('')
 
     useEffect(() => {
-        const fetch = async () => {
+        const fetchData = async () => {
             setSchedulesLoading(true)
             setSchedulesError('')
             try {
-                // GET /api/admin/schedule/list → ScheduleDTO[] (인증 필요)
-                const res = await apiClient.get<ScheduleDTO[]>('/admin/schedule/list')
+                // 영화 목록과 스케줄 목록을 병렬 조회
+                const [movieRes, scheduleRes] = await Promise.all([
+                    apiClient.get<MovieDTO[]>('/admin/movie/readAll'),
+                    apiClient.get<ScheduleDTO[]>('/admin/schedule/list'),
+                ])
+
+                // movieId → title 맵 구성
+                const titleMap: Record<number, string> = {}
+                for (const movie of movieRes.data) {
+                    titleMap[movie.movieId] = movie.title
+                }
+                setMovieTitleMap(titleMap)
+
                 // startAt 내림차순 정렬 (최신 스케줄이 위에)
-                const sorted = [...res.data].sort(
+                const sorted = [...scheduleRes.data].sort(
                     (a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime(),
                 )
                 setAllSchedules(sorted)
             } catch (e) {
-                console.error('[SeatListPage] 스케줄 조회 실패', e)
+                console.error('[SeatListPage] 데이터 조회 실패', e)
                 setSchedulesError('스케줄 정보를 불러오지 못했습니다.')
             } finally {
                 setSchedulesLoading(false)
             }
         }
-        void fetch()
+        void fetchData()
     }, [])
 
     /* ── 선택 상영관의 스케줄 필터 ── */
@@ -227,7 +249,7 @@ function SeatListPage() {
                         >
                             {filteredSchedules.map((s) => (
                                 <option key={s.id} value={s.id}>
-                                    {formatScheduleLabel(s)}
+                                    {formatScheduleLabel(s, movieTitleMap)}
                                 </option>
                             ))}
                         </select>
@@ -284,8 +306,8 @@ function SeatListPage() {
                             <div style={statsRow}>
                                 {[
                                     {label: '전체', value: stats.total, color: 'var(--text-primary)'},
-                                    {label: '매진', value: stats.sold, color: '#9ca3af'},
-                                    {label: '점유 중', value: stats.occupied, color: '#9b6fd4'},
+                                    {label: '매진', value: stats.sold, color: 'var(--text-secondary)'},
+                                    {label: '점유 중', value: stats.occupied, color: 'var(--color-seat-occupied-border)'},
                                     {label: '빈자리', value: stats.empty, color: 'var(--color-brand-default)'},
                                 ].map(({label, value, color}) => (
                                     <div key={label} style={statCard}>
@@ -418,7 +440,7 @@ function SeatListPage() {
                                                                 pointerEvents: 'none',
                                                             }}>✕</span>
                                                         )}
-                                                        {/* 점유 중: 작은 원 표시 */}
+                                                        {/* 점유 중: 작은 원 표시 — SeatPage(고객)와 동일한 색상 사용 */}
                                                         {status === 'occupied' && (
                                                             <span style={{
                                                                 position: 'absolute',
@@ -427,7 +449,7 @@ function SeatListPage() {
                                                                 alignItems: 'center',
                                                                 justifyContent: 'center',
                                                                 fontSize: 10,
-                                                                color: 'rgba(200,150,255,0.9)',
+                                                                color: 'var(--color-error-text)',
                                                                 pointerEvents: 'none',
                                                             }}>●</span>
                                                         )}
@@ -504,12 +526,14 @@ const legendItem: React.CSSProperties = {display: 'flex', alignItems: 'center', 
 const legendText: React.CSSProperties = {fontSize: 12, color: 'var(--text-secondary)'}
 
 // 좌석 배치도 래퍼
+// 관리자 화면(라이트 테마) 안에서도 고객 SeatPage와 동일한 다크 배경 유지를 위해
+// 테마 적응 시맨틱 토큰 대신 primitive 토큰(고정값) 직접 사용
 const seatWrap: React.CSSProperties = {
-    background: 'var(--bg-surface)', borderRadius: 12, padding: '20px 16px 24px',
+    background: 'var(--primitive-neutral-900)', borderRadius: 12, padding: '20px 16px 24px',
 }
 const screenBar: React.CSSProperties = {
-    textAlign: 'center', padding: '6px', background: 'var(--bg-base)',
-    color: '#6b7280', fontSize: 12, letterSpacing: 4,
+    textAlign: 'center', padding: '6px', background: 'var(--primitive-neutral-700)',
+    color: 'var(--primitive-neutral-300)', fontSize: 12, letterSpacing: 4,
     marginBottom: 16, borderRadius: 4,
 }
 
@@ -518,13 +542,13 @@ const colHeaderRow: React.CSSProperties = {
     display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2,
 }
 const colNumLabel: React.CSSProperties = {
-    width: 28, textAlign: 'center', fontSize: 10, color: '#6b7280', flexShrink: 0,
+    width: 28, textAlign: 'center', fontSize: 10, color: 'var(--primitive-neutral-400)', flexShrink: 0,
 }
 
 // 좌석 행
 const rowStyle: React.CSSProperties = {display: 'flex', alignItems: 'center', gap: 4}
 const rowLabelStyle: React.CSSProperties = {
-    width: 18, fontSize: 11, color: '#9ca3af', textAlign: 'center', flexShrink: 0, fontWeight: 600,
+    width: 18, fontSize: 11, color: 'var(--primitive-neutral-300)', textAlign: 'center', flexShrink: 0, fontWeight: 600,
 }
 const colWrap: React.CSSProperties = {display: 'flex', gap: 4}
 const aisleGap: React.CSSProperties = {display: 'inline-block', width: 12}
@@ -536,8 +560,8 @@ const loadingBox: React.CSSProperties = {
 }
 
 const errorBanner: React.CSSProperties = {
-    padding: '12px 16px', background: '#fdeaea', border: '1px solid #e03c3c',
-    borderRadius: 8, color: '#a82020', fontSize: 14, marginBottom: 16,
+    padding: '12px 16px', background: 'var(--color-error-bg)', border: '1px solid var(--color-error-main)',
+    borderRadius: 8, color: 'var(--color-error-text)', fontSize: 14, marginBottom: 16,
 }
 const seatStyle: React.CSSProperties = {
     width: 28, height: 28, borderRadius: 5,

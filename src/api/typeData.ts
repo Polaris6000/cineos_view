@@ -73,27 +73,34 @@ export interface Schedule {
 
 export interface ScheduleDTO {
     id: number;
-    theater: TheaterDTO; // 상영관 정보 FK (JPA 전용)
-    no: number; // 상영관 FK
-    movie: MovieDTO; // 영화 번호 FK (JPA 전용)
-    movieId: number; // 영화관 FK
-    startAt: string; // 상영 시작 시간
-    endAt: string; // 상영 종료 시간
+    theater: TheaterDTO | null; // 상영관 객체 — admin API는 중첩 객체, customer API는 null(no 필드로 대체)
+    no: number;                 // 상영관 번호 — 항상 존재 (customer/admin 공통 최상위 필드)
+    movie: MovieDTO | null;     // 영화 객체 — admin API는 중첩 객체, customer API는 null(movieId 필드로 대체)
+    movieId: number;            // 영화 ID — 항상 존재 (customer/admin 공통 최상위 필드)
+    startAt: string;
+    endAt: string;
     activation: boolean;
 }
 
-export const mapToSchedule = (scheduleDTO: ScheduleDTO): Schedule => ({
-    scheduleId: scheduleDTO.id,
-    date: scheduleDTO.startAt.substring(0, 10),
-    startTime: scheduleDTO.startAt.substring(11, 16),
-    endTime: scheduleDTO.endAt.substring(11, 16),
-    theaterId: scheduleDTO.theater.no,
-    theaterName: scheduleDTO.theater.no + "관",
-    availableSeats: (scheduleDTO.theater.no + 4) * (scheduleDTO.theater.no + 7),
-    totalSeats: (scheduleDTO.theater.no + 4) * (scheduleDTO.theater.no + 7),
-    movieId: scheduleDTO.movie.movieId,
-    isRecliner: scheduleDTO.theater.seatPolicy?.name === "리클라이너",
-})
+export const mapToSchedule = (scheduleDTO: ScheduleDTO): Schedule => {
+    // customer API는 theater/movie 중첩 객체 없이 no/movieId를 최상위로 반환
+    // → optional chaining + fallback으로 양쪽 모두 대응
+    const theaterNo = scheduleDTO.theater?.no ?? scheduleDTO.no
+    const movieId   = scheduleDTO.movie?.movieId ?? scheduleDTO.movieId
+
+    return {
+        scheduleId: scheduleDTO.id,
+        date: scheduleDTO.startAt.substring(0, 10),
+        startTime: scheduleDTO.startAt.substring(11, 16),
+        endTime: scheduleDTO.endAt.substring(11, 16),
+        theaterId: theaterNo,
+        theaterName: theaterNo + "관",
+        availableSeats: (theaterNo + 4) * (theaterNo + 7),
+        totalSeats: (theaterNo + 4) * (theaterNo + 7),
+        movieId,
+        isRecliner: scheduleDTO.theater?.seatPolicy?.name === "리클라이너",
+    }
+}
 
 export interface Theater {
     id: number;
@@ -233,7 +240,7 @@ export const mapToBooking = (paymentDTO: PaymentDTO): BookingDTO => ({
     // status가 PAY일 때만 환불 가능
     canRefund: paymentDTO.status === "PAY",
     date: paymentDTO.reservation.schedule.startAt.slice(0, 10),
-    movieTitle: paymentDTO.reservation.schedule.movie.title,
+    movieTitle: paymentDTO.reservation.schedule.movie?.title ?? '',
     paidAt: paymentDTO.createAt,
     paymentKey: paymentDTO.paymentKey,
     // paymentKey가 "POINT"면 포인트 전액 결제, 아니면 카드 결제
@@ -245,8 +252,7 @@ export const mapToBooking = (paymentDTO: PaymentDTO): BookingDTO => ({
     seats: paymentDTO.reservation.seats.map(s => s.seatNumber),
     startTime: paymentDTO.reservation.schedule.startAt.slice(11, 16),
     status: paymentDTO.status,
-    theaterName: paymentDTO.reservation.schedule.theater.no + "관",
-    // ticketCount: 예매 좌석 개수 = 인원 수 (이전 버그: 파일 잘려서 truncated 상태였음)
+    theaterName: (paymentDTO.reservation.schedule.theater?.no ?? paymentDTO.reservation.schedule.no) + "관",
     ticketCount: paymentDTO.reservation.seats.length,
     totalAmount: paymentDTO.cost,
 })

@@ -165,7 +165,7 @@ function RefundPage() {
             await new Promise((r) => setTimeout(r, 700))
             setRefunded(true)
             // detail 카드의 status도 즉시 RETURN으로 반영 — 환불 버튼 재노출 방지
-            setResult(prev => prev ? { ...prev, status: 'RETURN' } : undefined)
+            setResult(prev => prev ? {...prev, status: 'RETURN'} : undefined)
             // 리스트 새로고침 — 현재 페이지 그대로 재조회 (RETURN 상태 반영)
             loadPaymentList(listPage)
         } catch {

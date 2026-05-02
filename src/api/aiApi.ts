@@ -19,9 +19,9 @@ import apiClient from './apiClient'
 
 /** POST /api/admin/rag/chat 요청 바디 */
 export interface RagRequest {
-  question: string       // 사용자 질문
-  title: string          // 검색 필터용 매뉴얼 제목 (빈 문자열 = 전체 검색)
-  conversationId: string // 대화 메모리 키 (보통 관리자 loginId)
+    question: string       // 사용자 질문
+    title: string          // 검색 필터용 매뉴얼 제목 (빈 문자열 = 전체 검색)
+    conversationId: string // 대화 메모리 키 (보통 관리자 loginId)
 }
 
 /** POST /api/admin/etl/file 응답: 성공 메시지 문자열 */
@@ -41,15 +41,15 @@ export type EtlResponse = string
  * @returns              LLM이 생성한 답변 문자열
  */
 export async function chatWithRag(
-  question: string,
-  title: string,
-  conversationId: string
+    question: string,
+    title: string,
+    conversationId: string
 ): Promise<string> {
-  const body: RagRequest = { question, title, conversationId }
+    const body: RagRequest = {question, title, conversationId}
 
-  // 백엔드 응답은 순수 문자열
-  const res = await apiClient.post<string>('/admin/rag/chat', body)
-  return res.data
+    // 백엔드 응답은 순수 문자열
+    const res = await apiClient.post<string>('/admin/rag/chat', body)
+    return res.data
 }
 
 /**
@@ -66,16 +66,16 @@ export async function chatWithRag(
  * @returns      처리 완료 메시지 문자열
  */
 export async function uploadManual(
-  title: string,
-  file: File
+    title: string,
+    file: File
 ): Promise<EtlResponse> {
-  const formData = new FormData()
-  if (title) formData.append('title', title)
-  formData.append('file', file)
+    const formData = new FormData()
+    if (title) formData.append('title', title)
+    formData.append('file', file)
 
-  // axios에 multipart/form-data 명시 — Content-Type boundary 자동 처리
-  const res = await apiClient.post<string>('/admin/etl/file', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
-  return res.data
+    // axios에 multipart/form-data 명시 — Content-Type boundary 자동 처리
+    const res = await apiClient.post<string>('/admin/etl/file', formData, {
+        headers: {'Content-Type': 'multipart/form-data'},
+    })
+    return res.data
 }

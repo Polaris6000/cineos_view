@@ -17,8 +17,8 @@ import apiClient from './apiClient'
 
 /** 백엔드 Days enum → 프론트 유니언 타입 */
 export type DayOfWeek =
-  | 'SUNDAY' | 'MONDAY' | 'TUESDAY' | 'WEDNESDAY'
-  | 'THURSDAY' | 'FRIDAY' | 'SATURDAY'
+    | 'SUNDAY' | 'MONDAY' | 'TUESDAY' | 'WEDNESDAY'
+    | 'THURSDAY' | 'FRIDAY' | 'SATURDAY'
 
 /** 통계 조회 type 파라미터 */
 export type StatType = 'DAY' | 'MONTH' | 'YEAR' | 'HOUR' | 'MOVIE'
@@ -30,12 +30,12 @@ export type StatType = 'DAY' | 'MONTH' | 'YEAR' | 'HOUR' | 'MOVIE'
  * - day: DAY 타입에서만 채워짐 (SUNDAY~SATURDAY)
  */
 export interface StatisticsDTO {
-  id: number | null
-  day: DayOfWeek | null
-  revenue: number
-  customerCount: number
-  date: string | null   // 'YYYY-MM-DD' — HOUR·MOVIE 타입은 null
-  title: string | null  // HOUR="HH시", MOVIE=영화제목
+    id: number | null
+    day: DayOfWeek | null
+    revenue: number
+    customerCount: number
+    date: string | null   // 'YYYY-MM-DD' — HOUR·MOVIE 타입은 null
+    title: string | null  // HOUR="HH시", MOVIE=영화제목
 }
 
 // ── API 함수 ─────────────────────────────────────────────
@@ -49,30 +49,30 @@ export interface StatisticsDTO {
  * @throws 네트워크 오류나 서버 오류 시 throw (호출부에서 catch 필수)
  */
 export async function fetchStatistics(
-  startDate: string,
-  endDate: string,
-  type: StatType,
+    startDate: string,
+    endDate: string,
+    type: StatType,
 ): Promise<StatisticsDTO[]> {
-  const res = await apiClient.get<StatisticsDTO[]>('/admin/statistics', {
-    params: { startDate, endDate, type },
-  })
-  return res.data
+    const res = await apiClient.get<StatisticsDTO[]>('/admin/statistics', {
+        params: {startDate, endDate, type},
+    })
+    return res.data
 }
 
 // ── 유틸 상수 ────────────────────────────────────────────
 
 /** 영문 요일 → 한글 2글자 (일~토) */
 export const DAY_KR: Record<DayOfWeek, string> = {
-  SUNDAY:    '일',
-  MONDAY:    '월',
-  TUESDAY:   '화',
-  WEDNESDAY: '수',
-  THURSDAY:  '목',
-  FRIDAY:    '금',
-  SATURDAY:  '토',
+    SUNDAY: '일',
+    MONDAY: '월',
+    TUESDAY: '화',
+    WEDNESDAY: '수',
+    THURSDAY: '목',
+    FRIDAY: '금',
+    SATURDAY: '토',
 }
 
 /** 요일 표시 순서 (일 ~ 토) */
 export const DAY_ORDER: DayOfWeek[] = [
-  'SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY',
+    'SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY',
 ]
