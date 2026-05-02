@@ -1,41 +1,19 @@
-/**
- * AuthContext.tsx — 관리자 인증 전역 Context
- *
- * 제공하는 값:
- *   currentAdmin  — 현재 로그인한 관리자 (null이면 미로그인)
- *   login()       — 로그인 처리 (더미 → 백엔드 연동 시 교체)
- *   logout()      — 로그아웃
- *   hasPermission() — 특정 권한 보유 여부 확인
- *   isSuperAdmin  — 최고관리자 여부 (편의 getter)
- *
- * 사용 예시:
- *   const { currentAdmin, hasPermission } = useAuth()
- *   if (!hasPermission('statistics')) return <Forbidden />
- */
-import {createContext, type ReactNode, useCallback, useContext, useState,} from 'react'
+import {createContext, type ReactNode, useCallback, useContext, useEffect, useState} from 'react'
 import {type AdminUser, type Permission, ROLE_PERMISSIONS} from '../types/auth'
-import apiClient from '../api/apiClient.ts'
+import apiClient, {getAccessToken, setAccessToken} from '../api/apiClient.ts'
 
-/* ── Context 타입 ───────────────────────────────────── */
 interface AuthContextValue {
     currentAdmin: AdminUser | null
-    /** 로그인 시도. 성공 시 true, 실패 시 false 반환. remember=true면 localStorage에 저장 */
     login: (id: string, password: string, remember?: boolean) => Promise<boolean>
-    /** 로그아웃. 백엔드 UUID 정리 후 클라이언트 인증 데이터 삭제 */
     logout: () => Promise<void>
     hasPermission: (permission: Permission) => boolean
     isMaster: boolean
 }
 
-/* ── Context 생성 ───────────────────────────────────── */
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-/* ── Provider ───────────────────────────────────────── */
 export function AuthProvider({children}: { children: ReactNode }) {
-    // 로그인 상태 복원
-    // 우선순위: sessionStorage(탭 세션) → localStorage(자동로그인)
-    // sessionStorage에 있으면 현재 탭에서만 유지되는 세션
-    // localStorage에 있으면 브라우저 닫아도 유지 (자동로그인 체크 시)
+
     const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(() => {
         try {
             const fromSession = sessionStorage.getItem('cineos_admin')
@@ -48,41 +26,54 @@ export function AuthProvider({children}: { children: ReactNode }) {
         }
     })
 
-    /**
-     * login — 아이디/비밀번호로 인증
-     *
-     * 동작 흐름:
-     *   1. POST /api/admin/login → Spring Security APILoginFilter가 처리
-     *   2. 성공 시: { accessToken, refreshToken, level, role } 반환
-     *   3. 실패 시: Spring Security가 302 redirect → Axios가 HTML 응답 받음
-     *      → accessToken이 undefined → 로그인 실패로 처리
-     *
-     * @param id       관리자 아이디
-     * @param password 비밀번호
-     * @param remember true면 localStorage(브라우저 닫아도 유지), false면 sessionStorage(탭 닫으면 삭제)
-     */
+    const [isReady, setIsReady] = useState(false)
+    // ── 브라우저 재접속시 RefreshToken 쿠키로 AccessToken 재발급 ──
+    // 메모리에 저장된 AccessToken은 새로고침/재접속시 사라지기 때문에
+    // 저장된 사용자 정보가 있으면 RefreshToken 쿠키로 재발급 시도
+    useEffect(() => {
+        const savedAdmin =
+            localStorage.getItem('cineos_admin') ||
+            sessionStorage.getItem('cineos_admin')
+
+        if (savedAdmin) {
+            apiClient.post('/admin/refresh', {accessToken: getAccessToken()})
+                .then(res => {
+                    setAccessToken(res.data.accessToken)
+                    console.log('[재접속] AccessToken 재발급 성공')
+                })
+                .catch(() => {
+                    // RefreshToken 만료 → 저장된 정보 삭제 후 로그인 필요
+                    localStorage.removeItem('cineos_admin')
+                    sessionStorage.removeItem('cineos_admin')
+                    setCurrentAdmin(null)
+                    console.log('[재접속] RefreshToken 만료 → 로그인 필요')
+                })
+                .finally(() => {
+                    setIsReady(true) // 재발급 완료 후 렌더링 허용
+                })
+        } else {
+            setIsReady(true) // 저장된 정보 없으면 바로 렌더링
+        }
+    }, [])
+
     const login = useCallback(async (id: string, password: string, remember = false): Promise<boolean> => {
         try {
             const res = await apiClient.post('/admin/login', {
                 loginId: id,
-                password: password
+                password: password,
+                autoLogin: remember // 자동로그인 여부 전송 → 백엔드에서 RefreshToken 기간 분기
             });
 
-            const {accessToken, refreshToken, role, permissions, ...rest} = res.data;
+            const {accessToken, role, permissions, ...rest} = res.data;
+            // refreshToken은 HttpOnly 쿠키로 자동 저장되므로 여기서 처리 불필요
 
-            // ──────────────────────────────────────────────────────────────
-            // 핵심 방어 코드: accessToken이 없으면 로그인 실패로 처리
-            // Spring Security 인증 실패 시 302 redirect → Axios가 HTML 응답을
-            // 받아 200으로 처리하기 때문에 try 블록에 들어와도 성공이 아닐 수 있음
-            // ──────────────────────────────────────────────────────────────
             if (!accessToken || typeof accessToken !== 'string') {
                 console.warn('login: accessToken 없음 — 인증 실패로 처리')
                 return false;
             }
 
-            // 토큰 저장 — 항상 localStorage에 저장 (API 호출에 필요)
-            localStorage.setItem('accessToken', accessToken);
-            if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+            // AccessToken은 메모리에 저장 (localStorage X)
+            setAccessToken(accessToken)
 
             const rawPermissions = permissions || role;
             const authList = Array.isArray(rawPermissions)
@@ -100,45 +91,12 @@ export function AuthProvider({children}: { children: ReactNode }) {
                     : (authList as Permission[])
             } as AdminUser;
 
-            console.log('로그인 성공, 주입 데이터:', adminInfo);
-
+            console.log('로그인 성공:', adminInfo);
             setCurrentAdmin(adminInfo);
 
-            // ──────────────────────────────────────────────────────────────
-            // 자동 로그인 여부에 따라 저장소 선택
-            //   remember = true  → localStorage  (브라우저 닫아도 유지)
-            //   remember = false → sessionStorage (탭 닫으면 삭제)
-            // ──────────────────────────────────────────────────────────────
+            // 사용자 정보만 저장 (토큰은 저장 안함)
             const storage = remember ? localStorage : sessionStorage;
             storage.setItem('cineos_admin', JSON.stringify(adminInfo));
-
-            // ──────────────────────────────────────────────────────────────
-            // 자동 로그인 체크 시 백엔드에 UUID 쿠키 발급 요청
-            //
-            // 흐름:
-            //   POST /api/admin/remember_me?loginId={id}
-            //   → 백엔드: DB에 UUID 생성·저장 후 remember-me 쿠키 Set-Cookie
-            //   → 이후 accessToken + refreshToken 모두 만료됐을 때
-            //     POST /api/admin/remember_me/auth (쿠키 자동 첨부)
-            //     → UUID 검증 → 새 accessToken 발급 (apiClient 인터셉터가 처리)
-            //
-            // withCredentials: true — 크로스 오리진 환경에서도 쿠키를 주고받기 위해 필요
-            //   Vite dev proxy(/api → localhost:8080) 경유 시에도 쿠키 전달 보장
-            // ──────────────────────────────────────────────────────────────
-            if (remember) {
-                try {
-                    await apiClient.post(
-                        `/admin/remember_me?loginId=${encodeURIComponent(id)}`,
-                        {},
-                        {withCredentials: true}
-                    );
-                    console.log('[자동로그인] UUID 쿠키 발급 완료');
-                } catch (rememberErr) {
-                    // UUID 쿠키 발급 실패해도 로그인 자체는 성공 처리
-                    // (accessToken + refreshToken만으로도 동작하므로 치명적이지 않음)
-                    console.warn('[자동로그인] UUID 쿠키 발급 실패 (로그인은 유지):', rememberErr);
-                }
-            }
 
             return true;
         } catch (err) {
@@ -147,56 +105,31 @@ export function AuthProvider({children}: { children: ReactNode }) {
         }
     }, []);
 
-    /**
-     * logout — 백엔드 로그아웃 API 호출 후 클라이언트 인증 데이터 전부 삭제
-     *
-     * 백엔드가 처리하는 것:
-     *   - 자동로그인용 UUID 쿠키 제거 (Set-Cookie: uuid=; Max-Age=0)
-     *   - DB에 저장된 UUID를 null로 초기화
-     *
-     * 클라이언트가 처리하는 것:
-     *   - localStorage / sessionStorage 의 인증 정보 삭제
-     *   - currentAdmin 상태 null로 초기화
-     *
-     * ※ API 실패해도 클라이언트 정리는 반드시 수행 (finally)
-     */
     const logout = useCallback(async () => {
         try {
-            // 백엔드 로그아웃: DB UUID null 처리 + remember-me 쿠키 만료
-            //
-            // 백엔드: @RequestParam(required = false) String loginId
-            //   → loginId가 없거나 blank면 서버에서 UUID null 처리만 건너뜀 (쿠키 삭제는 항상 수행)
-            //
-            // withCredentials: true — remember-me 쿠키를 함께 전송해야 서버에서 Max-Age=0 만료 처리 가능
-            // 백엔드 setSecure(false) 설정으로 HTTP 개발 환경에서도 쿠키 정상 동작
             const loginId = currentAdmin?.loginId ?? '';
             const url = loginId
                 ? `/admin/logout?loginId=${encodeURIComponent(loginId)}`
                 : '/admin/logout';
-            await apiClient.post(url, {}, {withCredentials: true});
+            await apiClient.post(url, {});
         } catch (err) {
-            // 네트워크 오류 등 실패해도 클라이언트 정리는 계속 진행
-            console.warn('[logout] 백엔드 로그아웃 API 실패 (클라이언트 정리는 계속):', err)
+            console.warn('[logout] 백엔드 로그아웃 API 실패:', err)
         } finally {
+            setAccessToken(null) // 메모리 토큰 초기화
             setCurrentAdmin(null)
-            // localStorage (자동로그인) + sessionStorage (일반 세션) 모두 정리
             localStorage.removeItem('cineos_admin')
-            localStorage.removeItem('accessToken')
-            localStorage.removeItem('refreshToken')
             sessionStorage.removeItem('cineos_admin')
         }
-    }, [currentAdmin])  // currentAdmin 의존성 추가 — loginId를 참조하므로 stale closure 방지
+    }, [currentAdmin])
 
-    /**
-     * hasPermission — 특정 권한 보유 여부 확인
-     * currentAdmin이 null이면 항상 false
-     */
     const hasPermission = useCallback((permission: Permission): boolean => {
         if (!currentAdmin) return false
         return currentAdmin.permissions.includes(permission)
     }, [currentAdmin])
 
     const isMaster = currentAdmin?.level === false
+
+    if (!isReady) return null
 
     return (
         <AuthContext.Provider value={{currentAdmin, login, logout, hasPermission, isMaster}}>
@@ -205,11 +138,6 @@ export function AuthProvider({children}: { children: ReactNode }) {
     )
 }
 
-/* ── useAuth 후크 ──────────────────────────────────── */
-/**
- * useAuth — AuthContext 값을 쉽게 가져오는 후크
- * AuthProvider 내부에서만 사용 가능 (외부에서 호출 시 throw)
- */
 export function useAuth(): AuthContextValue {
     const ctx = useContext(AuthContext)
     if (!ctx) throw new Error('useAuth는 AuthProvider 내부에서만 사용할 수 있습니다')
