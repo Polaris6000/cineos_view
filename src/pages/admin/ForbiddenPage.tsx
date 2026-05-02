@@ -104,7 +104,6 @@ const accountLabel: React.CSSProperties = {
 const accountValue: React.CSSProperties = {
     fontSize: 14,
     color: 'var(--text-primary)',
-    fontFamily: 'monospace',
 }
 
 const backBtn: React.CSSProperties = {

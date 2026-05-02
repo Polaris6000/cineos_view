@@ -283,7 +283,7 @@ function PaymentLogPage() {
                             ) : filtered.map((p) => (
                                 <tr key={p.id} style={trStyle}>
                                     <td style={tdStyle}>
-                      <span style={{fontFamily: 'monospace', fontSize: 11}} title={p.id}>
+                      <span style={{fontSize: 11}} title={p.id}>
                         {p.id.length > 14 ? p.id.slice(0, 14) + '…' : p.id}
                       </span>
                                     </td>

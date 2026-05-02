@@ -1,6 +1,9 @@
 // TMDB 포스터 URL 변환 함수 import (apiClient에서 관리)
 // MovieDTO/ScheduleDTO/TheaterDTO는 이 파일에 직접 정의 — 중복 import 금지
 import {getKSTDateString, resolvePosterUrl} from './apiClient'
+// 상영관 좌석 배치 고정 상수 — 고객용 API는 theater 객체를 null로 반환하므로
+// 좌석 수·리클라이너 여부를 이 파일에서 결정
+import {DEFAULT_THEATER_CONFIG, THEATER_CONFIG} from '../config/theaterConfig'
 
 /* 공용 함수 정의 */
 // KST 기준 오늘 날짜 ('YYYY-MM-DD')
@@ -86,7 +89,15 @@ export const mapToSchedule = (scheduleDTO: ScheduleDTO): Schedule => {
     // customer API는 theater/movie 중첩 객체 없이 no/movieId를 최상위로 반환
     // → optional chaining + fallback으로 양쪽 모두 대응
     const theaterNo = scheduleDTO.theater?.no ?? scheduleDTO.no
-    const movieId   = scheduleDTO.movie?.movieId ?? scheduleDTO.movieId
+    const movieId = scheduleDTO.movie?.movieId ?? scheduleDTO.movieId
+
+    // 고객용 API는 theater: null을 반환하므로 seatPolicy를 직접 참조할 수 없음
+    // → theaterConfig.ts의 고정 상수에서 rows·cols·hasRecliner를 가져옴
+    // → 관리자 API처럼 theater 객체가 있을 때는 seatPolicy.name으로 우선 판별
+    const config = THEATER_CONFIG[theaterNo] ?? DEFAULT_THEATER_CONFIG
+    const isRecliner = scheduleDTO.theater?.seatPolicy?.name === "리클라이너"
+        ? true
+        : config.hasRecliner
 
     return {
         scheduleId: scheduleDTO.id,
@@ -95,10 +106,10 @@ export const mapToSchedule = (scheduleDTO: ScheduleDTO): Schedule => {
         endTime: scheduleDTO.endAt.substring(11, 16),
         theaterId: theaterNo,
         theaterName: theaterNo + "관",
-        availableSeats: (theaterNo + 4) * (theaterNo + 7),
-        totalSeats: (theaterNo + 4) * (theaterNo + 7),
+        availableSeats: config.rows * config.cols,
+        totalSeats: config.rows * config.cols,
         movieId,
-        isRecliner: scheduleDTO.theater?.seatPolicy?.name === "리클라이너",
+        isRecliner,
     }
 }
 

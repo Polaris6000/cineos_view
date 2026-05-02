@@ -268,7 +268,7 @@ const card: React.CSSProperties = {
 }
 const cardHeader: React.CSSProperties = {display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}
 const cardName: React.CSSProperties = {fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 2px'}
-const cardId: React.CSSProperties = {fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace', margin: 0}
+const cardId: React.CSSProperties = {fontSize: 12, color: 'var(--text-muted)', margin: 0}
 const permGroup: React.CSSProperties = {display: 'flex', flexDirection: 'column', gap: 8}
 const permGroupLabel: React.CSSProperties = {
     fontSize: 11, fontWeight: 700, color: 'var(--text-muted)',

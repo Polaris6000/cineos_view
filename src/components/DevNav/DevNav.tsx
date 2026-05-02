@@ -71,7 +71,6 @@ const panelBase: React.CSSProperties = {
     border: '1px solid #ffb800',
     borderRadius: 10,
     boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
-    fontFamily: 'monospace',
     fontSize: 12,
     color: '#fff8f0',
     minWidth: 200,
@@ -111,7 +110,6 @@ const linkBtn: React.CSSProperties = {
     color: '#b6a999',
     fontSize: 12,
     cursor: 'pointer',
-    fontFamily: 'monospace',
     transition: 'color 0.1s, background 0.1s',
 }
 

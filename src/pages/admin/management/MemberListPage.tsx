@@ -131,8 +131,8 @@ function MemberListPage() {
                 <table style={table}>
                     <thead>
                     <tr style={tHead}>
-                        <th style={th}>전화번호</th>
-                        <th style={{...th, textAlign: 'right'}}>등급</th>
+                        <th style={{...th, textAlign: 'center'}}>전화번호</th>
+                        <th style={{...th, textAlign: 'center'}}>등급</th>
                         <th style={{...th, textAlign: 'center'}}>포인트</th>
                         <th style={{...th, textAlign: 'center'}}>가입일</th>
                         <th style={{...th, textAlign: 'center'}}>포인트 내역</th>
@@ -154,8 +154,18 @@ function MemberListPage() {
                     ) : (
                         filtered.map((m) => (
                             <tr key={`member-${m.phone}`} style={tRow}>
-                                <td style={{...td, fontFamily: 'monospace', fontSize: 13}}>{m.phone}</td>
-                                <td style={{...td, fontFamily: 'monospace', fontSize: 13}}>{m.grade}</td>
+                                <td style={{
+                                    ...td,
+                                    textAlign: 'center',
+                                    fontSize: 13,
+                                    color: 'var(--text-primary)'
+                                }}>{m.phone}</td>
+                                <td style={{
+                                    ...td,
+                                    textAlign: 'center',
+                                    fontSize: 13,
+                                    color: 'var(--text-primary)'
+                                }}>{m.grade}</td>
                                 <td style={{
                                     ...td,
                                     textAlign: 'right',
@@ -164,7 +174,7 @@ function MemberListPage() {
                                 }}>
                                     {m.point.toLocaleString()} P
                                 </td>
-                                <td style={{...td, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)'}}>
+                                <td style={{...td, textAlign: 'center', fontSize: 13, color: 'var(--text-primary)'}}>
                                     {m.createAt?.slice(0, 10) ?? '-'}
                                 </td>
                                 <td style={{...td, textAlign: 'center'}}>
@@ -387,18 +397,20 @@ const modalTitle: React.CSSProperties = {
     fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 16px',
 }
 const closeIconBtn: React.CSSProperties = {
-    position: 'absolute' as const, top: 16, right: 16,
     background: 'none', border: 'none', cursor: 'pointer',
-    color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
+    color: 'var(--text-secondary)', padding: 4, display: 'flex', alignItems: 'center',
 }
 const logRow: React.CSSProperties = {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '10px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 13,
+    display: 'grid', gridTemplateColumns: '1fr 3fr 1fr',
+    gap: 12, padding: '10px 0',
+    borderBottom: '1px solid var(--border-subtle)',
+    fontSize: 13, color: 'var(--text-secondary)',
 }
 const closeModalBtn: React.CSSProperties = {
-    marginTop: 20, width: '100%', padding: '12px 0',
-    background: 'var(--bg-base)', border: '1px solid var(--border-default)',
-    borderRadius: 8, fontSize: 14, fontWeight: 700,
-    color: 'var(--text-secondary)', cursor: 'pointer',
+    width: '100%', padding: '12px 0',
+    background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
+    borderRadius: 8, color: 'var(--text-primary)', fontSize: 14, cursor: 'pointer',
+    marginTop: 16,
 }
+
 export default MemberListPage

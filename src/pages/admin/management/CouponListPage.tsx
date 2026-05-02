@@ -312,8 +312,7 @@ function CouponListPage() {
                                 const policy = policies.find((p) => p.id === c.policyId)
                                 return (
                                     <tr key={c.couponNum} style={tr}>
-                                        {/* 쿠폰 번호: 고정폭 폰트로 가독성 향상 */}
-                                        <td style={{...td, fontFamily: 'monospace', fontWeight: 700, letterSpacing: 1}}>
+                                        <td style={{...td, fontWeight: 700, letterSpacing: 1}}>
                                             {c.couponNum}
                                         </td>
                                         <td style={{...td, textAlign: 'center', color: 'var(--text-secondary)'}}>

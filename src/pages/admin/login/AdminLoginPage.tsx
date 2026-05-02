@@ -6,13 +6,6 @@
  *  - 로그인 실패 시 인라인 에러 메시지 표시
  *  - 성공 시 /admin/statistics/dashboard 이동
  *  - AuthContext.login() 을 통해 인증 처리
- *
- * 더미 계정:
- *   admin    / admin123  (최고관리자)
- *   manager  / manager123 (일반관리자)
- *   manager2 / manager123 (일반관리자)
- *
- * TODO: POST /api/admin/login 연동 시 AuthContext.login() 내부만 교체
  */
 import {type FormEvent, useState} from 'react'
 import {useLocation, useNavigate} from 'react-router-dom'
@@ -170,7 +163,7 @@ const hintTitle: React.CSSProperties = {
     textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4,
 }
 const hintLine: React.CSSProperties = {
-    fontSize: 12, color: '#7a6540', lineHeight: 1.7, fontFamily: 'monospace',
+    fontSize: 12, color: '#7a6540', lineHeight: 1.7,
 }
 const form: React.CSSProperties = {
     width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', gap: 16,

@@ -20,8 +20,8 @@ export interface PersonType {
 // DB policyName → 프론트 type key / 표시 label 매핑
 // init.sql의 policyName 값과 반드시 일치해야 함
 const POLICY_MAPPING: Record<string, { type: string; label: string }> = {
-    '청소년 할인': { type: 'teen',   label: '청소년' },
-    '경로 할인':   { type: 'senior', label: '경로' },
+    '청소년 할인': {type: 'teen', label: '청소년'},
+    '경로 할인': {type: 'senior', label: '경로'},
 }
 
 /**
@@ -30,20 +30,20 @@ const POLICY_MAPPING: Record<string, { type: string; label: string }> = {
  * 성인(adult)은 DB에 없으므로 항상 첫 번째로 고정 추가
  */
 export async function fetchPersonTypes(): Promise<PersonType[]> {
-    const { data } = await axios.get<DiscountPolicyDTO[]>('/api/discount/age')
+    const {data} = await axios.get<DiscountPolicyDTO[]>('/api/discount/age')
 
     const fromDB: PersonType[] = data
         .filter(d => d.discountType === 'WON') // RATIO 타입은 인원 할인에 미지원, WON만 처리
         .map(d => {
             const mapping = POLICY_MAPPING[d.policyName]
             return {
-                type:     mapping?.type  ?? d.policyName,
-                label:    mapping?.label ?? d.policyName,
+                type: mapping?.type ?? d.policyName,
+                label: mapping?.label ?? d.policyName,
                 discount: Number(d.discountValue),
             }
         })
 
-    return [{ type: 'adult', label: '성인', discount: 0 }, ...fromDB]
+    return [{type: 'adult', label: '성인', discount: 0}, ...fromDB]
 }
 
 /**
@@ -53,17 +53,17 @@ export async function fetchPersonTypes(): Promise<PersonType[]> {
  * 해당 정책이 없으면 0 반환
  */
 export async function fetchEarlyBirdAmount(): Promise<number> {
-    const { data } = await axios.get<DiscountPolicyDTO[]>('/api/discount/time')
+    const {data} = await axios.get<DiscountPolicyDTO[]>('/api/discount/time')
 
     const policy = data.find(d => d.discountType === 'WON')
     return policy ? Number(policy.discountValue) : 0
 }
 
 /**
- * 선택된 상영 시작 시간이 조조 할인 기준(오전 10시) 이전인지 판단
+ * 선택된 상영 시작 시간이 조조 할인 구간(06:00 이상 ~ 10:00 미만)인지 판단
  * @param startTime "HH:mm" 형식 문자열 (예: "09:30")
  */
 export function isEarlyBirdTime(startTime: string): boolean {
     const [hour] = startTime.split(':').map(Number)
-    return hour < 10
+    return hour >= 6 && hour < 10
 }

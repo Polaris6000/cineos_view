@@ -146,7 +146,6 @@ function PaymentLogDetailPage() {
             <div style={idBox}>
                 <p style={{fontSize: 12, color: 'var(--text-muted)', marginBottom: 4}}>예매번호</p>
                 <p style={{
-                    fontFamily: 'monospace',
                     fontSize: 15,
                     fontWeight: 700,
                     color: 'var(--text-primary)',
@@ -181,7 +180,7 @@ function PaymentLogDetailPage() {
                         label="쿠폰 할인"
                         value={
                             <>
-                                <span style={{fontFamily: 'monospace', marginRight: 8}}>{coupon.couponNum}</span>
+                                <span style={{marginRight: 8}}>{coupon.couponNum}</span>
                                 {couponAmt > 0 && (
                                     <span style={{color: 'var(--color-success-main)'}}>
                     −{couponAmt.toLocaleString()}원

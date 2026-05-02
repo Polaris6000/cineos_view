@@ -257,7 +257,7 @@ function PaymentResultPage() {
 <html lang="ko"><head><meta charset="UTF-8"/><title>영수증 — CineOS</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Courier New',monospace; font-size:13px; color:#111; background:#fff;
+body { font-family:'Pretendard', sans-serif; font-size:13px; color:#111; background:#fff;
        max-width:320px; margin:0 auto; padding:28px 20px; }
 .logo { font-size:26px; font-weight:900; letter-spacing:6px; text-align:center; }
 .logo-sub { font-size:10px; letter-spacing:2px; text-align:center; color:#555; margin-top:3px; margin-bottom:18px; }

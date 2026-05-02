@@ -191,7 +191,7 @@ function ActivityLogPage() {
                         return (
                             <tr key={log.pointId} style={trStyle}>
                                 {/* 전화번호 */}
-                                <td style={{...tdStyle, fontFamily: 'monospace', fontSize: 13}}>
+                                <td style={{...tdStyle, fontSize: 13}}>
                                     {log.phone}
                                 </td>
                                 {/* 타입 배지 */}

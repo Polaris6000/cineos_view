@@ -244,7 +244,7 @@ function RefundPage() {
                                     >
                                         <td style={td}>
                                             {/* 예매번호 — 길어서 앞 12자만 표시 */}
-                                            <span style={{fontFamily: 'monospace', fontSize: 12}} title={p.id}>
+                                            <span style={{fontSize: 12}} title={p.id}>
                           {p.id.length > 12 ? p.id.slice(0, 12) + '…' : p.id}
                         </span>
                                         </td>
