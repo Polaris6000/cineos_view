@@ -34,6 +34,7 @@ function buildPageRange(current: number, total: number): (number | '...')[] {
 /* ── 타입 ──────────────────────────────────────────── */
 interface Member {
     phone: string
+    grade: 'NORMAL' | 'VIP'
     point: number
     createAt: string
 }
@@ -82,6 +83,7 @@ function MemberListPage() {
                 setMembers(list)
                 setTotalPages(data.totalPages ?? 1)
                 setTotalElements(data.totalElements ?? list.length)
+                console.log('회원 데이터 : ', list)
             })
             .catch(err => console.error('[MemberListPage] 회원 목록 로드 실패', err))
             .finally(() => setLoading(false))
@@ -130,7 +132,8 @@ function MemberListPage() {
                     <thead>
                     <tr style={tHead}>
                         <th style={th}>전화번호</th>
-                        <th style={{...th, textAlign: 'right'}}>포인트</th>
+                        <th style={{...th, textAlign: 'right'}}>등급</th>
+                        <th style={{...th, textAlign: 'center'}}>포인트</th>
                         <th style={{...th, textAlign: 'center'}}>가입일</th>
                         <th style={{...th, textAlign: 'center'}}>포인트 내역</th>
                     </tr>
@@ -152,6 +155,7 @@ function MemberListPage() {
                         filtered.map((m) => (
                             <tr key={`member-${m.phone}`} style={tRow}>
                                 <td style={{...td, fontFamily: 'monospace', fontSize: 13}}>{m.phone}</td>
+                                <td style={{...td, fontFamily: 'monospace', fontSize: 13}}>{m.grade}</td>
                                 <td style={{
                                     ...td,
                                     textAlign: 'right',
