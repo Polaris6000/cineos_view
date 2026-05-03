@@ -40,6 +40,18 @@ function fmtDateLabel(dateStr: string) {
     return `${mm}/${dd}(${days[d.getDay()]})`
 }
 
+/**
+ * 시작 시간이 현재 시각보다 이전인지 확인
+ * daySchedules는 이미 오늘 날짜 기준이므로 시분 비교만으로 충분
+ */
+function isPast(startTime: string): boolean {
+    const now = new Date()
+    const [h, m] = startTime.split(':').map(Number)
+    const schedTime = new Date()
+    schedTime.setHours(h, m, 0, 0)
+    return now > schedTime
+}
+
 function SchedulePage() {
     const navigate = useNavigate()
     const location = useLocation()
@@ -182,10 +194,16 @@ function SchedulePage() {
         }
     }, [selectedSched, rawScheduleDTOs])
 
-    // 오늘 날짜의 상영 목록만 표시
+    // 오늘 날짜의 상영 목록 전체 (지나간 것 포함)
     const daySchedules = useMemo(
         () => schedules.filter((s) => s.date === today),
         [schedules, today]
+    )
+
+    // 아직 시작 안 한 상영만 — 남은 상영이 있는지 판단에 사용
+    const futureSchedules = useMemo(
+        () => daySchedules.filter((s) => !isPast(s.startTime)),
+        [daySchedules]
     )
 
     /** 인원 수 변경 (+/-) */
@@ -290,24 +308,31 @@ function SchedulePage() {
                     <span style={stepNum}>1</span>
                     시간 선택
                 </h3>
-                {daySchedules.length === 0 ? (
-                    <p style={{color: 'var(--text-muted)', fontSize: 15}}>
-                        선택하신 날짜에 상영 일정이 없습니다.
-                    </p>
-                ) : (
+                {/* 오늘 남은 상영이 없을 때: 전체 비어있거나 페이지 머무는 동안 모두 지나간 경우 */}
+                {(daySchedules.length === 0 || futureSchedules.length === 0) && (
+                    <div style={noRemainingNotice}>
+                        <Clock size={16} style={{flexShrink: 0, marginTop: 1}}/>
+                        <span>오늘 예정된 상영이 모두 종료되었습니다.</span>
+                    </div>
+                )}
+
+                {daySchedules.length === 0 ? null : (
                     <div style={timeGrid}>
                         {daySchedules.map((s) => {
-                            const soldOut = s.availableSeats === 0
+                            const past = isPast(s.startTime)
+                            const soldOut = !past && s.availableSeats === 0
                             const isSelected = selectedSched?.scheduleId === s.scheduleId
+                            const disabled = past || soldOut
+
                             return (
                                 <button
                                     key={s.scheduleId}
-                                    onClick={() => !soldOut && setSelectedSched(s)}
-                                    disabled={soldOut}
+                                    onClick={() => !disabled && setSelectedSched(s)}
+                                    disabled={disabled}
                                     style={{
                                         ...timeBtn,
                                         ...(isSelected ? timeBtnActive : {}),
-                                        ...(soldOut ? timeBtnSoldOut : {}),
+                                        ...(past ? timeBtnPast : soldOut ? timeBtnSoldOut : {}),
                                     }}
                                 >
                                     <p style={{fontSize: 26, fontWeight: 700, margin: '8px 0 4px'}}>
@@ -331,8 +356,8 @@ function SchedulePage() {
                                                 리클라이너
                                             </span>
                                         )}
-                                        {/* 오전 10시 이전 상영이면 조조 할인 배지 표시 */}
-                                        {earlyBirdPerPerson > 0 && isEarlyBirdTime(s.startTime) && (
+                                        {/* 조조 할인 배지: 지나간 상영엔 표시 안 함 */}
+                                        {!past && earlyBirdPerPerson > 0 && isEarlyBirdTime(s.startTime) && (
                                             <span style={{
                                                 display: 'inline-block',
                                                 marginLeft: 6,
@@ -350,11 +375,15 @@ function SchedulePage() {
                                     </p>
                                     <p style={{
                                         fontSize: 13,
-                                        color: soldOut ? 'var(--color-error-main)' : 'var(--color-success-main)',
+                                        color: past
+                                            ? 'var(--text-muted)'
+                                            : soldOut
+                                                ? 'var(--color-error-main)'
+                                                : 'var(--color-success-main)',
                                         margin: '6px 0 0',
                                         fontWeight: 600,
                                     }}>
-                                        {soldOut ? '매진' : `${s.availableSeats}석 남음`}
+                                        {past ? '종료' : soldOut ? '매진' : `${s.availableSeats}석 남음`}
                                     </p>
                                 </button>
                             )
@@ -534,6 +563,16 @@ const earlyBirdBanner: React.CSSProperties = {
     fontSize: 14, color: 'var(--color-brand-default)',
 }
 
+// 오늘 남은 상영 없음 안내 (인라인 배너)
+const noRemainingNotice: React.CSSProperties = {
+    display: 'flex', alignItems: 'flex-start', gap: 8,
+    padding: '14px 18px', marginBottom: 20,
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 12,
+    fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6,
+}
+
 const timeGrid: React.CSSProperties = {display: 'flex', gap: 16, flexWrap: 'wrap'}
 const timeBtn: React.CSSProperties = {
     padding: '16px 20px', background: 'var(--bg-surface)',
@@ -543,6 +582,8 @@ const timeBtn: React.CSSProperties = {
 }
 const timeBtnActive = {borderColor: 'var(--color-brand-default)', background: 'rgba(255,184,0,0.1)'}
 const timeBtnSoldOut = {opacity: 0.4, cursor: 'not-allowed'}
+// 이미 지나간 상영 — 흐리게 처리하고 클릭 불가
+const timeBtnPast: React.CSSProperties = {opacity: 0.35, cursor: 'not-allowed', filter: 'grayscale(0.6)'}
 
 const personList: React.CSSProperties = {
     display: 'flex', flexDirection: 'column', gap: 16,

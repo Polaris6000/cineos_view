@@ -2,14 +2,17 @@
  * PaymentPage.tsx — 결제 처리
  *
  * 흐름:
- *  1. 진입 즉시 [회원 인증 모달] 자동 팝업 (필수 — Toss 결제에 전화번호 필요)
- *      - 인증 완료 시 포인트 잔액 표시 + 포인트/쿠폰 사용 섹션 활성화
- *      - 모달 닫기(X) → 이전 페이지로 이동 (인증 미완료 시 결제 불가)
- *  2. [쿠폰 입력] — POST /api/coupon/auth 로 유효성 검증
+ *  1. 진입 즉시 [적립 여부 확인 모달] 팝업
+ *      - "포인트 적립하기" 선택 → [회원 인증 모달] 오픈 (전화번호 입력/인증)
+ *      - "비회원으로 진행" 선택 → 모달 닫고 바로 결제 진행 가능 (전화 인증 스킵)
+ *  2. [회원 인증 모달] (선택 사항)
+ *      - 인증 완료 시 포인트 잔액 표시 + 포인트 사용 섹션 활성화
+ *      - 모달 닫기(X) → 비회원으로 진행 (인증 없이 결제 가능)
+ *  3. [쿠폰 입력] — POST /api/coupon/auth 로 유효성 검증 (회원/비회원 모두 사용 가능)
  *      - 백엔드가 CouponDTO를 반환하면 할인 금액을 계산해 finalAmount에 반영
  *      - discountType: 'WON' = 고정금액 / 'RATIO' = 할인율(%)
- *  3. [포인트 사용] — 인증 완료 후 자동 활성화
- *  4. 결제 버튼 클릭 → Toss CARD 결제 or 포인트 전액 결제
+ *  4. [포인트 사용] — 회원 인증 완료 시에만 활성화
+ *  5. 결제 버튼 클릭 → Toss CARD 결제 or 포인트 전액 결제 (비회원도 가능)
  *
  * state 수신:
  *   movieTitle, schedule(Schedule type), persons, totalPersons,
@@ -117,8 +120,10 @@ function PaymentPage() {
     )
 
     /* ── 모달 상태 ── */
-    // 전화 인증은 필수 (Toss 결제에 전화번호 필요) → 진입 즉시 모달 오픈
-    const [showPhoneModal, setShowPhoneModal] = useState(true)
+    // 적립 여부 모달: 진입 시 첫 번째로 표시. failUrl 복귀(tossErrorCode 있음) 시에는 이미 선택했던 상황이므로 스킵
+    const [showPointModal, setShowPointModal] = useState(!tossErrorCode)
+    // 전화 인증 모달: 적립 여부 모달에서 "포인트 적립하기" 선택 시 열림 (선택 사항)
+    const [showPhoneModal, setShowPhoneModal] = useState(false)
 
     /* ── 회원 인증 상태 ── */
     const [phoneRaw, setPhoneRaw] = useState('')    // 숫자만 저장 (01011112222)
@@ -240,7 +245,7 @@ function PaymentPage() {
         }
     }
 
-    // 모달 닫기 — 결제 시도 시 isVerified 체크로 재오픈됨
+    // 전화 인증 모달 닫기 — 비회원으로 진행 (인증 없이도 결제 가능)
     const handlePhoneModalSkip = () => {
         setShowPhoneModal(false)
     }
@@ -409,22 +414,6 @@ function PaymentPage() {
         // 결제 진행 중 메시지 초기화
         setCancelMsg('')
 
-        // 인증이 안 되어 있으면 결제를 중단하고 인증 모달을 띄움
-        if (!isVerified) {
-            setCancelMsg('결제를 위해 휴대폰 인증이 필요합니다.');
-            setShowPhoneModal(true);
-            return; // 여기서 함수 종료하여 토스 결제창(tossInstance) 실행을 막음
-        }
-
-        // 0원 결제(쿠폰·포인트 전액 차감) 시 전화 인증 필수 체크
-        // 백엔드 savePaymentInfo가 phone으로 member를 조회하기 때문에
-        // phone이 없으면 NoSuchElementException(404)이 발생함
-        if (isZeroPayment && !phoneRaw) {
-            setCancelMsg('0원 결제 시에도 회원 인증이 필요합니다. 전화번호를 인증해 주세요.')
-            setShowPhoneModal(true)
-            return
-        }
-
         // localStorage에 결제 진행 중 데이터 저장 (결과 페이지 / failUrl 복원용)
         const pendingBooking = {
             movieTitle,
@@ -505,7 +494,48 @@ function PaymentPage() {
         <div style={pageWrap}>
 
             {/* ══════════════════════════════════════════════════
-          [모달] 회원 인증 (전화번호 — 결제 필수)
+          [모달 1] 적립 여부 확인 — 진입 시 가장 먼저 표시
+          "포인트 적립하기" → 전화 인증 모달 오픈
+          "비회원으로 진행" → 모달 닫고 바로 결제 페이지 사용
+          ══════════════════════════════════════════════════ */}
+            {showPointModal && (
+                <div style={modalOverlay}>
+                    <div style={modalBox}>
+                        <div style={{textAlign: 'center', marginBottom: 28}}>
+                            <Gift size={48} color="var(--color-brand-default)" style={{marginBottom: 12}}/>
+                            <h3 style={modalTitle}>포인트 적립</h3>
+                            <p style={modalDesc}>
+                                포인트 적립을 원하시나요?<br/>
+                                휴대폰 인증 후 이번 결제 금액의 일부가 적립됩니다.
+                            </p>
+                        </div>
+
+                        {/* 적립하기 버튼 — 전화 인증 모달로 이동 */}
+                        <button
+                            onClick={() => {
+                                setShowPointModal(false)
+                                setShowPhoneModal(true)
+                            }}
+                            style={{...modalBtnYes, marginBottom: 10}}
+                        >
+                            포인트 적립하기
+                        </button>
+
+                        {/* 비회원 진행 버튼 — 인증 없이 결제 */}
+                        <button
+                            onClick={() => setShowPointModal(false)}
+                            style={modalBtnNo}
+                        >
+                            비회원으로 진행
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ══════════════════════════════════════════════════
+          [모달 2] 회원 인증 (전화번호 — 선택 사항)
+          적립 여부 모달에서 "포인트 적립하기" 선택 시 표시.
+          닫기(X) 버튼 클릭 시 비회원으로 결제 진행.
           ══════════════════════════════════════════════════ */}
             {showPhoneModal && (
                 <div style={modalOverlay}>
@@ -515,9 +545,9 @@ function PaymentPage() {
                         </button>
                         <div style={{textAlign: 'center', marginBottom: 24}}>
                             <Phone size={48} color="var(--color-brand-default)" style={{marginBottom: 12}}/>
-                            <h3 style={modalTitle}>회원 인증</h3>
+                            <h3 style={modalTitle}>휴대폰 인증</h3>
                             <p style={modalDesc}>
-                                결제를 위해 휴대폰 인증이 필요합니다.<br/>
+                                포인트 적립을 위해 휴대폰을 인증해 주세요.<br/>
                                 미가입 시 자동으로 회원 가입됩니다.
                             </p>
                         </div>
@@ -826,8 +856,8 @@ function PaymentPage() {
                             <span>적립 예정: <strong>{pointEarned.toLocaleString()}P</strong></span>
                         </div>
                     ) : (
-                        // 인증 전 — 모달 재오픈 안내 버튼
-                        <button onClick={() => setShowPhoneModal(true)} style={pointCtaBtn}>
+                        // 비회원 상태 — 버튼 클릭 시 적립 여부 모달 재오픈
+                        <button onClick={() => setShowPointModal(true)} style={pointCtaBtn}>
                             <Phone size={16} style={{marginRight: 8}}/>
                             회원 인증 후 포인트 적립 가능
                         </button>

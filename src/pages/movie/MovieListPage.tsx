@@ -6,7 +6,7 @@
  *  - 필터: 장르 · 등급 (단일 선택 칩)
  *  - 검색: 키워드로 영화 제목 필터링 (터치 키보드 연동)
  *  - 카드 그리드: 포스터 · 제목 · 장르 · 등급 배지 · 런타임
- *  - 카드 클릭 → UC-02 영화 상세 페이지로 이동
+ *  - 카드 클릭 → 영화 상세 페이지로 이동
  *
  * 터치 키보드:
  *  - 검색 input 포커스(터치) 시 useKeyboard().openKeyboard() 호출
@@ -93,7 +93,7 @@ function MovieListPage() {
                 setNowMovies(formattedMovies)
 
             } catch (error) {
-                console.error("❌ 영화 로딩 중 에러:", error);
+                console.error("영화 로딩 중 에러:", error);
             }
         };
 
@@ -107,7 +107,7 @@ function MovieListPage() {
                 const {data} = await axios.get<ScheduleDTO[]>('/api/schedule/DTOlist')
                 setSchedule(data.map((dto) => mapToSchedule(dto)))
             } catch (error) {
-                console.error("❌ 스케쥴 로딩 중 에러:", error)
+                console.error("스케쥴 로딩 중 에러:", error)
             }
         }
         axiosSchedule()
@@ -135,9 +135,33 @@ function MovieListPage() {
         axiosTheater();
     }, []); //첫 로딩에 사용
 
+    const today = new Date().toLocaleDateString('en-CA')
+
+    /**
+     * 시작 시간(HH:mm)이 현재 시각보다 이전인지 확인
+     * 당일 기준이므로 날짜는 이미 today로 필터된 상태에서 호출
+     */
+    const isPast = (startTime: string): boolean => {
+        const now = new Date()
+        const [h, m] = startTime.split(':').map(Number)
+        const t = new Date()
+        t.setHours(h, m, 0, 0)
+        return now > t
+    }
+
+    /**
+     * 해당 영화의 오늘 상영 중 아직 시작하지 않은 회차가 하나라도 있으면 true
+     * schedules 로드 전(length === 0)에는 true 반환 — 로드 전 깜박임 방지
+     */
+    const hasRemainingToday = (movieId: number): boolean => {
+        if (schedules.length === 0) return true
+        const todaySchedules = schedules.filter(s => s.movieId === movieId && s.date === today)
+        if (todaySchedules.length === 0) return false
+        return todaySchedules.some(s => !isPast(s.startTime))
+    }
+
     // schedule.isRecliner를 직접 사용 — theaters 별도 조회 불필요, ID 매칭 실패 문제 원천 제거
     const getMovieTheaterTypes = (movieId: number): Set<string> => {
-        const today = new Date().toLocaleDateString('en-CA')
         const todaySchedules = schedules.filter((s) => s.movieId === movieId && s.date === today)
         const types = new Set<string>()
         todaySchedules.forEach((s) => {
@@ -190,6 +214,8 @@ function MovieListPage() {
      */
     const filteredMovies = useMemo(() => {
         return nowMovies.filter(movie => {
+            // 오늘 상영이 모두 종료된 영화는 목록에서 제외
+            if (!hasRemainingToday(movie.id)) return false
             if (selectedGenre !== '전체' && !parseGenres(movie.genre).includes(selectedGenre)) return false
             if (selectedRating && movie.rating !== selectedRating) return false
             if (selectedTheaterType !== 'ALL') {
@@ -199,7 +225,7 @@ function MovieListPage() {
             if (searchQuery.trim() && !movie.title.includes(searchQuery.trim())) return false
             return true
         })
-        // schedules·theaters는 비동기 로드되므로 반드시 deps에 포함해야 필터가 데이터 로드 후 재계산됨
+        // schedules는 비동기 로드 + isPast 기준이 시각에 따라 달라지므로 반드시 deps에 포함
     }, [nowMovies, selectedGenre, selectedRating, selectedTheaterType, searchQuery, parseGenres, schedules, theaters])
 
     /** 카드 클릭 → 영화 상세 페이지 */

@@ -1,4 +1,4 @@
-/* MovieListPage.module.css — UC-01 상영작 목록
+/* MovieListPage.module.css — 상영작 목록
    FHD(1080×1920) 세로형 키오스크 기준 */
 
 .page {
@@ -169,7 +169,7 @@
 
 .searchInput:focus {
     border-color: var(--border-focus);
-    box-shadow: 0 0 0 3px rgba(255, 184, 0, 0.18);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-default) 18%, transparent);
 }
 
 /* 검색어 X 버튼 */
@@ -190,7 +190,7 @@
 
 .searchClear:hover {
     color: var(--text-primary);
-    background-color: rgba(14, 11, 8, 0.4);
+    background-color: color-mix(in srgb, var(--bg-base) 40%, transparent);
 }
 
 /* ── 결과 영역 ── */
@@ -323,12 +323,12 @@
 
 .badgeALL {
     background-color: var(--badge-all);
-    color: #fff;
+    color: var(--primitive-neutral-0);
 }
 
 .badge12 {
     background-color: var(--badge-12);
-    color: #fff;
+    color: var(--primitive-neutral-0);
 }
 
 .badge15 {
@@ -338,7 +338,7 @@
 
 .badge19 {
     background-color: var(--badge-18);
-    color: #fff;
+    color: var(--primitive-neutral-0);
 }
 
 .cardMetaRow {
@@ -354,8 +354,8 @@
     padding: 2px 8px;
     font-size: 0.65rem;
     font-weight: 700;
-    color: #fff;
-    background: #2a88c8;
+    color: var(--primitive-neutral-0);
+    background: var(--color-info-main);
     border-radius: 4px;
     letter-spacing: 0.03em;
     white-space: nowrap;
