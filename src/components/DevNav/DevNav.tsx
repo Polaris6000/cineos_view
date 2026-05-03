@@ -53,7 +53,7 @@ const ADMIN_LINKS = [
     {label: '영화 관리', path: '/admin/management/movie/manage'},
     {label: '상영관 목록', path: '/admin/management/theater/list'},
     {label: '상영관 편집', path: '/admin/management/theater/edit'},
-    {label: '좌석 목록', path: '/admin/management/seat/list'},
+    {label: '좌석 현황', path: '/admin/management/seat/list'},
     {label: '정책 목록', path: '/admin/management/policy/list'},
     {label: '할인정책 등록', path: '/admin/management/policy/form'},
     {label: '적립정책 등록', path: '/admin/management/policy/bonus-form'},

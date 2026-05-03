@@ -73,8 +73,8 @@ const NAV_SECTIONS: NavSection[] = [
     {
         section: '상영관/좌석',
         items: [
+            {path: '/admin/management/seat/list', label: '좌석 현황', Icon: Armchair, permission: 'ROLE_THEATER_LIST'},
             {path: '/admin/management/theater/list', label: '상영관 편집', Icon: Armchair, permission: 'ROLE_THEATER_EDIT'},
-            {path: '/admin/management/seat/list', label: '좌석 목록', Icon: Armchair, permission: 'ROLE_THEATER_LIST'},
         ],
     },
     {

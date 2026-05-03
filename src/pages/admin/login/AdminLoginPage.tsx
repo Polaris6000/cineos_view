@@ -4,17 +4,20 @@
  * 동작:
  *  - 아이디/비밀번호 입력
  *  - 로그인 실패 시 인라인 에러 메시지 표시
- *  - 성공 시 /admin/statistics/dashboard 이동
+ *  - 성공 시 항상 /admin/management/seat/list 이동 (고정)
  *  - AuthContext.login() 을 통해 인증 처리
  */
 import {type FormEvent, useState} from 'react'
-import {useLocation, useNavigate} from 'react-router-dom'
+import {useNavigate} from 'react-router-dom'
 import {useAuth} from '../../../context/AuthContext'
+
+// 로그인 후 항상 이동할 초기 페이지 (권한과 무관하게 모든 계정 공통)
+// 로그아웃 시 PrivateRoute가 from 경로를 주입하는 구조적 문제로
+// from 값을 신뢰하지 않고 고정 경로로 이동
+const INITIAL_PAGE = '/admin/management/seat/list'
 
 function AdminLoginPage() {
     const navigate = useNavigate()
-    // useLocation: 로그인 전 접근하려던 경로를 state로 받아 로그인 후 돌아가기 위해
-    const location = useLocation()
     const {login} = useAuth()
 
     const [id, setId] = useState('')
@@ -22,10 +25,6 @@ function AdminLoginPage() {
     const [rememberMe, setRememberMe] = useState(false)  // 자동 로그인 체크박스
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
-
-    // PrivateRoute에서 리다이렉트될 때 전달한 원래 경로 — 없으면 영화 목록으로
-    const from = (location.state as { from?: Location })?.from?.pathname
-        ?? '/admin/management/movie/list'
 
     const handleLogin = async (e: FormEvent) => {
         e.preventDefault()
@@ -46,8 +45,8 @@ function AdminLoginPage() {
         const ok = await login(trimId, trimPw, rememberMe)
 
         if (ok) {
-            // 로그인 성공 → 원래 접근하려던 페이지(또는 대시보드)로 이동
-            navigate(from, {replace: true})
+            // 로그인 성공 → 항상 초기 페이지(좌석 현황)로 이동
+            navigate(INITIAL_PAGE, {replace: true})
         } else {
             // UC-11: 실패 시 경고창 (인라인 에러 메시지)
             setError('아이디 또는 비밀번호가 틀렸습니다.')
