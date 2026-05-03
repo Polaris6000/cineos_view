@@ -54,13 +54,11 @@ const RATING_COLOR: Record<string, string> = {
     '19': 'var(--color-error-main)',
 }
 
-const TODAY = new Date().toLocaleDateString('en-CA')
-
-/** 영화 상태 계산 */
-function getMovieStatus(movie: AdminMovie, pendingDeletes: Set<number>): MovieStatus {
+/** 영화 상태 계산 — today를 외부에서 받아 모듈 캐싱 문제 방지 */
+function getMovieStatus(movie: AdminMovie, pendingDeletes: Set<number>, today: string): MovieStatus {
     if (pendingDeletes.has(movie.id)) return 'DELETE_PENDING'
-    if (movie.startAt > TODAY) return 'UPCOMING'
-    if (movie.endAt && movie.endAt < TODAY) return 'ENDED'
+    if (movie.startAt > today) return 'UPCOMING'
+    if (movie.endAt && movie.endAt < today) return 'ENDED'
     return 'NOW_PLAYING'
 }
 
@@ -95,6 +93,9 @@ function MovieListAdminPage() {
     const canRegister = hasPermission('ROLE_MOVIE_REGISTER')
     const canEdit = hasPermission('ROLE_MOVIE_EDIT')
 
+    // 매 렌더마다 KST 기준 오늘 날짜 계산 (모듈 레벨 상수로 두면 자정 이후에도 갱신 안 됨)
+    const today = new Date().toLocaleDateString('en-CA')
+
     const [movies, setMovies] = useState<AdminMovie[]>([])
     const [loading, setLoading] = useState(true)
     const [pendingDeletes, setPendingDeletes] = useState<Set<number>>(new Set())
@@ -116,7 +117,7 @@ function MovieListAdminPage() {
     const filtered = useMemo(() => {
         return movies
             .filter((m) => {
-                const status = getMovieStatus(m, pendingDeletes)
+                const status = getMovieStatus(m, pendingDeletes, today)
                 if (!showLog && (status === 'ENDED' || status === 'DELETE_PENDING')) return false
                 return m.title.includes(search) || m.genre.includes(search)
             })
@@ -131,20 +132,20 @@ function MovieListAdminPage() {
                 const bEnd = b.endAt ?? '9999-12-31'
                 return aEnd.localeCompare(bEnd)
             })
-    }, [movies, search, showLog, pendingDeletes])
+    }, [movies, search, showLog, pendingDeletes, today])
 
     /** 상태별 카운터 */
     const counts = useMemo(() => {
         const result = {NOW_PLAYING: 0, UPCOMING: 0, ENDED: 0, DELETE_PENDING: 0}
         movies.forEach((m) => {
-            result[getMovieStatus(m, pendingDeletes)]++
+            result[getMovieStatus(m, pendingDeletes, today)]++
         })
         return result
-    }, [movies, pendingDeletes])
+    }, [movies, pendingDeletes, today])
 
     /** 삭제 처리 — 낙관적으로 DELETE_PENDING 표시, API 호출 */
     const handleDelete = (movie: AdminMovie) => {
-        const status = getMovieStatus(movie, pendingDeletes)
+        const status = getMovieStatus(movie, pendingDeletes, today)
 
         if (status === 'DELETE_PENDING') {
             if (window.confirm(`"${movie.title}" 삭제 예정을 취소하시겠습니까?`)) {
@@ -267,7 +268,7 @@ function MovieListAdminPage() {
                         </tr>
                     ) : (
                         filtered.map((m) => {
-                            const status = getMovieStatus(m, pendingDeletes)
+                            const status = getMovieStatus(m, pendingDeletes, today)
                             const rowOpacity = (status === 'ENDED' || status === 'DELETE_PENDING') ? 0.6 : 1
                             return (
                                 <tr key={m.id} style={{...tr, opacity: rowOpacity}}>

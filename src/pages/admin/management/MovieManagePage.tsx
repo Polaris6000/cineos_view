@@ -47,13 +47,9 @@ interface Movie {
 /**
  * 오늘 날짜 문자열 (YYYY-MM-DD) — 로컬 타임존 기준
  *
- * ⚠️ toISOString() 은 UTC 기준이라 한국(UTC+9) 자정~오전 9시 사이에 날짜가 하루 어긋남
- * toLocaleDateString('en-CA') 는 'YYYY-MM-DD' 형식으로 로컬(KST) 날짜를 반환
- *
- * 예) 한국 시간 2026-04-11 01:00 → toISOString() = "2026-04-10T..." → TODAY = "2026-04-10" ← 틀림
- *                               → toLocaleDateString('en-CA')    = "2026-04-11"         ← 맞음
+ * ⚠️ 모듈 레벨에서 날짜 상수를 선언하면 자정 이후에도 갱신되지 않아 날짜 비교가 틀림
+ * → 컴포넌트 안에서 매 렌더마다 계산하도록 변경
  */
-const TODAY = new Date().toLocaleDateString('en-CA')
 
 /** 'HH:MM' → 분 변환 */
 function timeToMin(time: string): number {
@@ -88,9 +84,10 @@ function getScheduleStatus(
     date: string,
     scheduleId: number,
     cancelledIds: Set<number>,
+    today: string,
 ): 'ACTIVE' | 'EXPIRED' | 'CANCELLED' {
     if (cancelledIds.has(scheduleId)) return 'CANCELLED'
-    if (date < TODAY) return 'EXPIRED'
+    if (date < today) return 'EXPIRED'
     return 'ACTIVE'
 }
 
@@ -206,11 +203,14 @@ function MovieManagePage() {
     // ── 만료처리된 scheduleId Set (undo 지원) ──
     const [cancelledIds, setCancelledIds] = useState<Set<number>>(new Set())
 
+    // 매 렌더마다 KST 기준 오늘 날짜 계산 (모듈 레벨 상수로 두면 자정 이후 갱신 안 됨)
+    const today = new Date().toLocaleDateString('en-CA')
+
     // ── 체크된 scheduleId Set (다중 선택) ──
     const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set())
 
     // ── 새 스케줄 입력 ──
-    const [newDate, setNewDate] = useState<string>(TODAY)
+    const [newDate, setNewDate] = useState<string>(() => new Date().toLocaleDateString('en-CA'))
     const [newTime, setNewTime] = useState<string>(getCurrentTime)  // 초기값: 현재 시각
     const [newTheater, setNewTheater] = useState<number>(theaters[0]?.no ?? 1)
 
@@ -289,7 +289,7 @@ function MovieManagePage() {
             alert('날짜와 시간을 선택해 주세요.')
             return
         }
-        if (newDate < TODAY) {
+        if (newDate < today) {
             alert('과거 날짜는 선택할 수 없습니다.')
             return
         }
@@ -455,7 +455,7 @@ function MovieManagePage() {
     // 체크된 항목 중 ACTIVE / CANCELLED 개수 (일괄 버튼 활성화 판단)
     const checkedActiveCount = [...checkedIds].filter((id) => {
         const s = movieSchedules.find((x) => x.id === id)
-        return s && getScheduleStatus(s.date, id, cancelledIds) === 'ACTIVE'
+        return s && getScheduleStatus(s.date, id, cancelledIds, today) === 'ACTIVE'
     }).length
     const checkedCancelledCount = [...checkedIds].filter((id) =>
         cancelledIds.has(id),
@@ -499,7 +499,7 @@ function MovieManagePage() {
                         <input
                             type="date"
                             value={newDate}
-                            min={TODAY}
+                            min={today}
                             onChange={(e) => setNewDate(e.target.value)}
                             style={inputS}
                         />
@@ -643,11 +643,11 @@ function MovieManagePage() {
                             const allGroupChecked = groupIds.every((id) => checkedIds.has(id))
 
                             const dateLabel =
-                                date < TODAY ? (
+                                date < today ? (
                                     <span>
                     {date} <span style={{fontSize: 11, color: 'var(--text-muted)'}}>(과거)</span>
                   </span>
-                                ) : date === TODAY ? (
+                                ) : date === today ? (
                                     <span>
                     {date} <span style={{fontSize: 11, color: 'var(--color-success-main)'}}>(오늘)</span>
                   </span>
@@ -678,7 +678,7 @@ function MovieManagePage() {
                                     {/* 스케줄 칩 목록 */}
                                     <div style={{display: 'flex', gap: 8, flexWrap: 'wrap', paddingLeft: 4}}>
                                         {sortedItems.map((s) => {
-                                            const sStatus = getScheduleStatus(date, s.id, cancelledIds)
+                                            const sStatus = getScheduleStatus(date, s.id, cancelledIds, today)
                                             const isChecked = checkedIds.has(s.id)
 
                                             // 상태별 스타일

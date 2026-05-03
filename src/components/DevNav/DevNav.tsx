@@ -15,17 +15,32 @@ import {useCallback, useEffect, useRef, useState} from 'react'
 import {useLocation, useNavigate} from 'react-router-dom'
 import {ChevronDown, ChevronUp, Code2} from 'lucide-react'
 
-/* ── 기본 위치 (우하단) ── */
-const DEFAULT_POS = {x: window.innerWidth - 224, y: window.innerHeight - 48}
+/** 현재 뷰포트 기준 기본 위치 — 우상단 여백 16px */
+function getDefaultPos(): { x: number; y: number } {
+    return {x: window.innerWidth - 232, y: 16}
+}
 
-/** localStorage에서 저장된 위치 복원, 없으면 기본값 */
+/**
+ * localStorage에서 저장된 위치 복원.
+ * 저장된 좌표가 현재 뷰포트 밖을 벗어나면 기본 위치로 초기화.
+ * (다른 해상도·창 크기에서 저장된 위치가 화면 밖에 찍히는 문제 방지)
+ */
 function loadPos(): { x: number; y: number } {
     try {
         const saved = localStorage.getItem('devnav_pos')
-        if (saved) return JSON.parse(saved)
+        if (saved) {
+            const parsed = JSON.parse(saved) as { x: number; y: number }
+            const margin = 40 // 패널 헤더 높이 정도의 여유값
+            const inBounds =
+                parsed.x >= 0 &&
+                parsed.y >= 0 &&
+                parsed.x < window.innerWidth - margin &&
+                parsed.y < window.innerHeight - margin
+            if (inBounds) return parsed
+        }
     } catch { /* ignore */
     }
-    return DEFAULT_POS
+    return getDefaultPos()
 }
 
 /* ── 바로가기 링크 정의 ── */
@@ -50,7 +65,7 @@ const ADMIN_LINKS = [
     {label: '영화별 통계', path: '/admin/statistics/stats/by-movie'},
     {label: '영화 목록', path: '/admin/management/movie/list'},
     {label: '영화 등록', path: '/admin/management/movie/form'},
-    {label: '영화 관리', path: '/admin/management/movie/manage'},
+    {label: '상영 관리', path: '/admin/management/movie/manage'},
     {label: '상영관 목록', path: '/admin/management/theater/list'},
     {label: '상영관 편집', path: '/admin/management/theater/edit'},
     {label: '좌석 현황', path: '/admin/management/seat/list'},
@@ -203,6 +218,7 @@ function DevNav() {
                 <span style={{display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none'}}>
                     <Code2 size={12} color="#ffb800"/>
                     <span style={{color: '#ffb800', fontWeight: 700}}>DevNav</span>
+                    <span style={{color: '#6b5c4e', fontSize: 10, fontWeight: 400}}>드래그 시 이동 가능</span>
                 </span>
                 <span style={{
                     color: '#4f4537', maxWidth: 100,

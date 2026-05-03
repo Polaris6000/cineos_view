@@ -16,7 +16,7 @@ import {createContext, type ReactNode, useCallback, useContext, useEffect, useRe
 import {useLocation, useNavigate} from 'react-router-dom'
 
 /** 비조작 제한 시간 (초) */
-const IDLE_LIMIT = 600000
+const IDLE_LIMIT = 60 * 2
 
 /**
  * Context 생성

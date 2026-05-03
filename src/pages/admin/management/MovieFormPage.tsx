@@ -15,7 +15,7 @@ import React, {useEffect, useRef, useState} from 'react'
 import {useLocation, useNavigate} from 'react-router-dom'
 import {CheckCircle, ChevronLeft, ChevronRight, Film, RefreshCw, Search, Sparkles, X,} from 'lucide-react'
 import {getPopularMovies, getTmdbMovieDetail, searchTmdbMovies, type TmdbMovieItem,} from '../../../api/tmdbApi'
-import apiClient from '../../../api/apiClient'
+import apiClient, {getKSTDateString} from '../../../api/apiClient'
 
 /* ─────────────────────────────────────────
    관람등급 옵션
@@ -282,7 +282,7 @@ function MovieFormPage() {
             // 등록 모드: createAt = 현재 날짜·시간 (백엔드 LocalDateTime 형식: yyyy-MM-ddTHH:mm:ss)
             // 수정 모드에서는 createAt 변경 없음
             if (!isEdit) {
-                const now = new Date().toISOString().slice(0, 10) // "2026-04-19"
+                const now = getKSTDateString() // KST 기준 오늘 날짜 (toISOString은 UTC라 새벽에 하루 어긋남)
                 fd.append('createAt', now)
             }
 
