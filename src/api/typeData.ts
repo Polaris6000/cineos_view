@@ -256,9 +256,11 @@ export const mapToBooking = (paymentDTO: PaymentDTO): BookingDTO => ({
     paymentKey: paymentDTO.paymentKey,
     // paymentKey가 "POINT"면 포인트 전액 결제, 아니면 카드 결제
     paymentMethod: paymentDTO.paymentKey === "POINT" ? "POINT" : "CARD",
-    phone: paymentDTO.reservation.phone.phone,
+    phone: paymentDTO.reservation.phone?.phone ?? '-',
     // 포인트 적립량: 결제금액 × 적립비율(%) / 100
-    pointEarned: paymentDTO.cost * paymentDTO.bonusPolicy.giveValue / 100,
+    pointEarned: paymentDTO.bonusPolicy != null
+        ? paymentDTO.cost * paymentDTO.bonusPolicy.giveValue / 100
+        : 0,
     pointUsed: paymentDTO.usePoint,
     seats: paymentDTO.reservation.seats.map(s => s.seatNumber),
     startTime: paymentDTO.reservation.schedule.startAt.slice(11, 16),
