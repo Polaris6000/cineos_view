@@ -361,7 +361,7 @@ const th: React.CSSProperties = {
 const td: React.CSSProperties = {
     padding: '12px 14px',
     color: 'var(--text-primary)',
-    borderBottom: '1px solid var(--border-subtle)'
+    borderBottom: '1px solid var(--border-subtle)',
 }
 const tRow: React.CSSProperties = {transition: 'background 0.1s'}
 const pointBtn: React.CSSProperties = {

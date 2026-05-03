@@ -2,16 +2,14 @@
  * PaymentPage.tsx — 결제 처리
  *
  * 흐름:
- *  1. 진입 시 [포인트 적립 모달] 자동 팝업
- *      - "네, 적립할게요" → [회원 인증 모달] 오픈
- *      - "괜찮아요"       → 모달 닫고 결제 진행
- *  2. [회원 인증 모달] — 전화번호 입력 → 테스트 코드(123456) 확인
- *      - 완료 시 포인트 잔액 표시 + 포인트 사용 섹션 활성화
- *  3. [쿠폰 입력] — POST /api/coupon/auth 로 유효성 검증
+ *  1. 진입 즉시 [회원 인증 모달] 자동 팝업 (필수 — Toss 결제에 전화번호 필요)
+ *      - 인증 완료 시 포인트 잔액 표시 + 포인트/쿠폰 사용 섹션 활성화
+ *      - 모달 닫기(X) → 이전 페이지로 이동 (인증 미완료 시 결제 불가)
+ *  2. [쿠폰 입력] — POST /api/coupon/auth 로 유효성 검증
  *      - 백엔드가 CouponDTO를 반환하면 할인 금액을 계산해 finalAmount에 반영
  *      - discountType: 'WON' = 고정금액 / 'RATIO' = 할인율(%)
- *  4. [포인트 사용] — 인증 완료 시 사용 가능
- *  5. 결제 버튼 클릭 → Toss CARD 결제 or 포인트 전액 결제
+ *  3. [포인트 사용] — 인증 완료 후 자동 활성화
+ *  4. 결제 버튼 클릭 → Toss CARD 결제 or 포인트 전액 결제
  *
  * state 수신:
  *   movieTitle, schedule(Schedule type), persons, totalPersons,
@@ -119,21 +117,8 @@ function PaymentPage() {
     )
 
     /* ── 모달 상태 ── */
-    const [showPointModal, setShowPointModal] = useState(false)
+    // 전화 인증은 필수 (Toss 결제에 전화번호 필요) → 진입 즉시 모달 오픈
     const [showPhoneModal, setShowPhoneModal] = useState(true)
-    const [wantPoints, setWantPoints] = useState<boolean | null>(null)
-
-    const handleModalYes = () => {
-        setWantPoints(true)
-        setShowPointModal(false)
-        setShowPhoneModal(true)
-    }
-    const handleModalNo = () => {
-        setWantPoints(false)
-        setShowPointModal(false)
-        setPointUsed(0)
-        setPointInput('')
-    }
 
     /* ── 회원 인증 상태 ── */
     const [phoneRaw, setPhoneRaw] = useState('')    // 숫자만 저장 (01011112222)
@@ -233,6 +218,7 @@ function PaymentPage() {
             setMemberPoint(data.point)
             setIsVerified(true)
             setVerifyError('')
+            setCancelMsg('')  // 이전에 표시된 "인증 필요" 안내 메시지 제거
             setShowPhoneModal(false)
         } catch {
             // 404: 미가입 회원 → 신규 등록 시도
@@ -243,6 +229,7 @@ function PaymentPage() {
                 setMemberPoint(data.point ?? 0)
                 setIsVerified(true)
                 setVerifyError('')
+                setCancelMsg('')  // 이전에 표시된 "인증 필요" 안내 메시지 제거
                 setShowPhoneModal(false)
             } catch (createErr) {
                 // 회원 생성 실패 시 인증 완료 처리하지 않음
@@ -253,11 +240,9 @@ function PaymentPage() {
         }
     }
 
+    // 모달 닫기 — 결제 시도 시 isVerified 체크로 재오픈됨
     const handlePhoneModalSkip = () => {
-        setWantPoints(false)
         setShowPhoneModal(false)
-        setCodeSent(false)
-        setVerifyError('')
     }
 
     /* ── 쿠폰 상태 ── */
@@ -520,36 +505,7 @@ function PaymentPage() {
         <div style={pageWrap}>
 
             {/* ══════════════════════════════════════════════════
-          [모달 1] 포인트 적립 여부 선택
-          ══════════════════════════════════════════════════ */}
-            {showPointModal && (
-                <div style={modalOverlay}>
-                    <div style={modalBox}>
-                        <button onClick={handleModalNo} style={modalCloseBtn} aria-label="모달 닫기">
-                            <X size={20}/>
-                        </button>
-                        <div style={{textAlign: 'center', marginBottom: 24}}>
-                            <Gift size={48} color="var(--color-brand-default)" style={{marginBottom: 12}}/>
-                            <h3 style={modalTitle}>포인트 적립하시겠어요?</h3>
-                            <p style={modalDesc}>
-                                결제 금액의 5%가 포인트로 적립됩니다.<br/>
-                                회원 인증 후 포인트를 사용하실 수도 있습니다.
-                            </p>
-                        </div>
-                        <div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
-                            <button onClick={handleModalYes} style={modalBtnYes}>
-                                네, 적립할게요
-                            </button>
-                            <button onClick={handleModalNo} style={modalBtnNo}>
-                                괜찮아요 (건너뛰기)
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ══════════════════════════════════════════════════
-          [모달 2] 회원 인증 (전화번호)
+          [모달] 회원 인증 (전화번호 — 결제 필수)
           ══════════════════════════════════════════════════ */}
             {showPhoneModal && (
                 <div style={modalOverlay}>
@@ -561,7 +517,7 @@ function PaymentPage() {
                             <Phone size={48} color="var(--color-brand-default)" style={{marginBottom: 12}}/>
                             <h3 style={modalTitle}>회원 인증</h3>
                             <p style={modalDesc}>
-                                휴대폰 번호로 인증해 주세요.<br/>
+                                결제를 위해 휴대폰 인증이 필요합니다.<br/>
                                 미가입 시 자동으로 회원 가입됩니다.
                             </p>
                         </div>
@@ -862,17 +818,18 @@ function PaymentPage() {
           </span>
                 </div>
 
-                {/* 포인트 적립 예정 or 적립 CTA */}
+                {/* 포인트 적립 예정 (인증 완료 시 표시) or 인증 안내 */}
                 <div style={{borderTop: '1px dashed var(--border-default)', marginTop: 14, paddingTop: 14}}>
-                    {wantPoints === true && isVerified ? (
+                    {isVerified ? (
                         <div style={{display: 'flex', alignItems: 'center', gap: 8, color: '#00ad74', fontSize: 14}}>
                             <Gift size={15}/>
                             <span>적립 예정: <strong>{pointEarned.toLocaleString()}P</strong></span>
                         </div>
                     ) : (
+                        // 인증 전 — 모달 재오픈 안내 버튼
                         <button onClick={() => setShowPhoneModal(true)} style={pointCtaBtn}>
-                            <Gift size={16} style={{marginRight: 8}}/>
-                            포인트 적립 / 회원 인증
+                            <Phone size={16} style={{marginRight: 8}}/>
+                            회원 인증 후 포인트 적립 가능
                         </button>
                     )}
                 </div>
@@ -925,8 +882,8 @@ function PaymentPage() {
                 )}
             </div>
 
-            {/* ── 포인트 사용 (인증 완료 + 적립 선택 시) ── */}
-            {wantPoints === true && isVerified && (
+            {/* ── 포인트 사용 (인증 완료 시 자동 활성화) ── */}
+            {isVerified && (
                 <div style={card}>
                     <h3 style={cardTitle}>
                         <Coins size={16} style={{marginRight: 8, verticalAlign: 'middle'}}/>
