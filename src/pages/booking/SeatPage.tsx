@@ -503,7 +503,7 @@ function SeatPage() {
             {/* ── 선택된 좌석 목록 ── */}
             {mySelectedIds.length > 0 && (
                 <div style={selectedBox}>
-                    <p style={{fontSize: 13, color: 'var(--text-muted)', marginBottom: 8}}>
+                    <p style={{fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8}}>
                         선택된 좌석
                     </p>
                     <div style={{display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8}}>
@@ -665,7 +665,7 @@ const hintBox: React.CSSProperties = {
     display: 'flex', alignItems: 'center',
     padding: '14px 20px', marginBottom: 16,
     background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
-    borderRadius: 12, fontSize: 15, color: 'var(--text-muted)',
+    borderRadius: 12, fontSize: 15, color: 'var(--color-brand-default)',
 }
 const amountBox: React.CSSProperties = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
