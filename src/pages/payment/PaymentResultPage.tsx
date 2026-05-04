@@ -308,7 +308,6 @@ ${pointEarned > 0 ? `<div class="divider"></div><div class="row"><span class="la
      * 영수증 SMS 발송 공통 함수
      * @param targetPhone - 발송 대상 번호 (예: '01012345678')
      * @param bookingId - 예매내역 PK (no)
-     * @param paymentUuid - 결제내역 PK (uuid)
      */
     const sendReceiptSms = async (targetPhone: string, bookingId: string): Promise<void> => {
         // 백엔드 엔드포인트: POST /api/sms/receipt/{toPhone}/{no}/{uuid}
