@@ -180,7 +180,7 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
         if (sid === null) return
 
         /**
-         * ⚠ 파라미터 순서 고정: userId 첫째, page 둘째, scheduleId 셋째
+         *  파라미터 순서 고정: userId 첫째, page 둘째, scheduleId 셋째
          *
          * MyWebSocketHandler.java 파싱 로직:
          *   String[] splits = query.split("&");
@@ -317,7 +317,7 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
      * 빈자리 클릭    → 선택 추가 (RESERVE with all mySeats)
      * 타인 좌석 클릭 → SeatPage에서 클릭 자체를 막으므로 여기까지 오지 않음
      *
-     * ⚠ 백엔드 RESERVE는 append가 아닌 replace:
+     *  백엔드 RESERVE는 append가 아닌 replace:
      *   받은 seats 배열로 해당 userId의 점유를 통째로 교체함.
      *   따라서 현재 mySeats 전체 목록을 항상 포함해 전송해야 함.
      *

@@ -74,7 +74,7 @@ function PaymentLogPage() {
      * 백엔드 PaymentDetailsServiceImpl.readAll(page)가 Spring Page<PaymentDetailsDTO> 반환.
      * Jackson 직렬화 시 { content, totalPages, totalElements, ... } 구조로 내려옴.
      *
-     * ⚠️ 이전 버그:
+     *  이전 버그:
      *   1) apiClient.get<PaymentDTO[]> 로 받아서 .content 접근 안 함 → 항상 빈 배열
      *   2) page 파라미터를 API에 전달 안 함 → 항상 1페이지만 조회
      *   3) totalPages / totalElements 업데이트 안 함 → 페이지네이션 UI 미동작
@@ -112,7 +112,7 @@ function PaymentLogPage() {
 
     /** 필터 + 검색 + 날짜 정렬 적용
      *
-     * ⚠️ 주의: 서버사이드 페이지네이션이므로 이 정렬은 현재 페이지 내에서만 동작함.
+     * 주의: 서버사이드 페이지네이션이므로 이 정렬은 현재 페이지 내에서만 동작함.
      * 전체 데이터 기준 최신순 정렬은 백엔드에서 ORDER BY create_at DESC 처리 필요.
      */
     const filtered = useMemo(() => {
@@ -181,6 +181,7 @@ function PaymentLogPage() {
                                 ...filterTab,
                                 background: filterStatus === s ? 'var(--color-brand-default)' : 'var(--bg-base)',
                                 color: filterStatus === s ? 'var(--btn-primary-text)' : 'var(--text-secondary)',
+                                whiteSpace: 'nowrap' as const,
                             }}
                         >
                             {{ALL: '전체', PAY: '결제완료', RETURN: '환불', FAIL: '실패'}[s]}
@@ -324,7 +325,7 @@ function PaymentLogPage() {
 
 /* ── 스타일 ── */
 const pageTitle: React.CSSProperties = {
-    fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 20,
+    fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 20, whiteSpace: 'nowrap'
 }
 const statsRow: React.CSSProperties = {
     display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20,
@@ -332,6 +333,7 @@ const statsRow: React.CSSProperties = {
 const statCard: React.CSSProperties = {
     background: 'var(--bg-surface)', borderRadius: 10, padding: '14px 16px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+    whiteSpace: 'nowrap' as const,
 }
 const toolbar: React.CSSProperties = {
     display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' as const,
@@ -350,6 +352,7 @@ const refreshBtn: React.CSSProperties = {
     background: 'var(--bg-base)', border: '1px solid var(--border-default)',
     borderRadius: 8, fontSize: 12, fontWeight: 600,
     color: 'var(--text-secondary)', cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
 }
 const errorBox: React.CSSProperties = {
     padding: '12px 16px', background: 'var(--color-error-bg)',
@@ -363,9 +366,11 @@ const pageBtn: React.CSSProperties = {
     padding: '6px 12px', border: '1px solid var(--border-default)',
     borderRadius: 8, fontSize: 12, fontWeight: 600,
     color: 'var(--text-secondary)', background: 'var(--bg-base)', cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
 }
 const pageNumBtn: React.CSSProperties = {
     width: 32, height: 32, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
 }
 const ellipsisStyle: React.CSSProperties = {
     width: 24, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', lineHeight: '32px',
@@ -378,16 +383,18 @@ const thStyle: React.CSSProperties = {
     padding: '10px 12px', background: 'var(--bg-base)', color: 'var(--text-secondary)',
     fontWeight: 700, fontSize: 12, textAlign: 'left' as const,
     borderBottom: '2px solid var(--border-default)',
+    whiteSpace: 'nowrap'
 }
 const trStyle: React.CSSProperties = {
-    borderBottom: '1px solid var(--border-default)',
+    borderBottom: '1px solid var(--border-default)', whiteSpace: 'nowrap'
 }
 const tdStyle: React.CSSProperties = {
-    padding: '10px 12px', color: 'var(--text-primary)', verticalAlign: 'middle' as const,
+    padding: '10px 12px', color: 'var(--text-primary)', verticalAlign: 'middle' as const, whiteSpace: 'nowrap'
 }
 const detailBtn: React.CSSProperties = {
     padding: '4px 12px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
     border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
 }
 
 export default PaymentLogPage

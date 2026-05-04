@@ -117,7 +117,7 @@ function PaymentResultPage() {
                     // 백엔드 PaymentController savePaymentInfo 파싱:
                     //   requestData.path("scheduleId").path("scheduleId").asLong()
                     //
-                    // ⚠ bookingData.schedule은 ScheduleDTO로 id 필드를 가짐 (scheduleId 아님).
+                    //  bookingData.schedule은 ScheduleDTO로 id 필드를 가짐 (scheduleId 아님).
                     //   그대로 보내면 path("scheduleId").path("scheduleId") = 0 → getScheduleDTO(0) → NPE → 500
                     //
                     // 백엔드가 기대하는 구조: { "scheduleId": { "scheduleId": <number> } }

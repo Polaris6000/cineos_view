@@ -47,7 +47,7 @@ function MovieDetailPage() {
         setLoading(true)
 
         /**
-         * ⚠️ 백엔드 버그 우회 [팀원 수정 필요]:
+         * 백엔드 버그 우회 [팀원 수정 필요]:
          *   MovieController.java 112번 줄:
          *     @GetMapping("/{movieId}/readOne")
          *     public ResponseEntity<MovieDTO> getMovieById(@PathVariable Long id) { ... }

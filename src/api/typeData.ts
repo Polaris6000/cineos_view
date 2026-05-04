@@ -7,7 +7,7 @@ import {DEFAULT_THEATER_CONFIG, THEATER_CONFIG} from '../config/theaterConfig'
 
 /* 공용 함수 정의 */
 // KST 기준 오늘 날짜 ('YYYY-MM-DD')
-// ⚠️ toISOString()은 UTC 기준이라 한국(UTC+9) 자정~오전 9시 사이에 날짜가 하루 어긋남
+// toISOString()은 UTC 기준이라 한국(UTC+9) 자정~오전 9시 사이에 날짜가 하루 어긋남
 // → toLocaleDateString('en-CA')를 사용하는 getKSTDateString()으로 교체
 export const today = getKSTDateString()
 export const now = new Date()

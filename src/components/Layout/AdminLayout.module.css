@@ -150,6 +150,7 @@
     font-size: 16px;
     font-weight: 600;
     color: var(--text-primary);
+    white-space: nowrap;
 }
 
 /* 헤더 우측 버튼 그룹 */
@@ -379,7 +380,7 @@
     min-width: 360px;
 }
 
-/* 백엔드 미연동 플레이스홀더 */
+/* 플레이스홀더 */
 .chatPlaceholder {
     flex: 1;
     display: flex;

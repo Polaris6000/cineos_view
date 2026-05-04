@@ -394,7 +394,7 @@ const sectionCard: React.CSSProperties = {
 const sectionHeader: React.CSSProperties = {
     display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16,
 }
-const sectionTitle = {fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0}
+const sectionTitle = {fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap'};
 const sectionDesc = {fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0'}
 
 const msgBox: React.CSSProperties = {
@@ -433,10 +433,10 @@ const table: React.CSSProperties = {width: '100%', borderCollapse: 'collapse'}
 const thead = {background: 'var(--bg-base)'}
 const th: React.CSSProperties = {
     padding: '12px 16px', textAlign: 'left', fontSize: 13, fontWeight: 600,
-    color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-default)',
+    color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-default)', whiteSpace: 'nowrap'
 }
-const tr = {borderBottom: '1px solid var(--border-subtle)'}
-const td: React.CSSProperties = {padding: '12px 16px', fontSize: 14, color: 'var(--text-primary)'}
+const tr = {borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap'}
+const td: React.CSSProperties = {padding: '12px 16px', fontSize: 14, color: 'var(--text-primary)', whiteSpace: 'nowrap'}
 
 /* 페이징 전용 스타일 */
 const paginationWrap: React.CSSProperties = {

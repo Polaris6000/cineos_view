@@ -51,33 +51,3 @@ export interface AdminUser {
 
     permissions: string[] // 권한 리스트 — 동적 API 응답이므로 string[]로 처리
 }
-
-/* ── 더미 계정 데이터 (TODO: 백엔드 API 연동 시 제거) ── */
-// export const MOCK_ADMIN_ACCOUNTS: AdminUser[] = [
-//   {
-//     id: 'admin',
-//     name: '관리자',
-//     role: 'MASTER',
-//     permissions: ROLE_PERMISSIONS['MASTER'],
-//   },
-//   {
-//     id: 'manager',
-//     name: '김아르바',
-//     role: 'STAFF',
-//     permissions: ROLE_PERMISSIONS['STAFF'],
-//   },
-//   {
-//     id: 'manager2',
-//     name: '이아르바',
-//     role: 'STAFF',
-//     // 최고관리자가 일부 권한 추가 부여한 케이스
-//     permissions: [...ROLE_PERMISSIONS['STAFF']],
-//   },
-// ]
-
-/* 비밀번호 매핑 (더미) — id: password */
-// export const MOCK_PASSWORDS: Record<string, string> = {
-//   admin:    'admin123',
-//   manager:  'manager123',
-//   manager2: 'manager123',
-// }

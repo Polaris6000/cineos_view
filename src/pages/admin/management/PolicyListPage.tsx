@@ -582,10 +582,10 @@ const CONDITION_TYPE_LABEL: Record<'TIME' | 'AGE' | 'JOB' | 'COUPON', string> = 
 /** 조건 유형별 배지 색상 */
 function conditionBadgeStyle(type: 'TIME' | 'AGE' | 'JOB' | 'COUPON'): React.CSSProperties {
     const colorMap: Record<string, { bg: string; color: string }> = {
-        TIME: {bg: '#eff6ff', color: '#1d4ed8'}, // 파랑
-        AGE: {bg: '#f0fdf4', color: '#15803d'}, // 초록
-        JOB: {bg: '#fdf4ff', color: '#7e22ce'}, // 보라
-        COUPON: {bg: '#fff7ed', color: '#c2410c'}, // 주황
+        TIME: {bg: 'var(--color-warning-main)', color: 'var(--color-warning-bg)'}, // 파랑
+        AGE: {bg: 'var(--color-success-main)', color: 'var(--color-success-bg)'}, // 초록
+        JOB: {bg: 'var(--color-info-main)', color: 'var(--color-info-bg)'}, // 골드
+        COUPON: {bg: 'var(--color-error-main)', color: 'var(--color-error-bg)'}, // 주황
     }
     return {background: colorMap[type]?.bg, color: colorMap[type]?.color}
 }
@@ -598,7 +598,7 @@ const sectionCard: React.CSSProperties = {
 const sectionHeader: React.CSSProperties = {
     display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16,
 }
-const sectionTitle = {fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0}
+const sectionTitle = {fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap',}
 const sectionDesc = {fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0'}
 
 const editActionBtn: React.CSSProperties = {
@@ -652,9 +652,10 @@ const thead = {background: 'var(--bg-base)'}
 const th: React.CSSProperties = {
     padding: '12px 16px', textAlign: 'left', fontSize: 13, fontWeight: 600,
     color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-default)',
+    whiteSpace: 'nowrap',
 }
-const tr = {borderBottom: '1px solid var(--border-subtle)'}
-const td: React.CSSProperties = {padding: '12px 16px', fontSize: 14, color: 'var(--text-primary)'}
+const tr = {borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap',}
+const td: React.CSSProperties = {padding: '12px 16px', fontSize: 14, color: 'var(--text-primary)', whiteSpace: 'nowrap',}
 const typeBadge: React.CSSProperties = {
     padding: '2px 8px', background: 'var(--bg-base)', borderRadius: 4,
     fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',

@@ -33,7 +33,6 @@ function PolicyManagePage() {
     const change = <K extends keyof DiscountPolicy>(field: K, val: DiscountPolicy[K]) =>
         setForm((p) => ({...p, [field]: val}))
 
-    // TODO: PATCH /api/admin/discount-policy/{id} 미연동 — 백엔드 엔드포인트 확인 후 적용
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         if (!form.policyName?.trim()) {

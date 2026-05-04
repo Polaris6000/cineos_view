@@ -8,8 +8,6 @@
  *  4. 스케줄 상태 표시 (정상 / 만료 / 만료처리됨)
  *  5. 만료처리 → 유효처리 (undo 지원)
  *  6. 체크박스로 다중 선택 후 일괄 만료처리 / 일괄 유효처리
- *
- * TODO: GET/POST/DELETE /api/admin/schedules 연동
  */
 import {useEffect, useMemo, useState} from 'react'
 import {Theater} from './TheaterListPage'
@@ -47,7 +45,7 @@ interface Movie {
 /**
  * 오늘 날짜 문자열 (YYYY-MM-DD) — 로컬 타임존 기준
  *
- * ⚠️ 모듈 레벨에서 날짜 상수를 선언하면 자정 이후에도 갱신되지 않아 날짜 비교가 틀림
+ * 모듈 레벨에서 날짜 상수를 선언하면 자정 이후에도 갱신되지 않아 날짜 비교가 틀림
  * → 컴포넌트 안에서 매 렌더마다 계산하도록 변경
  */
 
@@ -110,7 +108,7 @@ function MovieManagePage() {
                 console.log('상영관 출력', res.data)
                 setTheaters(res.data)
                 if (res.data.length > 0) {
-                    // ⚠️ TheaterDTO PK는 'id'가 아니라 'no' 필드임
+                    // TheaterDTO PK는 'id'가 아니라 'no' 필드임
                     // res.data[0].id → undefined 가 되어 no: undefined 로 등록 실패하던 버그 수정
                     setNewTheater(res.data[0].no)
                 }
@@ -121,7 +119,7 @@ function MovieManagePage() {
     useEffect(() => {
         // MovieController: @RequestMapping("/api/admin/movie") + @GetMapping("/readAll") 이어야 함
         // → 정상 URL: GET /api/admin/movie/readAll
-        // ⚠️ 백엔드 수정 필요: @GetMapping("/admin/admin/readAll") → @GetMapping("/readAll") 로 변경 요청
+        // 백엔드 수정 필요: @GetMapping("/admin/admin/readAll") → @GetMapping("/readAll") 로 변경 요청
         apiClient.get('/admin/movie/readAll')
             .then(res => {
                 console.log('영화 목록:', res.data)
@@ -145,7 +143,7 @@ function MovieManagePage() {
      * 마운트 시 1회 호출하고, 만료/유효 처리 후에도 재호출해서
      * 백엔드의 실제 상태를 항상 UI에 반영한다.
      *
-     * 백엔드 버그 주의 ⚠️ [팀원 수정 필요]:
+     * 백엔드 버그 주의 [팀원 수정 필요]:
      *   ScheduleServiceImpl.createSchedule() 67번 줄에서
      *   반환 DTO의 activation 이 false 로 하드코딩돼 있음 → true 로 수정해야 함.
      *   현재는 등록 직후 재조회로 실제 DB 상태(true)를 가져와 우회 처리.
@@ -608,9 +606,6 @@ function MovieManagePage() {
                     <p style={{...sLabel, margin: 0}}>
                         "{selectedMovie?.title}" 등록된 상영 일정 ({movieSchedules.length}건)
                     </p>
-                    {/* 체크된 항목이 있을 때만 일괄 액션 버튼 노출
-          TODO 서버에서는 기간이 이미 지나간 만료된 스케줄은 변경하지 않음 UI도 막는게 아닌 변경이 안되게 반영해야함,
-           그리고 만료된 스케줄인데 만료여부가 만료면 만료표시가 됨 이것도 그냥 만료로 하면 될듯함 */}
                     {/* 체크된 항목이 있고 ROLE_MOVIE_EDIT 있을 때만 일괄 액션 버튼 노출 */}
                     {canEdit && checkedIds.size > 0 && (
                         <div style={bulkActionBar}>

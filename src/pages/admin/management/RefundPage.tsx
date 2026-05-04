@@ -176,7 +176,7 @@ function RefundPage() {
 
     // 파생 상태 — 백엔드 환불 완료 상태값은 'RETURN'
     const isRefunded = result ? (result.status === 'RETURN' || refunded) : false
-    const canRefund = true  // TODO: 상영 시작 시각 기준 환불가능 여부
+    const canRefund = true  // 상영 시작 시각 기준 환불가능 여부
 
     return (
         <div style={{maxWidth: 800}}>
@@ -204,7 +204,7 @@ function RefundPage() {
 
                 {/* 에러 표시 */}
                 {listError && (
-                    <div style={listErrorBox}>⚠️ {listError}</div>
+                    <div style={listErrorBox}>{listError}</div>
                 )}
 
                 {/* 로딩 중 */}
@@ -252,7 +252,7 @@ function RefundPage() {
                                         <td style={td}>{p.phone}</td>
                                         <td style={{...td, fontWeight: 700}}>{p.cost.toLocaleString()}원</td>
                                         <td style={td}><StatusBadge status={p.status}/></td>
-                                        <td style={{...td, color: 'var(--text-muted)', fontSize: 12}}>
+                                        <td style={{...td, fontSize: 12}}>
                                             {p.createAt ? p.createAt.replace('T', ' ').slice(0, 16) : '-'}
                                         </td>
                                         <td style={td}>
@@ -438,13 +438,13 @@ const sectionCard: React.CSSProperties = {
     boxShadow: '0 1px 3px rgba(0,0,0,0.06)', marginBottom: 20,
 }
 const sectionTitle: React.CSSProperties = {
-    fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0,
+    fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap'
 }
 const refreshBtn: React.CSSProperties = {
     display: 'flex', alignItems: 'center', padding: '6px 12px',
     background: 'var(--bg-base)', border: '1px solid var(--border-default)',
     borderRadius: 8, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)',
-    cursor: 'pointer',
+    cursor: 'pointer', whiteSpace: 'nowrap' as const,
 }
 const listErrorBox: React.CSSProperties = {
     padding: '12px 16px', background: 'var(--color-error-bg)', border: '1px solid var(--color-error-text)',
@@ -460,12 +460,15 @@ const th: React.CSSProperties = {
     padding: '8px 10px', background: 'var(--bg-base)', color: 'var(--text-secondary)',
     fontWeight: 700, fontSize: 12, textAlign: 'left' as const,
     borderBottom: '2px solid var(--border-default)', position: 'sticky' as const, top: 0,
+    whiteSpace: 'nowrap',
 }
 const tr: React.CSSProperties = {
     borderBottom: '1px solid var(--border-default)',
+    whiteSpace: 'nowrap',
 }
 const td: React.CSSProperties = {
     padding: '8px 10px', color: 'var(--text-primary)', verticalAlign: 'middle' as const,
+    whiteSpace: 'nowrap',
 }
 const paginationWrap: React.CSSProperties = {
     display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, flexWrap: 'wrap',
@@ -474,9 +477,11 @@ const pageBtn: React.CSSProperties = {
     padding: '5px 11px', border: '1px solid var(--border-default)',
     borderRadius: 8, fontSize: 12, fontWeight: 600,
     color: 'var(--text-secondary)', background: 'var(--bg-base)', cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
 }
 const pageNumBtn: React.CSSProperties = {
     width: 30, height: 30, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
 }
 const ellipsis: React.CSSProperties = {
     width: 24, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', lineHeight: '30px',
@@ -522,6 +527,7 @@ const refundBtn: React.CSSProperties = {
     width: '100%', padding: '14px 0',
     background: '#e03c3c', border: 'none',
     borderRadius: 10, color: '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
 }
 
 export default RefundPage

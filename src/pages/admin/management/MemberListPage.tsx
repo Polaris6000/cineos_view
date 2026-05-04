@@ -332,12 +332,12 @@ const pageHeader: React.CSSProperties = {
     alignItems: 'flex-start',
     marginBottom: 20
 }
-const pageTitle: React.CSSProperties = {fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px'}
+const pageTitle: React.CSSProperties = {fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px', whiteSpace: 'nowrap'}
 const pageDesc: React.CSSProperties = {fontSize: 13, color: 'var(--text-muted)', margin: 0}
 const logBtn: React.CSSProperties = {
     padding: '8px 16px', background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
     borderRadius: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer',
-    display: 'flex', alignItems: 'center',
+    display: 'flex', alignItems: 'center', whiteSpace: 'nowrap'
 }
 const searchWrap: React.CSSProperties = {
     display: 'flex', alignItems: 'center', gap: 10,
@@ -357,11 +357,13 @@ const th: React.CSSProperties = {
     fontSize: 12, fontWeight: 700, color: 'var(--text-muted)',
     textTransform: 'uppercase', letterSpacing: '0.05em',
     borderBottom: '1px solid var(--border-subtle)',
+    whiteSpace: 'nowrap',
 }
 const td: React.CSSProperties = {
     padding: '12px 14px',
     color: 'var(--text-primary)',
     borderBottom: '1px solid var(--border-subtle)',
+    whiteSpace: 'nowrap',
 }
 const tRow: React.CSSProperties = {transition: 'background 0.1s'}
 const pointBtn: React.CSSProperties = {
@@ -369,6 +371,7 @@ const pointBtn: React.CSSProperties = {
     border: '1px solid var(--color-brand-default)', borderRadius: 6,
     color: 'var(--primitive-brand-700)', fontSize: 12, fontWeight: 600,
     cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
+    whiteSpace: 'nowrap',
 }
 const pagination: React.CSSProperties = {
     display: 'flex', justifyContent: 'center', alignItems: 'center',
@@ -378,7 +381,7 @@ const pageBtn: React.CSSProperties = {
     padding: '6px 10px', background: 'var(--bg-surface)',
     border: '1px solid var(--border-default)', borderRadius: 6,
     fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer',
-    display: 'flex', alignItems: 'center',
+    display: 'flex', alignItems: 'center', whiteSpace: 'nowrap',
 }
 const ellipsisStyle: React.CSSProperties = {
     width: 24, textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', lineHeight: '32px',
@@ -399,6 +402,7 @@ const modalTitle: React.CSSProperties = {
 const closeIconBtn: React.CSSProperties = {
     background: 'none', border: 'none', cursor: 'pointer',
     color: 'var(--text-secondary)', padding: 4, display: 'flex', alignItems: 'center',
+    whiteSpace: 'nowrap'
 }
 const logRow: React.CSSProperties = {
     display: 'grid', gridTemplateColumns: '1fr 3fr 1fr',
@@ -410,7 +414,7 @@ const closeModalBtn: React.CSSProperties = {
     width: '100%', padding: '12px 0',
     background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
     borderRadius: 8, color: 'var(--text-primary)', fontSize: 14, cursor: 'pointer',
-    marginTop: 16,
+    marginTop: 16, whiteSpace: 'nowrap' as const,
 }
 
 export default MemberListPage

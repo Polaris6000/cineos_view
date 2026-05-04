@@ -120,7 +120,7 @@ function AdminLoginPage() {
                 {/* 에러 메시지 (UC-11: 로그인 실패 경고) */}
                 {error && (
                     <div style={errorBox}>
-                        ⚠️ {error}
+                        {error}
                     </div>
                 )}
 

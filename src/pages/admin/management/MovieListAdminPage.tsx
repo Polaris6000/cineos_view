@@ -102,10 +102,7 @@ function MovieListAdminPage() {
     const [search, setSearch] = useState('')
     const [showLog, setShowLog] = useState(false)
 
-    /** GET /api/admin/movie/readAll — 관리자 전체 영화 목록
-     * ⚠️ 백엔드 수정 필요:
-     *   MovieController @GetMapping 이 "/admin/admin/readAll" 로 잘못 선언돼 있음
-     *   → @GetMapping("/readAll") 로 수정해야 이 URL이 정상 동작함 */
+    /** GET /api/admin/movie/readAll — 관리자 전체 영화 목록 */
     useEffect(() => {
         apiClient.get<MovieDTO[]>('/admin/movie/readAll')
             .then((res) => setMovies(res.data.map(toAdminMovie)))
@@ -159,7 +156,7 @@ function MovieListAdminPage() {
         }
 
         const ok = window.confirm(
-            `"${movie.title}" 을 삭제하시겠습니까?\n\n⚠️ 삭제 후 복구할 수 없습니다.`
+            `"${movie.title}" 을 삭제하시겠습니까?\n\n삭제 후 복구할 수 없습니다.`
         )
         if (!ok) return
 
@@ -323,7 +320,7 @@ function MovieListAdminPage() {
 
 /* ── 스타일 ── */
 const headerRow = {display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12}
-const pageTitle = {fontSize: 22, fontWeight: 800, color: 'var(--text-primary)'}
+const pageTitle = {fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap'}
 const addBtn = {
     padding: '10px 20px', background: 'var(--color-brand-default)', color: 'var(--btn-primary-text)',
     border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer'
