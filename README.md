@@ -33,12 +33,21 @@
 
 ## 프로젝트 소개
 
+### 시연 영상
+| 소개 항목           | 비고                                                                                         |
+|-----------------|--------------------------------------------------------------------------------------------|
+| 고객 키오스크         | [영상보기](https://drive.google.com/file/d/1VpGzNeaiLbky4ta3t7FtR460js8s0EED/view?usp=sharing) |
+| 관리자 키오스크 (TMDB) | [영상보기](https://drive.google.com/file/d/1mZ9L-dkJ7Ka2y7OLZofWKlWovzLeAIKo/view?usp=sharing) |
+| WebSocket       | [영상보기](https://drive.google.com/file/d/1u0-D2g0aXrSReS_GWr-agdbG8Q2irdHR/view?usp=sharing) |
+| SpringAI        | [영상보기](https://drive.google.com/file/d/1RgqCRZIE4g5f75HV8LsxYyz-PELut5lc/view?usp=sharing) |
+
 ### 만들게 된 이유
 
-> ✏️ " 두 번째 프로젝트로, 첫 번째 프로젝트에서 서블렛으로 구현을 했기때문에 수업을 통해 배우기만 하고 직접 활용해보지 못했던 JPA를 실제로 써보고 싶었습니다.
-> 여기에 더해 Spring AI, Spring Security(JWT), Spring Batch, WebSocket 등 관심 있던 기술들을 한 프로젝트 안에서 함께 익혀보는 것을 목표로 했습니다.
-> 프론트엔드도 React를 이번에 처음 적용해보았으며, 백엔드와 프론트엔드를 분리하여 각자 담당해 개발했습니다.
-> 주제는 실시간 좌석 선점, 주기적인 배치 실행, 외부 API를 통한 영화 정보 및 이미지 연동 등 다양한 기술을 자연스럽게 녹일 수 있는 영화관 키오스크로 선정했습니다. "
+> 현대 사회의 흐름은 AI와 자동화를 통한 반복 노동의 최적화로 향하고 있습니다.
+> 하지만 무인화 시스템이 고도화될수록, 하나의 한정된 자원에 다수의 사용자가 동시에 접근하며 발생할 수 있는 ‘실시간 데이터 무결성’이 시스템의 신뢰도를 결정짓는 핵심이라 생각했습니다.
+<br>
+1초 미만의 짧은 찰나에 좌석 선점이 결정되는 예매 시스템은 다수 클라이언트 간의 즉각적인 데이터 동기화와 정교한 동시성 제어가 필수적입니다.
+접근성과 친숙성을 고려했을 때, 해당 문제의 해결할 수 있는 형태가 '영화관 키오스크'라고 생각하여 프로젝트의 주제로 선정하였습니다.
 
 ### 프로젝트 개요
 
@@ -136,28 +145,72 @@ npm run dev
 
 ### JPA + MyBatis 혼용
 
-JPA만으로도 대부분의 CRUD는 처리할 수 있지만, 여러 테이블을 JOIN하는 복잡한 조회 쿼리는 JPA의 연관관계 설정이 까다롭고 처음 다루는 입장에서 제어가 어려웠습니다. 이번 프로젝트에서 JPA를 처음
-사용해보는 것이기도 해서, **단순 CRUD는 JPA로, 복잡한 조회나 집계 쿼리는 SQL을 직접 제어할 수 있는 MyBatis로** 역할을 분리하는 방식을 선택했습니다.
+> 유지보수 효율성이 검증된 MyBatis와 현대적인 표준인 JPA 사이에서 고민했지만, 기술적 성장과 생산성을 위해 JPA를 적극적으로 도입하기로 결정했습니다.
+> 다만, 모든 기능을 JPA로만 구현하기에는 현실적인 제약이 있었습니다.
+> JPA만으로도 기본적인 CRUD는 충분히 처리 가능했으나, 다중 테이블 조인이나 복잡한 집계가 필요한 쿼리의 경우 연관관계 설정의 복잡도와 제어의 어려움이 따랐습니다.
+> 특히 이번 프로젝트에서 JPA를 처음 도입하는 점을 고려하여, 기술적 숙련도로 인한 리스크를 최소화할 수 있는 하이브리드 전략을 선택했습니다.
 
 ### WebSocket — Stomp 미사용
 
-> ✏️ **[작성 필요]** 순수 WebSocket을 선택하고 Stomp를 사용하지 않은 이유를 구현 담당자에게 확인 후 작성해주세요.
+> 기술 선택의 이유는 아키텍처의 단순성, 프로토콜 오버헤드를 최소화를 고려하였습니다. 본 프로젝트는 단일 서버 환경에서 모든 키오스크 노드가 연결되는 구조로 가정하고 작성되었습니다.
+> 따라서 다중 서버 확장을 위한 메시지 브로커 도입이나 STOMP의 Pub/Sub 추상화 계층 없이도 충분히 안정적인 실시간 통신이 가능하다고 판단했습니다.
+> 또한 좌석 선점 데이터는 어떤 키오스크가 어떤 좌석을 선점했는지만 알면 되기에 별도의 메시지 규격이 필요하지 않았습니다.
+> 커스텀 JSON 포맷을 사용하여 통신 비용을 절감하고 메시징 패턴을 직관적으로 설계했습니다.
+<br>
+> 학습의 이유로 웹소켓 통신의 기본 구조를 파악하기 위해서 입니다. 프레임워크가 제공하는 고수준의 추상화 기능을 사용하기에 앞서, 웹소켓의 핸드쉐이크부터 세션 관리까지의 전체 생명주기를 직접 제어해보고자 했습니다.
+> 이러한 로우 레벨에서의 경험이 향후 STOMP와 같은 상위 프로토콜을 더 정확하게 이해하고 응용할 수 있는 밑거름이 될 것이라 판단했습니다.
 
 ### JWT AccessToken / RefreshToken 이중 관리 구조
 
-JWT를 처음 접했을 때는 AccessToken과 RefreshToken을 같은 저장소에서 함께 관리하는 것으로 알고 있었습니다.
-이번 프로젝트를 통해 AccessToken은 메모리(ViewData)에, RefreshToken은 httpOnly Cookie와 DB에 분리 저장하는 구조를 직접 구현하며 그 이유를 이해했습니다.
-AccessToken을 메모리에만 두면 XSS로 탈취되더라도 페이지 이탈 시 사라지고, RefreshToken을 DB에도 저장하면 서버 측에서 강제 만료가 가능해집니다.
+> JWT를 처음 접했을 때는 AccessToken과 RefreshToken을 같은 저장소에서 함께 관리하는 것으로 알고 있었습니다.
+> 이번 프로젝트를 통해 AccessToken은 메모리(ViewData)에, RefreshToken은 httpOnly Cookie와 DB에 분리 저장하는 구조를 직접 구현하며 그 이유를 이해했습니다.
+> AccessToken을 메모리에만 두면 XSS로 탈취되더라도 페이지 이탈 시 사라지고, RefreshToken을 DB에도 저장하면 서버 측에서 강제 만료가 가능해집니다.
+<br><br>
+> 자동 로그인 구현 시에도 새로운 점을 발견했습니다.
+> 기존에 세션 방식으로 자동 로그인을 구현할 때는 UUID 값을 쿠키에 담아 서버의 세션과 대조하는 방식을 사용했는데,
+> JWT에서는 RefreshToken 자체가 그 역할을 대신한다는 것을 이번에 처음 깨달았습니다.
+> 일반 로그인과 자동 로그인의 차이를 RefreshToken 만료 기간(1일 vs 30일)으로만 구분하면 된다는 점이 인상적이었습니다.
 
-자동 로그인 구현 시에도 새로운 점을 발견했습니다.
-기존에 세션 방식으로 자동 로그인을 구현할 때는 UUID 값을 쿠키에 담아 서버의 세션과 대조하는 방식을 사용했는데,
-JWT에서는 RefreshToken 자체가 그 역할을 대신한다는 것을 이번에 처음 깨달았습니다.
-일반 로그인과 자동 로그인의 차이를 RefreshToken 만료 기간(1일 vs 30일)으로만 구분하면 된다는 점이 인상적이었습니다.
+### Spring AI
 
-### (추가 의사결정 항목)
+> 신규 직원 온보딩 과정에서 반복적인 매뉴얼 교육에 소요되는 시간과 비용을 줄이기 위해 도입했습니다.
+> 직원 교육은 정해진 매뉴얼을 반복 설명하는 구조이기 때문에, 이를 자동화하면 담당자의 리소스를 절감하면서도 일관된 품질의 응답을 제공할 수 있다고 판단했습니다.
+> 현재 AI 자동화가 반복 업무 최적화의 기본 흐름으로 자리잡은 점도 도입의 배경이 되었습니다.
+<br>
+<br>
+> 단순한 키워드 매칭만으로는 정확도가 낮아지는 문제를 해결하기 위해 세 가지 전략을 조합했습니다. 메뉴얼을 찾는 임계점수는 0.3으로 기준을 잡았습니다.
+> 우선 ChatMemory를 도입하여 사용자의 이전 대화 맥락을 유지했습니다. 단발성 질문이 아닌 연속된 대화 흐름 안에서 답변할 수 있어 문맥 기반의 응답 정확도를 높일 수 있었습니다.
+> 또한 유사도 임계 점수가 0.35 이상인 경우에는 쿼리 압축기를 활용하여 대화 히스토리를 반영한 뒤 질문을 압축/재구성하여 검색에 활용했습니다.
+> 반대로 임계 점수가 0.35 미만으로 관련 문서를 찾기 어려운 경우에는 쿼리 확장기를 통해 질문을 다양한 표현으로 확장하여 검색 범위를 넓히고 정확한 매뉴얼 항목을 탐색하도록 했습니다.
+> 이 세 가지 전략을 조합함으로써 RAG 파이프라인의 검색 품질을 단계적으로 보완할 수 있었습니다.
 
-> ✏️ **[작성 필요]** 그 외 기술 선택, 트러블슈팅 경험이 있다면 이곳에 추가해주세요.
+### Spring Batch
 
+> 정해진 시간마다 DB에 저장된 데이터를 대상으로 반복적인 작업을 자동으로 실행하기 위해 도입했습니다.
+> 스케줄링 기반의 배치 처리는 수동 개입 없이 일관된 주기로 실행되어야 하기 때문에, Spring Batch가 제공하는 Job/Step 단위의 실행 관리와 실패 재처리 구조가 적합하다고 판단했습니다.
+<br>
+> 데이터 접근 방식으로는 복잡한 쿼리와 대용량 처리에 유리한 JDBC를 선택했습니다.
+> JPA 기반의 Repository는 ItemReader 인터페이스와의 호환 부재, 청크 단위 처리 시 발생하는 트랜잭션 경계 문제, 그리고 영속성 컨텍스트의 세션 관리 복잡도로 인해 배치 환경에서는 적합하지 않다고 판단했습니다.
+<br>
+> 처리 방식은 작업의 규모에 따라 구분했습니다.
+> 대량의 데이터를 다루는 배치는 일정 단위로 나눠 읽고 처리하는 Chunk 방식을 적용하여 메모리 부담을 줄이고 트랜잭션 단위를 안정적으로 관리했습니다.
+> 반면 처리량이 적거나 단순한 작업은 Tasklet 방식으로 간결하게 구현했습니다.
+
+### React
+
+> 첫 번째 프로젝트에서 백엔드 위주로 작업하며 서블릿과 JSP만 경험했던 터라, 이번 프로젝트에서는 프론트엔드라는 새로운 영역에 도전하고 싶었습니다.
+> 그 중심에 React를 선택한 이유는 컴포넌트 기반 개발과 선언적 UI 작성 방식이 현대 프론트엔드의 표준으로 자리잡고 있었기 때문입니다.
+> JSP의 서버 사이드 렌더링에 익숙했던 탓에 클라이언트 사이드 렌더링과 단방향 데이터 플로우는 처음에 낯설었지만, 
+> 컴포넌트를 재사용하고 상태를 관리하는 과정이 점차 자연스러워지면서 React의 강력함을 체감할 수 있었습니다.
+<br>
+> 빌드 도구로는 Vite를 선택했습니다. 
+> 빠른 개발 서버 구동 속도와 HMR(Hot Module Replacement) 덕분에 코드를 수정하고 즉시 결과를 확인할 수 있어 반복 개발 속도가 크게 향상되었습니다.
+> TypeScript를 함께 도입하여 백엔드 API 연동 시 런타임 오류를 컴파일 단계에서 미리 잡아낼 수 있었고, 타입 정의가 팀원 간의 계약서 역할을 하며 협업 효율도 높아졌습니다.
+<br>
+UI 일관성을 위해 프로젝트 초반부터 CSS 디자인 시스템을 구축했습니다.
+골드 컬러를 메인 테마로 선정하고, 순수 색상 팔레트 -> 시맨틱 토큰 -> 컴포넌트 전용 토큰의 3계층 구조로 설계했습니다.
+이 구조 덕분에 고객 화면(다크)과 관리자 화면(라이트)의 테마 전환을 시맨틱 토큰 오버라이드만으로 처리할 수 있었고, 
+새로운 컴포넌트를 추가할 때마다 색상 고민 없이 이미 정의된 토큰을 가져다 쓸 수 있어 개발 속도와 UI 완성도를 동시에 높일 수 있었습니다.
 ---
 
 ## 시스템 아키텍처
@@ -178,8 +231,8 @@ graph TD
     end
 
     subgraph DB["Database"]
-        MARIA["MariaDB\n(주 DB)"]
         PG["PostgreSQL + PGVector\n(Docker, 벡터 DB)"]
+        MARIA["MariaDB\n(주 DB)"]
     end
 
     subgraph External["외부 API"]
@@ -312,15 +365,14 @@ statistics         - 일별 통계 (schedule FK, 요일, 매출, 관람객 수, 
 ```
 admin ──< admin_role_map >── admin_role
 
-member ──< point_history
-member ──< reservation_details ──< reservation_seat
-                               ──< payment_details ──< point_history
-                                                    ── bonus_policy
-                                                    ── coupon ── discount_policy
+seat_policy ──< theater ──< 
+                  movie ──< schedule ──< statistics
+                                     ──< reservation_details
+point_history >──       member       ──< reservation_details ──< reservation_seat
+                                                             ──  payment_details ──< point_history
+                                                                                 >── bonus_policy
+                                                                                  ── coupon >── discount_policy
 
-movie ──< schedule ──< reservation_details
-theater ── seat_policy
-theater ──< schedule ──< statistics
 ```
 
 ---
@@ -333,17 +385,17 @@ theater ──< schedule ──< statistics
 sequenceDiagram
     autonumber
     box "사용자 단말"
-    participant User as 사용자
-    participant App as 키오스크
+        participant User as 사용자
+        participant App as 키오스크
     end
     box "메인 서버"
-    participant Data as 데이터 모듈
-    participant WebSocket as 웹소켓 모듈
-    participant SMS as 문자메시지 모듈
-    participant Error as 에러 처리 모듈
+        participant Data as 데이터 모듈
+        participant WebSocket as 웹소켓 모듈
+        participant SMS as 문자메시지 모듈
+        participant Error as 에러 처리 모듈
     end
     box "외부 API"
-    participant Pay as 토스페이
+        participant Pay as 토스페이
     end
 
     Note over User, App: [1단계] 영화 및 좌석 탐색
@@ -355,33 +407,33 @@ sequenceDiagram
     WebSocket -->> App: 구독 승인 완료
 
     rect rgb(240, 248, 255)
-    Note over User, Data: [2단계] 사용자 인증 (SMS OTP)
-    User ->> App: 좌석 선택 및 핸드폰 번호 입력
-    App ->> Data: OTP 발송 요청
-    Data ->> SMS: OTP 생성 및 발송 위임
-    SMS -->> User: 인증번호 문자 발송
-    User ->> App: 인증번호 입력
-    App ->> Data: 인증번호 검증 요청
-    Data -->> App: 인증 성공
+        Note over User, Data: [2단계] 사용자 인증 (SMS OTP)
+        User ->> App: 좌석 선택 및 핸드폰 번호 입력
+        App ->> Data: OTP 발송 요청
+        Data ->> SMS: OTP 생성 및 발송 위임
+        SMS -->> User: 인증번호 문자 발송
+        User ->> App: 인증번호 입력
+        App ->> Data: 인증번호 검증 요청
+        Data -->> App: 인증 성공
     end
 
     rect rgb(255, 245, 245)
-    Note over App, Pay: [3단계] 결제 프로세스
-    App ->> Data: 결제 요청
-    Data ->> Pay: 결제 승인(Confirm) API 호출
-    Pay -->> Data: 결제 상태 응답 (SUCCESS/FAIL)
-    alt 결제 성공
-        Data ->> Data: DB 트랜잭션 처리 (예약 확정)
-        Data ->> WebSocket: 좌석 상태 업데이트 브로드캐스팅
-        Data -->> App: 결제 성공 응답 및 티켓 정보
-        Data ->> SMS: 예매 완료 알림톡 발송
-    else 결제 실패
-        Data ->> Error: 결제 실패 로그 저장
-        Error -->> Data: 에러 코드 반환
-        Data -->> App: 결제 실패 알림
+        Note over App, Pay: [3단계] 결제 프로세스
+        App ->> Data: 결제 요청
+        Data ->> Pay: 결제 승인(Confirm) API 호출
+        Pay -->> Data: 결제 상태 응답 (SUCCESS/FAIL)
+        alt 결제 성공
+            Data ->> Data: DB 트랜잭션 처리 (예약 확정)
+            Data ->> WebSocket: 좌석 상태 업데이트 브로드캐스팅
+            Data -->> App: 결제 성공 응답 및 티켓 정보
+            Data ->> SMS: 예매 완료 알림톡 발송
+        else 결제 실패
+            Data ->> Error: 결제 실패 로그 저장
+            Error -->> Data: 에러 코드 반환
+            Data -->> App: 결제 실패 알림
+        end
     end
-    end
-    App --X WebSocket: 세션 종료 및 구독 해제
+App --X WebSocket: 세션 종료 및 구독 해제
 ```
 
 ### 관리자 흐름
@@ -502,69 +554,69 @@ sequenceDiagram
 
 ---
 
-### 고객 API (`/api`)
+### 고객 API (`/api`) — 전체 JWT 인증 불필요
 
 #### 영화
 
-| Method | URL                            | 설명                | 인증 |
-|--------|--------------------------------|-------------------|----|
-| GET    | `/api/movie/all`               | 오늘 상영 중인 영화 목록 조회 | ❌  |
-| GET    | `/api/movie/{movieId}/readOne` | 영화 단일 조회          | ❌  |
+| Method | URL                            | 설명                |
+|--------|--------------------------------|-------------------|
+| GET    | `/api/movie/all`               | 오늘 상영 중인 영화 목록 조회 |
+| GET    | `/api/movie/{movieId}/readOne` | 영화 단일 조회          |
 
 #### 스케줄
 
-| Method | URL                        | 설명                         | 인증 |
-|--------|----------------------------|----------------------------|----|
-| GET    | `/api/schedule/list`       | 스케줄 전체 조회 (JPA)            | ❌  |
-| GET    | `/api/schedule/DTOlist`    | 스케줄 전체 조회 (MyBatis Mapper) | ❌  |
-| GET    | `/api/schedule/{id}/movie` | 지정 영화의 전체 스케줄 조회           | ❌  |
+| Method | URL                        | 설명                         |
+|--------|----------------------------|----------------------------|
+| GET    | `/api/schedule/list`       | 스케줄 전체 조회 (JPA)            |
+| GET    | `/api/schedule/DTOlist`    | 스케줄 전체 조회 (MyBatis Mapper) |
+| GET    | `/api/schedule/{id}/movie` | 지정 영화의 전체 스케줄 조회           |
 
 #### 상영관 / 좌석
 
-| Method | URL                     | 설명            | 인증 |
-|--------|-------------------------|---------------|----|
-| GET    | `/api/theater/list`     | 상영관 전체 조회     | ❌  |
-| GET    | `/api/theater/dtoAll`   | 상영관 DTO 전체 조회 | ❌  |
-| GET    | `/api/seat-policy/list` | 좌석 정책 전체 조회   | ❌  |
+| Method | URL                     | 설명            |
+|--------|-------------------------|---------------|
+| GET    | `/api/theater/list`     | 상영관 전체 조회     |
+| GET    | `/api/theater/dtoAll`   | 상영관 DTO 전체 조회 |
+| GET    | `/api/seat-policy/list` | 좌석 정책 전체 조회   |
 
 #### 회원 / 포인트
 
-| Method | URL                   | 설명              | 인증 |
-|--------|-----------------------|-----------------|----|
-| POST   | `/api/member/{phone}` | 회원 가입 (전화번호 기반) | ❌  |
-| GET    | `/api/member/{phone}` | 회원 단일 조회        | ❌  |
-| POST   | `/api/member/point`   | 포인트 사용 / 적립     | ❌  |
+| Method | URL                   | 설명              |
+|--------|-----------------------|-----------------|
+| POST   | `/api/member/{phone}` | 회원 가입 (전화번호 기반) |
+| GET    | `/api/member/{phone}` | 회원 단일 조회        |
+| POST   | `/api/member/point`   | 포인트 사용 / 적립     |
 
 #### 쿠폰 / 할인
 
-| Method | URL                      | 설명          | 인증 |
-|--------|--------------------------|-------------|----|
-| POST   | `/api/coupon/auth`       | 쿠폰 번호 검증    | ❌  |
-| GET    | `/api/discount/age`      | 연령 할인 정책 조회 | ❌  |
-| GET    | `/api/discount/time`     | 시간 할인 정책 조회 | ❌  |
-| GET    | `/api/bonus-policy/list` | 적립 정책 전체 조회 | ❌  |
+| Method | URL                      | 설명          |
+|--------|--------------------------|-------------|
+| POST   | `/api/coupon/auth`       | 쿠폰 번호 검증    |
+| GET    | `/api/discount/age`      | 연령 할인 정책 조회 |
+| GET    | `/api/discount/time`     | 시간 할인 정책 조회 |
+| GET    | `/api/bonus-policy/list` | 적립 정책 전체 조회 |
 
 #### 결제
 
-| Method | URL                    | 설명                       | 인증 |
-|--------|------------------------|--------------------------|----|
-| POST   | `/api/payment/confirm` | 토스페이먼츠 결제 승인 / 포인트 전액 결제 | ❌  |
+| Method | URL                    | 설명                       |
+|--------|------------------------|--------------------------|
+| POST   | `/api/payment/confirm` | 토스페이먼츠 결제 승인 / 포인트 전액 결제 |
 
 #### SMS
 
-| Method | URL                                         | 설명               | 인증 |
-|--------|---------------------------------------------|------------------|----|
-| POST   | `/api/sms/random/{toPhone}`                 | OTP 인증번호 생성 및 발송 | ❌  |
-| POST   | `/api/sms/comparison/{toPhone}/{inputCode}` | 인증번호 검증          | ❌  |
-| POST   | `/api/sms/{toPhone}/{inputCode}`            | 문자 직접 발송         | ❌  |
-| POST   | `/api/sms/receipt/{toPhone}/{uuid}`         | 결제 영수증 SMS 발송    | ❌  |
+| Method | URL                                         | 설명               |
+|--------|---------------------------------------------|------------------|
+| POST   | `/api/sms/random/{toPhone}`                 | OTP 인증번호 생성 및 발송 |
+| POST   | `/api/sms/comparison/{toPhone}/{inputCode}` | 인증번호 검증          |
+| POST   | `/api/sms/{toPhone}/{inputCode}`            | 문자 직접 발송         |
+| POST   | `/api/sms/receipt/{toPhone}/{uuid}`         | 결제 영수증 SMS 발송    |
 
 #### 예매 / 좌석
 
-| Method | URL                                                | 설명               | 인증 |
-|--------|----------------------------------------------------|------------------|----|
-| GET    | `/api/reservation/seatCount/schedule/{scheduleId}` | 스케줄의 예약된 좌석 조회   | ❌  |
-| GET    | `/api/reservation/seatCount/movie/{movieId}`       | 영화별 예약된 좌석 전체 조회 | ❌  |
+| Method | URL                                                | 설명               |
+|--------|----------------------------------------------------|------------------|
+| GET    | `/api/reservation/seatCount/schedule/{scheduleId}` | 스케줄의 예약된 좌석 조회   |
+| GET    | `/api/reservation/seatCount/movie/{movieId}`       | 영화별 예약된 좌석 전체 조회 |
 
 ---
 
@@ -712,20 +764,16 @@ OPENAI_API_KEY=your_openai_api_key
 spring.datasource.url=jdbc:mariadb://localhost:3306/cinema_kiosk
 spring.datasource.username=task_master
 spring.datasource.password=4444
-
 # PostgreSQL + PGVector (Docker)
 app.datasource.url=jdbc:postgresql://localhost:5432/postgres?currentSchema=rag,public
 app.datasource.username=postgres
 app.datasource.password=postgres
-
 # OpenAI 모델
 spring.ai.openai.embedding.options.model=text-embedding-3-small
 spring.ai.openai.chat.options.model=gpt-4o-mini
-
 # TMDB
 tmdb.base-url=https://api.themoviedb.org/3
 tmdb.image-url=https://image.tmdb.org/t/p/w500
-
 # 파일 업로드
 spring.servlet.multipart.max-file-size=10MB
 spring.servlet.multipart.max-request-size=30MB
@@ -865,12 +913,15 @@ cinemaKiosk/
 
 ## 팀 문서
 
-> ✏️ **[작성 필요]** 유스케이스 명세서, 기획 문서 등 팀 문서가 있다면 아래에 링크를 추가해주세요.
-
-| 문서         | 링크                                                                                                 |
-|------------|----------------------------------------------------------------------------------------------------|
-| 유스케이스 명세서  | [링크](https://docs.google.com/document/d/1kTD8A6RrQe-xDvIrj8cqbpsOa_vISxIrA7Gs83PyrOk/edit?tab=t.0) |
-| 기획 / 설계 문서 | [링크 추가 예정]                                                                                         |
+| 문서         | 링크                                                                                                           |
+|------------|--------------------------------------------------------------------------------------------------------------|
+| 유스케이스 명세서  | [링크](https://docs.google.com/document/d/1kTD8A6RrQe-xDvIrj8cqbpsOa_vISxIrA7Gs83PyrOk/edit?tab=t.0)           |
+| 기획 / 설계 문서 | [링크](https://docs.google.com/spreadsheets/d/1nJuW53kMzQa5ZqNoAvmKcw8byYW75cnHN4dgb_IxMGI/edit?usp=sharing)   |
+| 테스트 시트 문서  | [링크]()                                                                                                       |
+| 팀원별 소감 문서  | 최민종 : [링크](https://docs.google.com/document/d/1qx7ITRKIKoYTpYBsNj1zuC9gppVau5n4DJBIl3SCTh0/edit?usp=sharing) |
+|            | 김준용 : [링크](https://docs.google.com/document/d/163KIsUe_emy04LP6BjiZVyxvawAl1ei8C_k4Ppfw68M/edit?usp=sharing) |
+|            | 강혜윰 : [링크](https://docs.google.com/document/d/1bENFeQ0zBpRFtLRqy5yvrvwdfdfyr-iBvuzOT9hak7w/edit?usp=sharing) |
+|            | 조현재 : [링크]()                                                                                                 |
 
 ---
 
