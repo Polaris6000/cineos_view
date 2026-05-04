@@ -454,7 +454,7 @@ ${pointEarned > 0 ? `<div class="divider"></div><div class="row"><span class="la
             <p style={subTitle}>소중한 이용에 감사드립니다.</p>
 
             {/* 예매 번호 */}
-            <div style={bookingIdBox}>
+            <div style={bookingIdBox} hidden={true}>
                 <p style={{fontSize: 13, color: 'var(--text-muted)', marginBottom: 6}}>
                     <Ticket size={14} style={{marginRight: 4, verticalAlign: 'middle'}}/>
                     예매 번호

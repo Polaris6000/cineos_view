@@ -395,7 +395,7 @@ const sectionHeader: React.CSSProperties = {
     display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16,
 }
 const sectionTitle = {fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap'};
-const sectionDesc = {fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0'}
+const sectionDesc = {fontSize: 13, color: 'var(--text-primary)', margin: '4px 0 0'}
 
 const msgBox: React.CSSProperties = {
     padding: '10px 14px', background: 'var(--color-success-bg)',
