@@ -433,7 +433,7 @@ sequenceDiagram
             Data -->> App: 결제 실패 알림
         end
     end
-App --X WebSocket: 세션 종료 및 구독 해제
+App --x WebSocket: 세션 종료 및 구독 해제
 ```
 
 ### 관리자 흐름
@@ -917,7 +917,7 @@ cinemaKiosk/
 |------------|--------------------------------------------------------------------------------------------------------------|
 | 유스케이스 명세서  | [링크](https://docs.google.com/document/d/1kTD8A6RrQe-xDvIrj8cqbpsOa_vISxIrA7Gs83PyrOk/edit?tab=t.0)           |
 | 기획 / 설계 문서 | [링크](https://docs.google.com/spreadsheets/d/1nJuW53kMzQa5ZqNoAvmKcw8byYW75cnHN4dgb_IxMGI/edit?usp=sharing)   |
-| 테스트 시트 문서  | [링크]()                                                                                                       |
+| 테스트 시트 문서  | [링크](https://docs.google.com/spreadsheets/d/1NmIKfpQiWNteCgcEI6o-9A7pflU7aQwpswtZJIHe8pw/edit?usp=sharing)   |
 | 팀원별 소감 문서  | 최민종 : [링크](https://docs.google.com/document/d/1qx7ITRKIKoYTpYBsNj1zuC9gppVau5n4DJBIl3SCTh0/edit?usp=sharing) |
 |            | 김준용 : [링크](https://docs.google.com/document/d/163KIsUe_emy04LP6BjiZVyxvawAl1ei8C_k4Ppfw68M/edit?usp=sharing) |
 |            | 강혜윰 : [링크](https://docs.google.com/document/d/1bENFeQ0zBpRFtLRqy5yvrvwdfdfyr-iBvuzOT9hak7w/edit?usp=sharing) |
