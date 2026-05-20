@@ -8,14 +8,17 @@
  *   - "등록" / "수정" 클릭 시에만 DB 저장
  *
  * [API 연동]
- *   - 등록: POST /api/movie/upload  (multipart/form-data)
- *   - 수정: POST /api/movie/modify  (multipart/form-data)
+     *   - 포스터: 프론트 서버 uploads/ 에 저장 후 posterPath만 백엔드 전달
+     *   - 등록: POST /api/admin/movie/upload
+     *   - 수정: PATCH /api/admin/movie/modify
  */
 import React, {useEffect, useRef, useState} from 'react'
 import {useLocation, useNavigate} from 'react-router-dom'
 import {CheckCircle, ChevronLeft, ChevronRight, Film, RefreshCw, Search, Sparkles, X,} from 'lucide-react'
 import {getPopularMovies, getTmdbMovieDetail, searchTmdbMovies, type TmdbMovieItem,} from '../../../api/tmdbApi'
 import apiClient, {getKSTDateString} from '../../../api/apiClient'
+import {axiosParseResponse} from '../../../api/parseResponse'
+import {uploadMoviePoster} from '../../../api/posterUploadApi'
 
 /* ─────────────────────────────────────────
    관람등급 옵션
@@ -41,8 +44,7 @@ interface FormData {
     startAt: string
     endAt: string | null
     /**
-     * TMDB에서 선택 시 백엔드가 반환한 포스터 full URL
-     * 백엔드 saveImageFromDTO()가 https로 시작하면 자동 다운로드함
+     * TMDB full URL — 프론트 서버가 downloads 후 uploads/ 에 저장
      */
     posterPath: string | null
 }
@@ -186,7 +188,7 @@ function MovieFormPage() {
                 rating: detail.rating || prev.rating,
             }))
 
-            // 포스터 미리보기: detail > list 순으로 시도
+            // 포스터 미리보기: detail > list 순으로 시도 (등록 전 TMDB URL 미리보기 — 저장 후에는 /uploads/)
             const previewUrl = detail.posterPath ?? movie.posterPath
             if (previewUrl) setPosterPreview(previewUrl)
 
@@ -247,8 +249,7 @@ function MovieFormPage() {
      *
      * multipart/form-data로 전송:
      *   - 파일 업로드: image 필드에 File 객체
-     *   - TMDB 선택:  posterPath 필드에 이미지 URL
-     *   - 백엔드 saveImageFromDTO()가 URL이면 자동 다운로드
+     *   - TMDB 선택: 프론트 서버가 URL 이미지를 uploads/ 에 저장
      *
      * 필드명 변환:
      *   form.cast     → 'actors'
@@ -279,11 +280,13 @@ function MovieFormPage() {
             // endAt은 백엔드 DTO가 LocalDateTime이므로 날짜만 있으면 T00:00:00 붙여서 전송
             if (form.endAt) fd.append('endAt', `${form.endAt}T00:00:00`)
 
-            // 등록 모드: createAt = 현재 날짜·시간 (백엔드 LocalDateTime 형식: yyyy-MM-ddTHH:mm:ss)
-            // 수정 모드에서는 createAt 변경 없음
+            // 등록일 — DB create_at 과 동일 (yyyy-MM-dd, KST)
+            const createAt = !isEdit
+                ? getKSTDateString()
+                : (editMovie?.createAt?.slice(0, 10) ?? getKSTDateString())
+
             if (!isEdit) {
-                const now = getKSTDateString() // KST 기준 오늘 날짜 (toISOString은 UTC라 새벽에 하루 어긋남)
-                fd.append('createAt', now)
+                fd.append('createAt', createAt)
             }
 
             // 수정 모드: movieId 포함
@@ -292,13 +295,21 @@ function MovieFormPage() {
                 if (movieId != null) fd.append('movieId', String(movieId))
             }
 
-            // 포스터: 직접 업로드 파일 OR TMDB URL
+            // 포스터: 프론트 서버 uploads/ 에 저장 (백엔드와 별도 서버)
             const file = fileRef.current?.files?.[0]
-            if (file) {
-                // 직접 파일 업로드 → image 필드
-                fd.append('image', file)
-            } else if (form.posterPath) {
-                // TMDB 선택 → posterPath 필드 (백엔드에서 URL 다운로드)
+            const tmdbUrl = form.posterPath?.startsWith('http') ? form.posterPath : undefined
+            let storedPosterPath: string | null = null
+
+            // 등록 시 TMDB URL/파일 → uploads 저장 후 posterPath(/uploads/...)만 백엔드 전달
+            if (file || tmdbUrl) {
+                storedPosterPath = await uploadMoviePoster({
+                    title: form.title,
+                    createAt,
+                    file,
+                    imageUrl: tmdbUrl,
+                })
+                fd.append('posterPath', storedPosterPath)
+            } else if (form.posterPath?.startsWith('/uploads/')) {
                 fd.append('posterPath', form.posterPath)
             }
 
@@ -315,9 +326,14 @@ function MovieFormPage() {
             const endpoint = isEdit ? '/admin/movie/modify' : '/admin/movie/upload'
             // Content-Type을 undefined로 지정 → apiClient 기본값(application/json) 제거
             // → axios가 FormData를 감지해 multipart/form-data; boundary=... 자동 설정
+            const multipartConfig = {
+                headers: {'Content-Type': undefined as unknown as string},
+                // 백엔드 ResponseEntity<Void> 는 본문이 비어 있음 → JSON.parse 오류 방지
+                transformResponse: [axiosParseResponse],
+            }
             await (isEdit
-                    ? apiClient.patch(endpoint, fd, {headers: {'Content-Type': undefined}})
-                    : apiClient.post(endpoint, fd, {headers: {'Content-Type': undefined}})
+                    ? apiClient.patch(endpoint, fd, multipartConfig)
+                    : apiClient.post(endpoint, fd, multipartConfig)
             )
 
             setSuccess(true)

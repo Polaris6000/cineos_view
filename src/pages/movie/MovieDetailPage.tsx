@@ -11,17 +11,17 @@
  *  - ScheduleDTO 필드 정합: id / no / startAt / endAt / activation
  *  - theaterName(no) 사용 ("X관")
  */
-import {useNavigate, useParams} from 'react-router-dom'
-import {CalendarDays, ChevronLeft, Clock, Film, Tag} from 'lucide-react'
-import {useEffect, useState} from 'react'
-import apiClient, {type MovieDTO, resolvePosterUrl} from '../../api/apiClient'
+import { useNavigate, useParams } from 'react-router-dom'
+import { CalendarDays, ChevronLeft, Clock, Film, Tag } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import apiClient, { type MovieDTO, resolvePosterUrl } from '../../api/apiClient'
 
 /** 관람등급 → 표시 텍스트·색상 */
 const RATING_INFO: Record<string, { label: string; color: string }> = {
-    ALL: {label: '전체관람가', color: '#4caf50'},
-    '12': {label: '12세 이상', color: '#2a88c8'},
-    '15': {label: '15세 이상', color: '#ffb800'},
-    '19': {label: '청소년 관람불가', color: '#e03c3c'},
+    ALL: { label: '전체관람가', color: '#4caf50' },
+    '12': { label: '12세 이상', color: '#2a88c8' },
+    '15': { label: '15세 이상', color: '#ffb800' },
+    '19': { label: '청소년 관람불가', color: '#e03c3c' },
 }
 
 /** 런타임(분) → "2시간 46분" 형식 변환 */
@@ -33,7 +33,7 @@ function formatRuntime(minutes: number | undefined | null) {
 }
 
 function MovieDetailPage() {
-    const {id} = useParams<{ id: string }>()
+    const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
     const today = new Date().toLocaleDateString('en-CA')
 
@@ -82,7 +82,7 @@ function MovieDetailPage() {
     if (loading) {
         return (
             <div style={notFoundWrap}>
-                <p style={{color: 'var(--text-secondary)', fontSize: 16}}>불러오는 중...</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 16 }}>불러오는 중...</p>
             </div>
         )
     }
@@ -90,8 +90,8 @@ function MovieDetailPage() {
     if (error || !movie) {
         return (
             <div style={notFoundWrap}>
-                <Film size={64} color="var(--text-muted)"/>
-                <p style={{color: 'var(--text-secondary)', marginTop: 24, fontSize: 18}}>
+                <Film size={64} color="var(--text-muted)" />
+                <p style={{ color: 'var(--text-secondary)', marginTop: 24, fontSize: 18 }}>
                     영화 정보를 찾을 수 없습니다.
                 </p>
                 <button onClick={() => navigate('/movie/list')} style={btnPrimary}>
@@ -114,7 +114,7 @@ function MovieDetailPage() {
     /** 예매하기 클릭 → 상영 스케줄 선택 페이지로 이동 */
     const handleBook = () => {
         navigate('/booking/schedule', {
-            state: {movieId: movie.movieId, movieTitle: movie.title},
+            state: { movieId: movie.movieId, movieTitle: movie.title },
         })
     }
 
@@ -123,7 +123,7 @@ function MovieDetailPage() {
 
             {/* ── 뒤로 가기 ── */}
             <button onClick={() => navigate(-1)} style={backBtn}>
-                <ChevronLeft size={20}/>
+                <ChevronLeft size={20} />
                 목록으로
             </button>
 
@@ -140,7 +140,7 @@ function MovieDetailPage() {
                             (e.target as HTMLImageElement).src = '/placeholder-poster.jpg'
                         }}
                     />
-                    <span style={{...ratingBadge, background: rating.color}}>{rating.label}</span>
+                    <span style={{ ...ratingBadge, background: rating.color }}>{rating.label}</span>
                 </div>
 
                 {/* 텍스트 정보 */}
@@ -150,14 +150,14 @@ function MovieDetailPage() {
                     <div style={tagRow}>
                         {movie.genre && (
                             <span style={tag}>
-                <Tag size={12} style={{marginRight: 4}}/>
+                                <Tag size={12} style={{ marginRight: 4 }} />
                                 {movie.genre}
-              </span>
+                            </span>
                         )}
                         <span style={tag}>
-              <Clock size={12} style={{marginRight: 4}}/>
+                            <Clock size={12} style={{ marginRight: 4 }} />
                             {formatRuntime(movie.runtime)}
-            </span>
+                        </span>
                     </div>
 
                     <dl style={dl}>
@@ -192,17 +192,17 @@ function MovieDetailPage() {
             <div style={actionArea}>
                 {isUpcoming ? (
                     <div style={upcomingBadge}>
-                        <CalendarDays size={20}/>
+                        <CalendarDays size={20} />
                         <span>{movie.startAt?.slice(0, 10)} 개봉 예정</span>
                     </div>
                 ) : isEnded ? (
                     <div style={upcomingBadge}>
-                        <Film size={20}/>
+                        <Film size={20} />
                         <span>상영 종료</span>
                     </div>
                 ) : (
                     <button onClick={handleBook} style={bookBtn}>
-                        <Film size={22}/>
+                        <Film size={22} />
                         예매하기
                     </button>
                 )}
@@ -226,8 +226,8 @@ const backBtn: React.CSSProperties = {
     color: 'var(--text-secondary)', fontSize: 16,
     cursor: 'pointer', padding: '10px 0', marginBottom: 32,
 }
-const card: React.CSSProperties = {display: 'flex', gap: 48, flexWrap: 'wrap'}
-const posterWrap: React.CSSProperties = {position: 'relative', flexShrink: 0, width: 300}
+const card: React.CSSProperties = { display: 'flex', gap: 48, flexWrap: 'wrap' }
+const posterWrap: React.CSSProperties = { position: 'relative', flexShrink: 0, width: 300 }
 const posterImg: React.CSSProperties = {
     width: '100%', borderRadius: 16, display: 'block',
     objectFit: 'cover', aspectRatio: '2/3',
@@ -237,12 +237,12 @@ const ratingBadge: React.CSSProperties = {
     padding: '5px 12px', borderRadius: 8,
     fontSize: 12, fontWeight: 700, color: '#fff',
 }
-const info: React.CSSProperties = {flex: 1, minWidth: 320}
+const info: React.CSSProperties = { flex: 1, minWidth: 320 }
 const titleStyle: React.CSSProperties = {
     fontSize: 30, fontWeight: 800, color: 'var(--text-primary)',
     marginBottom: 16, lineHeight: 1.3,
 }
-const tagRow: React.CSSProperties = {display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24}
+const tagRow: React.CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }
 const tag: React.CSSProperties = {
     display: 'flex', alignItems: 'center',
     padding: '6px 14px', background: 'var(--bg-surface)',
@@ -253,8 +253,8 @@ const dl: React.CSSProperties = {
     display: 'grid', gridTemplateColumns: '56px 1fr',
     gap: '10px 16px', marginBottom: 24,
 }
-const dt: React.CSSProperties = {color: 'var(--text-muted)', fontSize: 14, fontWeight: 600}
-const dd: React.CSSProperties = {color: 'var(--text-secondary)', fontSize: 14, margin: 0}
+const dt: React.CSSProperties = { color: 'var(--text-muted)', fontSize: 14, fontWeight: 600 }
+const dd: React.CSSProperties = { color: 'var(--text-secondary)', fontSize: 14, margin: 0 }
 const synopsisBox: React.CSSProperties = {
     background: 'var(--bg-surface)', borderRadius: 12, padding: 20, marginBottom: 24,
 }

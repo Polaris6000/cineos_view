@@ -1,9 +1,10 @@
 import {defineConfig} from 'vite'
 import react from '@vitejs/plugin-react'
+import {posterUploadPlugin} from './server/posterUploadPlugin.mjs'
 
 // https://vite.dev/config/
 export default defineConfig({
-    plugins: [react()],
+    plugins: [react(), posterUploadPlugin()],
     build: {
         // 빌드 결과물을 Spring Boot static 폴더로 직접 출력
         // → npm run build 실행 시 ../src/main/resources/static 에 파일 생성
