@@ -269,7 +269,8 @@ function CouponListPage() {
                     <div>
                         <h2 style={sectionTitle}>쿠폰 목록</h2>
                         <p style={sectionDesc}>
-                            전체 {totalItems}건 (현재 페이지: {currentPage} / {totalPages})
+                            <span style={{color: 'var(--color-info-main)', fontWeight: 800}}>전체 {totalItems}건</span>
+                            {' '}(현재 페이지: {currentPage} / {totalPages})
                             &nbsp;·&nbsp;
                             {/* 사용 가능 건수 표시 (초록색) */}
                             <span style={{color: 'var(--color-success-main)', fontWeight: 600}}>

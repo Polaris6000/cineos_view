@@ -80,7 +80,7 @@
 /* 슬라이드 텍스트 콘텐츠 — CTA만 하단에 표시 */
 .slideContent {
     position: absolute;
-    bottom: 80px;
+    bottom: 140px; /* 인디케이터(bottom:80px)와 겹치지 않도록 위로 여유 */
     left: 0;
     right: 0;
     z-index: 3;
@@ -89,21 +89,25 @@
 
 /* 터치 유도 문구 — 깜빡임 애니메이션 */
 .cta {
-    font-size: clamp(0.85rem, 1.8vw, 1rem);
+    display: inline-block;
+    font-size: clamp(1rem, 1.4vw, 1.2rem);
+    font-weight: 500;
     color: #fff;
     margin: 0;
-    letter-spacing: 0.08em;
-    /* 포스터 위에서도 읽히도록 텍스트 그림자 */
-    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9), 0 0 24px rgba(0, 0, 0, 0.7);
+    letter-spacing: 0.1em;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 6px;
+    padding: 10px 28px;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
     animation: ctaPulse 2.2s ease-in-out infinite;
 }
 
 @keyframes ctaPulse {
     0%, 100% {
-        opacity: 0.4;
+        opacity: 0.55;
     }
     50% {
-        opacity: 0.9;
+        opacity: 1;
     }
 }
 
