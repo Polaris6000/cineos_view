@@ -177,7 +177,6 @@ function SeatListPage() {
             await apiClient.post('/admin/payment/admin-reserve', {
                 scheduleId: selectedScheduleId,
                 seats: selectedSeats,
-                phone: null,
             })
             showToast('예매가 완료됐습니다.', 'success')
             selectedSeats.forEach(seat => wsState.reserved.add(seat))
