@@ -26,6 +26,7 @@ import apiClient, {type MovieDTO, type ScheduleDTO} from '../../../api/apiClient
 import {useWebSocket} from '../../../hooks/useWebSocket'
 import {generateSeats, type SeatItem, splitRowByAisle} from '../../../utils/seatUtils'
 import {THEATER_CONFIG} from '../../../config/theaterConfig'
+import {showToast} from '../../../utils/toast'
 
 /* ── 상수 ────────────────────────────────────────────────────── */
 
@@ -71,19 +72,22 @@ function formatScheduleLabel(schedule: ScheduleDTO, movieTitleMap: Record<number
 function SeatListPage() {
 
     /* ── 상영관 선택 ── */
-    // THEATER_CONFIG 키(1~4)를 상영관 번호로 사용. 정적 상수이므로 API 불필요.
     const theaterNos = Object.keys(THEATER_CONFIG).map(Number).sort((a, b) => a - b)
     const [selectedTheaterNo, setSelectedTheaterNo] = useState<number>(theaterNos[0])
 
     /* ── 영화 제목 맵 ── */
-    // movieId → 영화 제목 매핑. 스케줄 드롭다운 레이블에 #1 대신 제목 표시용.
     const [movieTitleMap, setMovieTitleMap] = useState<Record<number, string>>({})
 
     /* ── 스케줄 목록 ── */
-    // 전체 스케줄을 한 번 조회 후 클라이언트에서 상영관 번호로 필터링
     const [allSchedules, setAllSchedules] = useState<ScheduleDTO[]>([])
     const [schedulesLoading, setSchedulesLoading] = useState(true)
     const [schedulesError, setSchedulesError] = useState('')
+
+    /* ── 관리자 예매: 선택된 좌석 목록 ── */
+    const [selectedSeats, setSelectedSeats] = useState<string[]>([])
+
+    /* ── 관리자 예매: 처리 중 여부 ── */
+    const [reserving, setReserving] = useState(false)
 
     useEffect(() => {
         const fetchData = async () => {
@@ -128,22 +132,14 @@ function SeatListPage() {
     /* ── 선택된 스케줄 ID ── */
     const [selectedScheduleId, setSelectedScheduleId] = useState<number | null>(null)
 
-    // 상영관이 바뀌면 첫 번째 스케줄로 자동 선택
+    // 상영관이 바뀌면 첫 번째 스케줄로 자동 선택 + 좌석 선택 초기화
     useEffect(() => {
         setSelectedScheduleId(filteredSchedules.length > 0 ? filteredSchedules[0].id : null)
+        setSelectedSeats([])
     }, [filteredSchedules])
 
-    /* ── WebSocket 연결 (read-only) ── */
-    /**
-     * useWebSocket(scheduleId): selectedScheduleId가 바뀔 때마다 재연결
-     *
-     * 관리자는 RESERVE/RELEASE를 보내지 않으므로:
-     *  - mySeatsRef가 항상 비어있음 → occupied Map의 모든 좌석이 'other'로 분류됨
-     *  - 즉, 임시점유 좌석을 모두 "점유 중"으로 올바르게 표시
-     *
-     * sendToggle은 사용하지 않음 (read-only)
-     */
-    const {wsState} = useWebSocket(selectedScheduleId)
+    /* ── WebSocket 연결 (관리자 예매용 sendToggle 포함) ── */
+    const {wsState, sendToggle} = useWebSocket(selectedScheduleId)
 
     /* ── 좌석 배치 ── */
     // seatUtils.generateSeats → SeatPage(고객)와 완전히 동일한 배치 생성
@@ -163,14 +159,44 @@ function SeatListPage() {
     // seatUtils.splitRowByAisle와 동일 규칙: 열 수 > 6이면 2 고정, 이하면 0
     const sideCount = colNumbers.length > 6 ? 2 : 0
 
+    /* ── 좌석 클릭 토글 (empty 상태만 선택 가능, WebSocket 점유 신호 전송) ── */
+    const toggleSeat = (seatId: string) => {
+        sendToggle(seatId)
+        setSelectedSeats(prev =>
+            prev.includes(seatId)
+                ? prev.filter(s => s !== seatId)
+                : [...prev, seatId]
+        )
+    }
+
+    /* ── 관리자 예매 확정 ── */
+    const handleAdminReserve = async () => {
+        if (selectedSeats.length === 0 || selectedScheduleId === null) return
+        setReserving(true)
+        try {
+            await apiClient.post('/admin/payment/admin-reserve', {
+                scheduleId: selectedScheduleId,
+                seats: selectedSeats,
+                phone: null,
+            })
+            showToast('예매가 완료됐습니다.', 'success')
+            selectedSeats.forEach(seat => wsState.reserved.add(seat))
+            setSelectedSeats([])
+        } catch (e) {
+            showToast('예매 처리 중 오류가 발생했습니다.', 'error')
+        } finally {
+            setReserving(false)
+        }
+    }
+
     /* ── 좌석 상태 결정 ── */
     /**
-     * 관리자 뷰의 좌석 상태는 3가지 (고객의 'selected' 없음)
-     * 우선순위: DB 예약완료 > 임시점유 > 빈자리
+     * 우선순위: DB 예약완료 > 임시점유(타인) > 관리자 선택 중 > 빈자리
      */
-    const getSeatStatus = (seatId: string): 'sold_out' | 'occupied' | 'empty' => {
+    const getSeatStatus = (seatId: string): 'sold_out' | 'occupied' | 'selected' | 'empty' => {
         if (wsState.reserved.has(seatId)) return 'sold_out'
-        if (wsState.occupied.has(seatId)) return 'occupied'
+        if (wsState.occupied.has(seatId) && wsState.occupied.get(seatId) !== wsState.myId) return 'occupied'
+        if (selectedSeats.includes(seatId)) return 'selected'
         return 'empty'
     }
 
@@ -393,11 +419,11 @@ function SeatListPage() {
                                             // splitRowByAisle: SeatPage와 동일 함수 사용 → 통로 위치 완전 일치
                                             const {left, middle, right} = splitRowByAisle(rowSeats)
 
-                                            /** 좌석 셀 렌더 헬퍼 */
                                             const renderSeat = (seat: SeatItem) => {
                                                 const status = getSeatStatus(seat.id)
+                                                const isSelected = status === 'selected'
+                                                const isClickable = status === 'empty' || status === 'selected'
 
-                                                // 좌석 색상 결정
                                                 let bg: string
                                                 let border: string
                                                 if (status === 'sold_out') {
@@ -406,6 +432,9 @@ function SeatListPage() {
                                                 } else if (status === 'occupied') {
                                                     bg = STATUS_COLOR.occupied.bg;
                                                     border = STATUS_COLOR.occupied.border
+                                                } else if (isSelected) {
+                                                    bg = 'var(--color-brand-default)';
+                                                    border = 'var(--color-brand-default)'
                                                 } else if (seat.seatType === 'RECLINER') {
                                                     bg = STATUS_COLOR.empty_recliner.bg;
                                                     border = STATUS_COLOR.empty_recliner.border
@@ -417,41 +446,38 @@ function SeatListPage() {
                                                 return (
                                                     <div
                                                         key={seat.id}
-                                                        title={`${seat.id} · ${SEAT_TYPE_LABEL[seat.seatType]} · ${STATUS_COLOR[status === 'empty' ? (seat.seatType === 'RECLINER' ? 'empty_recliner' : 'empty_normal') : status].label}`}
+                                                        title={`${seat.id} · ${SEAT_TYPE_LABEL[seat.seatType]}`}
+                                                        onClick={() => isClickable && toggleSeat(seat.id)}
                                                         style={{
                                                             ...seatStyle,
                                                             background: bg,
                                                             border: `1px solid ${border}`,
-                                                            // 매진 좌석에 X 표시
+                                                            cursor: isClickable ? 'pointer' : 'default',
                                                             position: 'relative',
                                                         }}
                                                     >
-                                                        {/* 매진: X 표시 */}
                                                         {status === 'sold_out' && (
                                                             <span style={{
-                                                                position: 'absolute',
-                                                                inset: 0,
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                fontSize: 10,
-                                                                fontWeight: 900,
-                                                                color: 'rgba(255,255,255,0.5)',
-                                                                pointerEvents: 'none',
+                                                                position: 'absolute', inset: 0,
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                fontSize: 10, fontWeight: 900,
+                                                                color: 'rgba(255,255,255,0.5)', pointerEvents: 'none',
                                                             }}>✕</span>
                                                         )}
-                                                        {/* 점유 중: 작은 원 표시 — SeatPage(고객)와 동일한 색상 사용 */}
                                                         {status === 'occupied' && (
                                                             <span style={{
-                                                                position: 'absolute',
-                                                                inset: 0,
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                fontSize: 10,
-                                                                color: 'var(--color-error-text)',
-                                                                pointerEvents: 'none',
+                                                                position: 'absolute', inset: 0,
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                fontSize: 10, color: 'var(--color-error-text)', pointerEvents: 'none',
                                                             }}>●</span>
+                                                        )}
+                                                        {isSelected && (
+                                                            <span style={{
+                                                                position: 'absolute', inset: 0,
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                fontSize: 10, fontWeight: 900,
+                                                                color: '#111', pointerEvents: 'none',
+                                                            }}>✓</span>
                                                         )}
                                                     </div>
                                                 )
@@ -482,6 +508,35 @@ function SeatListPage() {
                                 </div>
                             </div>
                         </> /* wsState.connected 블록 닫기 */
+                    )}
+
+                    {/* ── 관리자 예매 패널 (WebSocket 연결 후에만 표시) ── */}
+                    {wsState.connected && (
+                        <div style={reservePanel}>
+                            <h3 style={reservePanelTitle}>관리자 예매</h3>
+
+                            {/* 선택된 좌석 */}
+                            <div style={reserveRow}>
+                                <span style={reserveLabel}>선택 좌석</span>
+                                <span style={reserveValue}>
+                                    {selectedSeats.length === 0
+                                        ? '빈 좌석을 클릭해서 선택하세요'
+                                        : selectedSeats.join(', ')}
+                                </span>
+                            </div>
+
+                            {/* 예매 버튼 */}
+                            <button
+                                onClick={handleAdminReserve}
+                                disabled={selectedSeats.length === 0 || reserving}
+                                style={{
+                                    ...reserveBtn,
+                                    ...(selectedSeats.length === 0 || reserving ? reserveBtnDisabled : {}),
+                                }}
+                            >
+                                {reserving ? '처리 중...' : `예매 확정 (${selectedSeats.length}석)`}
+                            </button>
+                        </div>
                     )}
                 </>
             )}
@@ -566,7 +621,37 @@ const errorBanner: React.CSSProperties = {
 const seatStyle: React.CSSProperties = {
     width: 28, height: 28, borderRadius: 5,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 9, fontWeight: 600, cursor: 'default', flexShrink: 0,
+    fontSize: 9, fontWeight: 600, flexShrink: 0,
+}
+
+// 관리자 예매 패널
+const reservePanel: React.CSSProperties = {
+    marginTop: 20, padding: '20px 24px',
+    background: 'var(--bg-surface)', borderRadius: 12,
+    border: '1px solid var(--border-default)',
+}
+const reservePanelTitle: React.CSSProperties = {
+    fontSize: 16, fontWeight: 700, color: 'var(--text-primary)',
+    marginBottom: 16, marginTop: 0,
+}
+const reserveRow: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12,
+}
+const reserveLabel: React.CSSProperties = {
+    fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)',
+    minWidth: 72, flexShrink: 0,
+}
+const reserveValue: React.CSSProperties = {
+    fontSize: 14, color: 'var(--text-primary)',
+}
+const reserveBtn: React.CSSProperties = {
+    marginTop: 4, width: '100%', padding: '12px 0',
+    fontSize: 15, fontWeight: 700,
+    background: 'var(--color-brand-default)', color: '#111',
+    border: 'none', borderRadius: 10, cursor: 'pointer',
+}
+const reserveBtnDisabled: React.CSSProperties = {
+    background: 'var(--bg-elevated)', color: 'var(--text-muted)', cursor: 'not-allowed',
 }
 
 export default SeatListPage
