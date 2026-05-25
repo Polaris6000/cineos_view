@@ -35,9 +35,22 @@
  *   서버가 per-user 구분 없이 flat 배열만 내려주므로 mySeatsRef로 직접 추적:
  *     mySeatsRef 포함 좌석 → map.set(seat, myId)   // 내 좌석
  *     그 외 좌석           → map.set(seat, 'other') // 타인 좌석
+ *
+ * ─── 점유 해제 정책 ─────────────────────────────────────────────
+ *   UUID: localStorage(cineos_kiosk_ws_user_id) — 창 닫아도 유지
+ *   UUID 삭제: 결제 완료·뒤로가기·홈·타이머 만료 (clearKioskSeatIdentity)
+ *   즉시 해제: 뒤로가기·로고·홈·타이머 (releaseSeatHoldApi + UUID 삭제)
+ *   지연 해제: 창 닫기만 — WS 종료 후 서버 5분 타이머 (UUID는 localStorage에 유지)
  */
 import {useCallback, useEffect, useRef, useState} from 'react'
 import apiClient from '../api/apiClient'
+import {
+    clearSeatHold,
+    getOrCreateKioskWsUserId,
+    getRestoredMySeats,
+    releaseSeatHoldApi,
+    setSeatHold,
+} from '../utils/seatHold'
 
 /* ── 타입 정의 ─────────────────────────────────────────────── */
 
@@ -71,6 +84,8 @@ export interface WsSeatState {
 export interface UseWebSocketReturn {
     wsState: WsSeatState
     sendToggle: (seatNumber: string) => void
+    /** 서버에 RELEASE 전송 후 로컬 선택 상태 초기화 (뒤로가기 시 즉시 해제) */
+    releaseSeats: () => void
 }
 
 /* ── 상수 ──────────────────────────────────────────────────── */
@@ -92,7 +107,6 @@ const WS_BASE = import.meta.env.DEV
     : `ws://${window.location.host}`     // 프로덕션: 동일 host 사용
 const MAX_RETRY = 3
 const RETRY_DELAY_MS = 2_000
-
 /* ── 훅 본체 ───────────────────────────────────────────────── */
 
 /**
@@ -108,14 +122,9 @@ const RETRY_DELAY_MS = 2_000
  *   wsState.reserved.has(seatId)                   // DB 예약완료
  */
 export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
-
     // ── refs (렌더링 주기와 독립적으로 최신값 참조) ──────────
-    /**
-     * UUID는 컴포넌트 수명 동안 고정.
-     * useRef를 사용해 리렌더링 시에도 동일 UUID를 유지함.
-     * useState 초기화에서 myId로 사용할 수 있도록 useRef를 먼저 선언.
-     */
-    const userIdRef = useRef<string>(crypto.randomUUID())
+    /** localStorage UUID — 창을 닫았다 열어도 동일 (홈·결제완료·뒤로가기 시에만 삭제) */
+    const userIdRef = useRef<string>(getOrCreateKioskWsUserId())
     /** WS 인스턴스 ref — onclose에서 stale 여부 확인에도 사용 */
     const wsRef = useRef<WebSocket | null>(null)
     const scheduleIdRef = useRef<number | null>(scheduleId)
@@ -126,6 +135,8 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
      * 별도 state가 필요 없음.
      */
     const mySeatsRef = useRef<Set<string>>(new Set())
+    /** 마지막 UPDATE_OCCUPANCY flat 목록 — INIT_SELECTION이 늦게 도착해도 UI 복구 */
+    const lastAllSeatsRef = useRef<string[]>([])
     const retryCount = useRef(0)
 
     // ── 상태 ──────────────────────────────────────────────────
@@ -147,14 +158,37 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
      * 백엔드가 userId 구분 없이 flat 배열로 주기 때문에
      * mySeatsRef 기준으로 "내 좌석 / 타인 좌석"을 직접 구분함.
      */
+    const isSameSchedule = (msgScheduleId: unknown): boolean => {
+        if (msgScheduleId == null || scheduleIdRef.current == null) return true
+        return Number(msgScheduleId) === Number(scheduleIdRef.current)
+    }
+
     const buildOccupiedMap = useCallback((allSeats: string[]): Map<string, string> => {
         const map = new Map<string, string>()
         for (const seat of allSeats) {
-            // mySeatsRef에 있으면 내 좌석, 없으면 타인 좌석
             map.set(seat, mySeatsRef.current.has(seat) ? userIdRef.current : 'other')
         }
+        // flat 목록에 없어도 내 선택은 항상 myId로 표시 (재접속·INIT 지연 대비)
+        for (const seat of mySeatsRef.current) {
+            map.set(seat, userIdRef.current)
+        }
         return map
-    }, []) // mySeatsRef, userIdRef는 ref이므로 deps 불필요
+    }, [])
+
+    const restoreMySeatsFromStorage = useCallback(() => {
+        const sid = scheduleIdRef.current
+        if (sid == null) return
+        const restored = getRestoredMySeats(sid, userIdRef.current)
+        if (restored.length > 0) {
+            mySeatsRef.current = new Set(restored)
+            console.log('[WS] localStorage에서 내 좌석 복구:', restored)
+        }
+    }, [])
+
+    const applyOccupiedFromAllSeats = useCallback((allSeats: string[]) => {
+        lastAllSeatsRef.current = allSeats
+        setWsState((prev) => ({...prev, occupied: buildOccupiedMap(allSeats)}))
+    }, [buildOccupiedMap])
 
     // ── 헬퍼: WS 메시지 전송 ─────────────────────────────────
     /**
@@ -203,12 +237,11 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
             retryCount.current = 0
             setWsState((prev) => ({...prev, connected: true}))
 
+            // INIT 수신 전 UPDATE가 먼저 와도 내 좌석으로 인식하도록 로컬 복구
+            restoreMySeatsFromStorage()
+
             /**
-             * 연결 직후 GET action 전송
-             * → 서버가 현재 임시점유 현황을 응답함:
-             *   1. INIT_SELECTION (내 기존 선택이 있는 경우 → 나에게만)
-             *   2. UPDATE_OCCUPANCY (전체 점유 현황 → 브로드캐스트)
-             * 두 메시지의 순서는 서버 코드상 보장됨 (INIT_SELECTION 먼저)
+             * 연결 직후 GET → INIT_SELECTION(본인만) → UPDATE_OCCUPANCY(요청 세션만)
              */
             sendAction('GET', [])
         }
@@ -224,22 +257,32 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
             }
             console.log('[WS] 수신:', msg.action, msg)
 
+            if (!isSameSchedule(msg.scheduleId)) {
+                return
+            }
+
             if (msg.action === 'INIT_SELECTION') {
-                /**
-                 * 재접속 시 내 기존 선택 복구
-                 * mySeatsRef를 먼저 갱신해야 이후 UPDATE_OCCUPANCY에서
-                 * occupied Map을 올바르게 재구성할 수 있음.
-                 */
+                if (msg.userId && msg.userId !== userIdRef.current) {
+                    return
+                }
                 mySeatsRef.current = new Set(msg.seats ?? [])
-                console.log('[WS] 내 기존 좌석 복구:', [...mySeatsRef.current])
+                console.log('[WS] 서버 INIT_SELECTION 복구:', [...mySeatsRef.current])
+                const sid = scheduleIdRef.current
+                if (sid != null && mySeatsRef.current.size > 0) {
+                    setSeatHold(sid, userIdRef.current, [...mySeatsRef.current])
+                }
+                const merged = [
+                    ...new Set([...lastAllSeatsRef.current, ...(msg.seats ?? [])]),
+                ]
+                applyOccupiedFromAllSeats(
+                    merged.length > 0 ? merged : [...mySeatsRef.current],
+                )
 
             } else if (msg.action === 'UPDATE_OCCUPANCY') {
-                /**
-                 * 전체 임시점유 현황 브로드캐스트
-                 * buildOccupiedMap이 mySeatsRef 기준으로 "내 것 / 남의 것" 구분
-                 */
-                const occupiedMap = buildOccupiedMap(msg.seats ?? [])
-                setWsState((prev) => ({...prev, occupied: occupiedMap}))
+                if (mySeatsRef.current.size === 0) {
+                    restoreMySeatsFromStorage()
+                }
+                applyOccupiedFromAllSeats(msg.seats ?? [])
             }
         }
 
@@ -268,11 +311,21 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
                 console.error('[WS] 재연결 한도 초과 — WS 기능 비활성화')
             }
         }
-    }, [buildOccupiedMap, sendAction])
+    }, [applyOccupiedFromAllSeats, buildOccupiedMap, restoreMySeatsFromStorage, sendAction])
 
     // ── DB 예약좌석 조회 + WS 연결 수명주기 ─────────────────
     useEffect(() => {
         if (scheduleId === null) return
+
+        // 스케줄 전환: UI 초기화, 동일 기기 재접속 시 localStorage에서 내 좌석 복구
+        const restored = getRestoredMySeats(scheduleId, userIdRef.current)
+        mySeatsRef.current = new Set(restored)
+        lastAllSeatsRef.current = []
+        setWsState((prev) => ({
+            ...prev,
+            occupied: new Map(),
+            connected: false,
+        }))
 
         /**
          * DB 예약확정 좌석 REST 조회
@@ -295,15 +348,15 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
         void fetchReserved()
         connect()
 
-        // cleanup: 페이지 이탈(언마운트) 시 WS 연결 해제
-        // 서버는 연결 종료 후 5분 뒤 해당 사용자의 임시점유 자동 해제
+        // cleanup: RELEASE 없이 WS만 종료 → 창 닫기·결제 이동 시 서버 지연 해제(5분)
         return () => {
-            console.log('[WS] cleanup — 연결 종료')
+            console.log('[WS] cleanup — 연결 종료 (점유 유지, 서버 타이머 대기)')
             const ws = wsRef.current
             if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
                 ws.close(1000, 'component unmount')
             }
             wsRef.current = null
+            lastAllSeatsRef.current = []
         }
         // connect는 stable 함수(deps 없음)이므로 scheduleId 변경 시에만 재실행
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -351,6 +404,13 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
 
         console.log('[WS] 내 선택 현황:', [...current])
 
+        const sid = scheduleIdRef.current
+        if (sid != null && current.size > 0) {
+            setSeatHold(sid, userIdRef.current, [...current])
+        } else {
+            clearSeatHold()
+        }
+
         // 낙관적 업데이트 — UPDATE_OCCUPANCY 수신 전에 UI 먼저 갱신
         // 네트워크 지연 시에도 클릭이 즉각 반응하는 것처럼 보이게 함
         setWsState((prev) => ({
@@ -359,7 +419,20 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
         }))
     }, [sendAction, buildOccupiedMap])
 
-    return {wsState, sendToggle}
+    /** 뒤로가기·홈 이동 등 명시적 이탈 시 즉시 RELEASE (WS + REST) */
+    const releaseSeats = useCallback(() => {
+        const hold =
+            scheduleIdRef.current != null
+                ? {scheduleId: scheduleIdRef.current, userId: userIdRef.current}
+                : null
+        sendAction('RELEASE', [])
+        mySeatsRef.current = new Set()
+        setWsState((prev) => ({...prev, occupied: new Map()}))
+        void releaseSeatHoldApi(hold)
+        console.log('[WS] 좌석 즉시 해제 요청')
+    }, [sendAction])
+
+    return {wsState, sendToggle, releaseSeats}
 }
 
 export default useWebSocket
