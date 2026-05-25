@@ -4,7 +4,8 @@
  * 실제 백엔드 프로토콜(MyWebSocketHandler.java)에 맞춰 재작성.
  *
  * ─── 연결 URL ───────────────────────────────────────────────────
- *   ws://host/ws/seats?userId={uuid}&page=seat&scheduleId={id}
+ *   ws(s)://{window.location.host}/ws/seats?userId={uuid}&page=seat&scheduleId={id}
+ *   (개발: Vite /ws 프록시 → 8080. 다른 PC에서 IP:3000 접속 시에도 동일 호스트 사용)
  *
  *   !!! 파라미터 순서 고정: userId 첫째, page 둘째, scheduleId 셋째
  *     MyWebSocketHandler.java가 query.split("&") 인덱스로 파싱하며,
@@ -51,6 +52,7 @@ import {
     releaseSeatHoldApi,
     setSeatHold,
 } from '../utils/seatHold'
+import {getSeatWebSocketBase} from '../utils/seatWebSocket'
 
 /* ── 타입 정의 ─────────────────────────────────────────────── */
 
@@ -90,21 +92,6 @@ export interface UseWebSocketReturn {
 
 /* ── 상수 ──────────────────────────────────────────────────── */
 
-/**
- * WS 베이스 URL
- *
- * ─── 개발 모드 (npm run dev / Vite dev server) ────────────────────────
- *   Vite 6의 WebSocket 프록시(ws: true)가 업그레이드 요청을 간헐적으로
- *   포워딩하지 못하는 이슈가 있어 백엔드(8080)로 직접 연결한다.
- *   WebSocketConfig.setAllowedOrigins("*") 이므로 CORS 문제 없음.
- *
- * ─── 프로덕션 모드 (npm run build → Spring Boot 정적 서빙) ────────────
- *   Spring Boot가 React 빌드 결과물과 WS 핸들러를 동일 포트에서 서빙하므로
- *   window.location.host(= 배포 서버 host)를 그대로 사용.
- */
-const WS_BASE = import.meta.env.DEV
-    ? 'ws://localhost:8080'              // 개발: Vite 프록시 우회, 백엔드 직접 연결
-    : `ws://${window.location.host}`     // 프로덕션: 동일 host 사용
 const MAX_RETRY = 3
 const RETRY_DELAY_MS = 2_000
 /* ── 훅 본체 ───────────────────────────────────────────────── */
@@ -225,7 +212,7 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
          * userId 또는 page가 누락되면 서버가 session.close(BAD_DATA) → readyState: 3
          * page 값은 서버에서 현재 null 체크만 하고 로직에 미사용. "seat" 고정 전달.
          */
-        const url = `${WS_BASE}/ws/seats?userId=${userIdRef.current}&page=seat&scheduleId=${sid}`
+        const url = `${getSeatWebSocketBase()}/ws/seats?userId=${userIdRef.current}&page=seat&scheduleId=${sid}`
         console.log('[WS] 연결 시도:', url)
 
         const ws = new WebSocket(url)
