@@ -19,7 +19,7 @@ const distDir = path.join(rootDir, 'dist')
 const port = Number(process.env.PORT) || 5173
 
 // 백엔드 주소 — 환경변수로 주입 가능, 없으면 기본값 사용
-const BACKEND = process.env.BACKEND_URL || 'http://cineos.duckdns.org:8080'
+const BACKEND = process.env.BACKEND_URL || 'http://cineos-server.duckdns.org:8080'
 
 fs.mkdirSync(uploadsDir, {recursive: true})
 

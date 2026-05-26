@@ -8,16 +8,16 @@
  *        예) VITE_WS_BASE=wss://cineos.duckdns.org:8080
  */
 export function getSeatWebSocketBase(): string {
-    if (import.meta.env.VITE_WS_BASE) {
-        return import.meta.env.VITE_WS_BASE as string
-    }
-    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    return `${proto}://${window.location.host}`
+  if (import.meta.env.VITE_WS_BASE) {
+    return import.meta.env.VITE_WS_BASE as string
+  }
+  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
+  return `${proto}://${window.location.host}`
 }
 
 /**
  * 쿼리 순서 고정: userId → page → scheduleId (MyWebSocketHandler.java)
  */
 export function buildSeatWebSocketUrl(scheduleId: number, userId: string): string {
-    return `${getSeatWebSocketBase()}/ws/seats?userId=${encodeURIComponent(userId)}&page=seat&scheduleId=${scheduleId}`
+  return `${getSeatWebSocketBase()}/ws/seats?userId=${encodeURIComponent(userId)}&page=seat&scheduleId=${scheduleId}`
 }

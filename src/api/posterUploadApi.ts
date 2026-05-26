@@ -54,7 +54,7 @@ export async function uploadMoviePoster(
 ): Promise<string> {
   // TMDB URL/파일 → 백엔드 저장, 접근 가능한 이미지 경로 반환
   const {title, createAt, file: uploadedFile, imageUrl} = params
-
+  
   let file = uploadedFile
   if (!file && imageUrl) {
     try {
@@ -64,11 +64,11 @@ export async function uploadMoviePoster(
       console.warn('[poster] 브라우저 다운로드 실패, 서버에서 TMDB 이미지 저장 시도')
     }
   }
-
+  
   if (!file && !imageUrl) {
     throw new Error('업로드할 포스터 파일 또는 이미지 URL이 없습니다.')
   }
-
+  
   const fd = new FormData()
   fd.append('title', title)
   fd.append('createAt', createAt)
@@ -77,7 +77,7 @@ export async function uploadMoviePoster(
   } else if (imageUrl) {
     fd.append('imageUrl', imageUrl)
   }
-
+  
   let res: Response
   try {
     res = await fetch('/api/admin/movie/poster', {
@@ -88,9 +88,9 @@ export async function uploadMoviePoster(
   } catch (err) {
     throw wrapFetchError(err)
   }
-
+  
   const data = await parseJsonResponse<UploadMoviePosterResult>(res)
-
+  
   if (!res.ok) {
     if (res.status === 404) {
       throw new Error('포스터 저장 API를 찾을 수 없습니다. 백엔드 서버 상태를 확인하세요.')
