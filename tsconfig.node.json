@@ -5,10 +5,12 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
+    "allowJs": true,
     "strict": true
   },
   "include": [
     "vite.config.ts",
-    "vite.config.js"
+    "vite.config.js",
+    "server"
   ]
 }
