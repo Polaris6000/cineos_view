@@ -17,183 +17,181 @@ import {useAuth} from '../../../context/AuthContext'
 const INITIAL_PAGE = '/admin/management/seat/list'
 
 function AdminLoginPage() {
-    const navigate = useNavigate()
-    const {login} = useAuth()
-
-    const [id, setId] = useState('')
-    const [pw, setPw] = useState('')
-    const [rememberMe, setRememberMe] = useState(false)  // 자동 로그인 체크박스
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState('')
-
-    const handleLogin = async (e: FormEvent) => {
-        e.preventDefault()
-        setError('')
-
-        // 앞뒤 공백 제거 후 검사 — 공백만 입력한 경우도 빈 값으로 처리
-        const trimId = id.trim()
-        const trimPw = pw.trim()
-        if (!trimId || !trimPw) {
-            setError('아이디와 비밀번호를 입력해 주세요.')
-            return
-        }
-
-        setLoading(true)
-
-        // AuthContext.login() 호출 — 공백 제거된 값으로 비교, 성공: true, 실패: false 반환
-        // rememberMe=true → localStorage(영구), false → sessionStorage(탭 닫으면 삭제)
-        const ok = await login(trimId, trimPw, rememberMe)
-
-        if (ok) {
-            // 로그인 성공 → 항상 초기 페이지(좌석 현황)로 이동
-            navigate(INITIAL_PAGE, {replace: true})
-        } else {
-            // UC-11: 실패 시 경고창 (인라인 에러 메시지)
-            setError('아이디 또는 비밀번호가 틀렸습니다.')
-        }
-        setLoading(false)
+  const navigate = useNavigate()
+  const {login} = useAuth()
+  
+  const [id, setId] = useState('')
+  const [pw, setPw] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)  // 자동 로그인 체크박스
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  
+  const handleLogin = async (e: FormEvent) => {
+    e.preventDefault()
+    setError('')
+    
+    // 앞뒤 공백 제거 후 검사 — 공백만 입력한 경우도 빈 값으로 처리
+    const trimId = id.trim()
+    const trimPw = pw.trim()
+    if (!trimId || !trimPw) {
+      setError('아이디와 비밀번호를 입력해 주세요.')
+      return
     }
-
-    return (
-        <div style={pageWrap}>
-            {/* 로고 */}
-            <div style={logoWrap}>
-                <span style={logoText}>CineOS</span>
-                <span style={logoBadge}>관리자</span>
-            </div>
-
-            <h1 style={title}>관리자 로그인</h1>
-
-            {/* 테스트 계정 안내 (개발 환경에서만) */}
-            {import.meta.env.DEV && (
-                <div style={hintBox}>
-                    <p style={hintTitle}>개발 테스트 계정</p>
-                    <p style={hintLine}>admin / 1234 — 최고관리자 (모든 기능)</p>
-                    <p style={hintLine}>staff01 / 1111 — 일반관리자 (운영만)</p>
-                    <p style={hintLine}>staff02 / 2222 — 일반관리자 (운영만)</p>
-                </div>
-            )}
-
-            <form onSubmit={handleLogin} style={form}>
-                {/* 아이디 */}
-                <div style={fieldGroup}>
-                    <label style={labelStyle}>아이디</label>
-                    <input
-                        type="text"
-                        value={id}
-                        onChange={(e) => setId(e.target.value.replace(/\s/g, ""))}
-                        placeholder="관리자 아이디"
-                        required
-                        style={inputStyle}
-                        autoComplete="username"
-                    />
-                </div>
-
-                {/* 비밀번호 */}
-                <div style={fieldGroup}>
-                    <label style={labelStyle}>비밀번호</label>
-                    <input
-                        type="password"
-                        value={pw}
-                        onChange={(e) => setPw(e.target.value.replace(/\s/g, ""))}
-                        placeholder="비밀번호"
-                        required
-                        style={inputStyle}
-                        autoComplete="current-password"
-                    />
-                </div>
-
-                {/* 자동 로그인 체크박스 */}
-                <label style={rememberLabel}>
-                    <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        style={rememberCheck}
-                    />
-                    자동 로그인
-                    <span style={rememberHint}>
+    
+    setLoading(true)
+    
+    // AuthContext.login() 호출 — 공백 제거된 값으로 비교, 성공: true, 실패: false 반환
+    // rememberMe=true → localStorage(영구), false → sessionStorage(탭 닫으면 삭제)
+    const ok = await login(trimId, trimPw, rememberMe)
+    
+    if (ok) {
+      // 로그인 성공 → 항상 초기 페이지(좌석 현황)로 이동
+      navigate(INITIAL_PAGE, {replace: true})
+    } else {
+      // UC-11: 실패 시 경고창 (인라인 에러 메시지)
+      setError('아이디 또는 비밀번호가 틀렸습니다.')
+    }
+    setLoading(false)
+  }
+  
+  return (
+    <div style={pageWrap}>
+      {/* 로고 */}
+      <div style={logoWrap}>
+        <span style={logoText}>CineOS</span>
+        <span style={logoBadge}>관리자</span>
+      </div>
+      
+      <h1 style={title}>관리자 로그인</h1>
+      
+      {/* 데모 계정 안내 — 포트폴리오 열람용 */}
+      <div style={hintBox}>
+        <p style={hintTitle}>데모 계정</p>
+        <p style={hintLine}>admin / 1234 — 최고관리자 (모든 기능)</p>
+        <p style={hintLine}>staff01 / 1111 — 일반관리자 (운영만)</p>
+        <p style={hintLine}>staff02 / 2222 — 일반관리자 (운영만)</p>
+      </div>
+      
+      <form onSubmit={handleLogin} style={form}>
+        {/* 아이디 */}
+        <div style={fieldGroup}>
+          <label style={labelStyle}>아이디</label>
+          <input
+            type="text"
+            value={id}
+            onChange={(e) => setId(e.target.value.replace(/\s/g, ""))}
+            placeholder="관리자 아이디"
+            required
+            style={inputStyle}
+            autoComplete="username"
+          />
+        </div>
+        
+        {/* 비밀번호 */}
+        <div style={fieldGroup}>
+          <label style={labelStyle}>비밀번호</label>
+          <input
+            type="password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value.replace(/\s/g, ""))}
+            placeholder="비밀번호"
+            required
+            style={inputStyle}
+            autoComplete="current-password"
+          />
+        </div>
+        
+        {/* 자동 로그인 체크박스 */}
+        <label style={rememberLabel}>
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            style={rememberCheck}
+          />
+          자동 로그인
+          <span style={rememberHint}>
             {rememberMe ? '(브라우저 닫아도 로그인 유지)' : ''}
           </span>
-                </label>
-
-                {/* 에러 메시지 (UC-11: 로그인 실패 경고) */}
-                {error && (
-                    <div style={errorBox}>
-                        {error}
-                    </div>
-                )}
-
-                <button type="submit" disabled={loading} style={submitBtn}>
-                    {loading ? '로그인 중...' : '로그인'}
-                </button>
-            </form>
-        </div>
-    )
+        </label>
+        
+        {/* 에러 메시지 (UC-11: 로그인 실패 경고) */}
+        {error && (
+          <div style={errorBox}>
+            {error}
+          </div>
+        )}
+        
+        <button type="submit" disabled={loading} style={submitBtn}>
+          {loading ? '로그인 중...' : '로그인'}
+        </button>
+      </form>
+    </div>
+  )
 }
 
 /* ── 스타일 (관리자 전용 라이트 테마) ── */
 const pageWrap: React.CSSProperties = {
-    minHeight: '100vh', display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center',
-    background: '#f5f3ef', padding: '24px 16px',
+  minHeight: '100vh', display: 'flex', flexDirection: 'column',
+  alignItems: 'center', justifyContent: 'center',
+  background: '#f5f3ef', padding: '24px 16px',
 }
 const logoWrap: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8,
+  display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8,
 }
 const logoText: React.CSSProperties = {
-    fontSize: 28, fontWeight: 900, color: '#0e0b08', letterSpacing: -1,
+  fontSize: 28, fontWeight: 900, color: '#0e0b08', letterSpacing: -1,
 }
 const logoBadge: React.CSSProperties = {
-    padding: '3px 10px', background: '#ffb800', borderRadius: 20,
-    fontSize: 12, fontWeight: 700, color: '#4c1c00',
+  padding: '3px 10px', background: '#ffb800', borderRadius: 20,
+  fontSize: 12, fontWeight: 700, color: '#4c1c00',
 }
 const title: React.CSSProperties = {
-    fontSize: 20, fontWeight: 700, color: '#0e0b08', marginBottom: 16,
+  fontSize: 20, fontWeight: 700, color: '#0e0b08', marginBottom: 16,
 }
 const hintBox: React.CSSProperties = {
-    width: '100%', maxWidth: 380,
-    padding: '12px 16px', marginBottom: 20,
-    background: '#fffaec', border: '1px solid #ffe08a',
-    borderRadius: 8,
+  width: '100%', maxWidth: 380,
+  padding: '12px 16px', marginBottom: 20,
+  background: '#fffaec', border: '1px solid #ffe08a',
+  borderRadius: 8,
 }
 const hintTitle: React.CSSProperties = {
-    fontSize: 11, fontWeight: 700, color: '#b8860b',
-    textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4,
+  fontSize: 11, fontWeight: 700, color: '#b8860b',
+  textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4,
 }
 const hintLine: React.CSSProperties = {
-    fontSize: 12, color: '#7a6540', lineHeight: 1.7,
+  fontSize: 12, color: '#7a6540', lineHeight: 1.7,
 }
 const form: React.CSSProperties = {
-    width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', gap: 16,
+  width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', gap: 16,
 }
 const fieldGroup: React.CSSProperties = {display: 'flex', flexDirection: 'column', gap: 6}
 const labelStyle: React.CSSProperties = {fontSize: 13, fontWeight: 600, color: '#4f4537'}
 const inputStyle: React.CSSProperties = {
-    padding: '12px 14px', border: '1px solid #dfe0df', borderRadius: 8,
-    fontSize: 15, background: '#fff', color: '#0e0b08', outline: 'none',
+  padding: '12px 14px', border: '1px solid #dfe0df', borderRadius: 8,
+  fontSize: 15, background: '#fff', color: '#0e0b08', outline: 'none',
 }
 /** 자동 로그인 체크박스 래퍼 */
 const rememberLabel: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: 8,
-    fontSize: 13, color: '#4f4537', cursor: 'pointer', userSelect: 'none',
+  display: 'flex', alignItems: 'center', gap: 8,
+  fontSize: 13, color: '#4f4537', cursor: 'pointer', userSelect: 'none',
 }
 const rememberCheck: React.CSSProperties = {
-    width: 16, height: 16, cursor: 'pointer', accentColor: '#ffb800',
+  width: 16, height: 16, cursor: 'pointer', accentColor: '#ffb800',
 }
 const rememberHint: React.CSSProperties = {
-    fontSize: 11, color: '#9a8c7e', marginLeft: 2,
+  fontSize: 11, color: '#9a8c7e', marginLeft: 2,
 }
 const errorBox: React.CSSProperties = {
-    padding: '12px 16px', background: '#fdeaea', border: '1px solid #e03c3c',
-    borderRadius: 8, color: '#a82020', fontSize: 14,
+  padding: '12px 16px', background: '#fdeaea', border: '1px solid #e03c3c',
+  borderRadius: 8, color: '#a82020', fontSize: 14,
 }
 const submitBtn: React.CSSProperties = {
-    width: '100%', padding: '15px 0',
-    background: '#ffb800', border: 'none',
-    borderRadius: 10, color: '#1a1408',
-    fontSize: 16, fontWeight: 800, cursor: 'pointer',
-    letterSpacing: 1,
+  width: '100%', padding: '15px 0',
+  background: '#ffb800', border: 'none',
+  borderRadius: 10, color: '#1a1408',
+  fontSize: 16, fontWeight: 800, cursor: 'pointer',
+  letterSpacing: 1,
 }
 
 export default AdminLoginPage

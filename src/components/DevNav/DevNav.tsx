@@ -1,5 +1,8 @@
 /**
- * DevNav.tsx — 개발용 빠른 네비게이션 패널
+ * DevNav.tsx — 포트폴리오 데모용 빠른 네비게이션 패널
+ *
+ * 포트폴리오 열람자(면접관)가 별도 안내 없이도 모든 화면을 탐색할 수 있도록
+ * 우상단에 항상 고정 표시.
  *
  * 기능:
  *  - 고객 화면 주요 페이지 바로가기
@@ -211,8 +214,8 @@ function DevNav() {
       >
                 <span style={{display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none'}}>
                     <Code2 size={12} color="#ffb800"/>
-                    <span style={{color: '#ffb800', fontWeight: 700}}>DevNav</span>
-                    <span style={{color: '#6b5c4e', fontSize: 10, fontWeight: 400}}>드래그 시 이동 가능</span>
+                    <span style={{color: '#ffb800', fontWeight: 700}}>데모 네비게이션</span>
+                    <span style={{color: '#6b5c4e', fontSize: 10, fontWeight: 400}}>드래그 이동 가능</span>
                 </span>
         <span style={{
           color: '#4f4537', maxWidth: 100,
