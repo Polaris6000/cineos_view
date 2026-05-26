@@ -30,7 +30,7 @@ function loadPos(): { x: number; y: number } {
     const saved = localStorage.getItem('devnav_pos')
     if (saved) {
       const parsed = JSON.parse(saved) as { x: number; y: number }
-      const margin = 40 // 패널 헤더 높이 정도의 여유값
+      const margin = 40
       const inBounds =
         parsed.x >= 0 &&
         parsed.y >= 0 &&
@@ -91,7 +91,6 @@ const panelBase: React.CSSProperties = {
   minWidth: 200,
   backdropFilter: 'blur(6px)',
   overflow: 'hidden',
-  // 드래그 중 텍스트 선택 방지
   userSelect: 'none',
 }
 
@@ -102,7 +101,6 @@ const headerStyle: React.CSSProperties = {
   padding: '8px 12px',
   background: 'rgba(255,184,0,0.15)',
   borderBottom: '1px solid rgba(255,184,0,0.3)',
-  // 드래그 핸들임을 커서로 표시
   cursor: 'grab',
 }
 
@@ -133,7 +131,6 @@ function DevNav() {
   const navigate = useNavigate()
   const location = useLocation()
   
-  // 패널의 현재 위치 (top-left 기준 절댓값)
   const [pos, setPos] = useState<{ x: number; y: number }>(loadPos)
   
   // 드래그 상태 ref — 렌더를 유발하지 않기 위해 ref 사용
@@ -146,13 +143,10 @@ function DevNav() {
   // 드래그 중 마우스 이동
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!dragging.current) return
-    
-    // 패널이 화면 밖으로 나가지 않도록 clamp 처리
     const panelW = panelRef.current?.offsetWidth ?? 200
     const panelH = panelRef.current?.offsetHeight ?? 48
     const newX = Math.min(Math.max(e.clientX - offset.current.x, 0), window.innerWidth - panelW)
     const newY = Math.min(Math.max(e.clientY - offset.current.y, 0), window.innerHeight - panelH)
-    
     setPos({x: newX, y: newY})
   }, [])
   
@@ -160,18 +154,14 @@ function DevNav() {
   const handleMouseUp = useCallback((e: MouseEvent) => {
     if (!dragging.current) return
     dragging.current = false
-    
-    // 헤더 커서를 grab으로 복원
     if (panelRef.current) {
       const hdr = panelRef.current.querySelector<HTMLElement>('[data-drag-handle]')
       if (hdr) hdr.style.cursor = 'grab'
     }
-    
     const panelW = panelRef.current?.offsetWidth ?? 200
     const panelH = panelRef.current?.offsetHeight ?? 48
     const savedX = Math.min(Math.max(e.clientX - offset.current.x, 0), window.innerWidth - panelW)
     const savedY = Math.min(Math.max(e.clientY - offset.current.y, 0), window.innerHeight - panelH)
-    
     try {
       localStorage.setItem('devnav_pos', JSON.stringify({x: savedX, y: savedY}))
     } catch { /* ignore */
@@ -195,9 +185,7 @@ function DevNav() {
       x: e.clientX - pos.x,
       y: e.clientY - pos.y,
     }
-    // 드래그 중 커서 변경
     ;(e.currentTarget as HTMLElement).style.cursor = 'grabbing'
-    // 기본 drag 이벤트 방지
     e.preventDefault()
   }
   
@@ -212,25 +200,25 @@ function DevNav() {
         style={headerStyle}
         onMouseDown={handleHeaderMouseDown}
       >
-                <span style={{display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none'}}>
-                    <Code2 size={12} color="#ffb800"/>
-                    <span style={{color: '#ffb800', fontWeight: 700}}>데모 네비게이션</span>
-                    <span style={{color: '#6b5c4e', fontSize: 10, fontWeight: 400}}>드래그 이동 가능</span>
-                </span>
+        <span style={{display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none'}}>
+          <Code2 size={12} color="#ffb800"/>
+          <span style={{color: '#ffb800', fontWeight: 700}}>데모 네비게이션</span>
+          <span style={{color: '#6b5c4e', fontSize: 10, fontWeight: 400}}>드래그 이동 가능</span>
+        </span>
         <span style={{
           color: '#4f4537', maxWidth: 100,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           pointerEvents: 'none',
         }}>
-                    {location.pathname}
-                </span>
+          {location.pathname}
+        </span>
         <span
           style={{cursor: 'pointer', lineHeight: 0}}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={() => setCollapsed((c) => !c)}
         >
-                    {collapsed ? <ChevronDown size={12}/> : <ChevronUp size={12}/>}
-                </span>
+          {collapsed ? <ChevronDown size={12}/> : <ChevronUp size={12}/>}
+        </span>
       </div>
       
       {!collapsed && (
