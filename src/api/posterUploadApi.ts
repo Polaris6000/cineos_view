@@ -1,5 +1,5 @@
 /**
- * 프론트 서버(cineos_view)에 포스터를 저장한다.
+ * 백엔드 서버에 포스터를 저장한다.
  * TMDB URL은 브라우저에서 File로 변환 후 업로드한다.
  */
 import {parseJsonResponse} from './parseResponse'
@@ -40,9 +40,7 @@ function wrapFetchError(err: unknown): Error {
   if (err instanceof TypeError) {
     const msg = err.message.toLowerCase()
     if (msg.includes('fetch') || msg.includes('network')) {
-      return new Error(
-        '포스터 서버에 연결할 수 없습니다. 프론트 서버(npm run dev)가 http://localhost:5173 에서 실행 중인지 확인하세요.',
-      )
+      return new Error('포스터 서버에 연결할 수 없습니다. 백엔드 서버 상태를 확인하세요.')
     }
   }
   if (err instanceof Error) {
@@ -54,23 +52,23 @@ function wrapFetchError(err: unknown): Error {
 export async function uploadMoviePoster(
   params: UploadMoviePosterParams,
 ): Promise<string> {
-  // TMDB URL/파일 → 프론트 서버 uploads/ 저장, /uploads/... 경로 반환
+  // TMDB URL/파일 → 백엔드 저장, 접근 가능한 이미지 경로 반환
   const {title, createAt, file: uploadedFile, imageUrl} = params
-  
+
   let file = uploadedFile
   if (!file && imageUrl) {
     try {
       file = await imageUrlToFile(imageUrl)
     } catch {
-      // 브라우저 CORS 등으로 실패 시 프론트 Node 서버에서 URL 다운로드
+      // 브라우저 CORS 등으로 실패 시 백엔드에서 URL 다운로드
       console.warn('[poster] 브라우저 다운로드 실패, 서버에서 TMDB 이미지 저장 시도')
     }
   }
-  
+
   if (!file && !imageUrl) {
     throw new Error('업로드할 포스터 파일 또는 이미지 URL이 없습니다.')
   }
-  
+
   const fd = new FormData()
   fd.append('title', title)
   fd.append('createAt', createAt)
@@ -79,10 +77,10 @@ export async function uploadMoviePoster(
   } else if (imageUrl) {
     fd.append('imageUrl', imageUrl)
   }
-  
+
   let res: Response
   try {
-    res = await fetch('/uploads/movie-poster', {
+    res = await fetch('/api/admin/movie/poster', {
       method: 'POST',
       body: fd,
       signal: AbortSignal.timeout(60_000),
@@ -90,14 +88,12 @@ export async function uploadMoviePoster(
   } catch (err) {
     throw wrapFetchError(err)
   }
-  
+
   const data = await parseJsonResponse<UploadMoviePosterResult>(res)
-  
+
   if (!res.ok) {
     if (res.status === 404) {
-      throw new Error(
-        '포스터 저장 API를 찾을 수 없습니다. 프론트 서버(npm run dev)가 실행 중인지 확인하세요.',
-      )
+      throw new Error('포스터 저장 API를 찾을 수 없습니다. 백엔드 서버 상태를 확인하세요.')
     }
     throw new Error(data.message ?? `포스터 저장 실패 (HTTP ${res.status})`)
   }
