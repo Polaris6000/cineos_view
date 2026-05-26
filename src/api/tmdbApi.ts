@@ -1,15 +1,4 @@
-/**
- * tmdbApi.ts — TMDB 관련 백엔드 API 호출 함수 모음
- *
- * 백엔드 엔드포인트 (TmdbController):
- *   GET /api/tmdb/popular?page=1     → 인기 영화 목록 (TmdbMovieItem[])
- *   GET /api/tmdb/search?title=검색어 → 제목 검색 결과 (TmdbMovieItem[])
- *   GET /api/tmdb/{tmdbId}           → 영화 상세 정보 (TmdbMovieDetail)
- *
- * ※ 백엔드에서 popular/search 응답의 posterPath는 이미 full URL로 내려옴
- *   (https://image.tmdb.org/t/p/w500/xxx.jpg)
- *   → 등록 폼 TMDB 검색·미리보기 전용 (저장 후 표시는 /uploads/ 경로 사용) // 
- */
+import apiClient from './apiClient'
 
 /**
  * TMDB 영화 목록 아이템 타입
@@ -64,43 +53,17 @@ export interface TmdbMovieDetail {
     rating?: string
 }
 
-/**
- * 인기 영화 목록 조회
- *
- * @param page - 페이지 번호 (기본값 1)
- * @returns TMDB 인기 영화 목록 (posterPath는 full URL)
- */
 export async function getPopularMovies(page = 1): Promise<TmdbMovieItem[]> {
-    const res = await fetch(`/api/tmdb/popular?page=${page}`)
-    if (!res.ok) throw new Error(`인기 영화 조회 실패: ${res.status}`)
-    return res.json()
+    const res = await apiClient.get<TmdbMovieItem[]>(`/tmdb/popular?page=${page}`)
+    return res.data
 }
 
-/**
- * 영화 제목 검색
- *
- * @param title - 검색할 영화 제목
- * @returns 검색 결과 목록 (posterPath는 full URL)
- */
 export async function searchTmdbMovies(title: string): Promise<TmdbMovieItem[]> {
-    const res = await fetch(`/api/tmdb/search?title=${encodeURIComponent(title)}`)
-    if (!res.ok) throw new Error(`영화 검색 실패: ${res.status}`)
-    return res.json()
+    const res = await apiClient.get<TmdbMovieItem[]>(`/tmdb/search?title=${encodeURIComponent(title)}`)
+    return res.data
 }
 
-/**
- * 영화 상세 정보 조회 (폼 자동 입력용)
- *
- * 백엔드에서:
- * 1. TMDB에서 장르·감독·배우·런타임 등 상세 정보 조회
- * 2. 포스터 이미지를 서버 로컬에 자동 저장 (실패해도 500 아님)
- * 3. MovieDTO 형태로 반환 (posterPath = full image URL)
- *
- * @param tmdbId - TMDB 영화 고유 ID
- * @returns 폼 자동 입력에 사용할 영화 상세 정보
- */
 export async function getTmdbMovieDetail(tmdbId: number): Promise<TmdbMovieDetail> {
-    const res = await fetch(`/api/tmdb/${tmdbId}`)
-    if (!res.ok) throw new Error(`영화 상세 조회 실패: ${res.status}`)
-    return res.json()
+    const res = await apiClient.get<TmdbMovieDetail>(`/tmdb/${tmdbId}`)
+    return res.data
 }

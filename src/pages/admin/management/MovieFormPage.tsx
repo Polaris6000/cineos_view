@@ -8,7 +8,7 @@
  *   - "등록" / "수정" 클릭 시에만 DB 저장
  *
  * [API 연동]
-     *   - 포스터: 프론트 서버 uploads/ 에 저장 후 posterPath만 백엔드 전달
+     *   - 포스터: 백엔드 uploads/ 에 저장 후 posterPath 반환
      *   - 등록: POST /api/admin/movie/upload
      *   - 수정: PATCH /api/admin/movie/modify
  */
