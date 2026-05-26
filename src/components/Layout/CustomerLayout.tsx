@@ -6,7 +6,7 @@
  * 통합된 기능:
  *   - 전역 비조작 타이머 (IdleTimerProvider): 1분 미조작 시 홈 이동
  *   - 전역 터치 키보드 (KeyboardProvider + TouchKeyboard)
- *   - 상단 헤더: CineOS 로고 + 타이머 표시
+ *   - 상단 헤더: CineOS 로고(클릭 시 홈 + 임시 좌석 즉시 해제) + 타이머 표시
  *   - 페이지 전환 애니메이션 (Framer Motion)
  *
  * 레이아웃 구조:
@@ -17,6 +17,7 @@
  *   </div>
  */
 import {Link, Outlet} from 'react-router-dom'
+import {releaseSeatHoldApi} from '../../utils/seatHold'
 import {motion} from 'framer-motion'
 import {Clock} from 'lucide-react'
 import {pageTransition, pageVariants} from '../../styles/transitions'
@@ -41,7 +42,11 @@ function InnerLayout() {
             {!isExcluded && (
                 <header className={styles.header}>
                     {/* 로고 */}
-                    <Link to="/" className={styles.logoLink}>
+                    <Link
+                        to="/"
+                        className={styles.logoLink}
+                        onClick={() => void releaseSeatHoldApi()}
+                    >
                         <img
                             src="/logo_cineos.svg"
                             alt="CineOS 로고"

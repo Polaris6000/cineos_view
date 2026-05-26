@@ -41,7 +41,7 @@ export interface MovieDTO {
     startAt: string;
     endAt: string;
     createAt: string;
-    posterPath: string | null;  // TMDB 경로 또는 null — resolvePosterUrl()로 변환
+    posterPath: string | null;  // DB 저장값: /uploads/... (신규) 또는 TMDB URL (레거시)
 }
 
 //변환 메소드
@@ -50,7 +50,6 @@ export const mapToMovie = (movieDTO: MovieDTO): Movie => ({
     title: movieDTO.title,
     genre: movieDTO.genre,
     rating: movieDTO.rating,
-    // posterPath → TMDB CDN URL 또는 절대 경로로 변환 (이전: "/poster" + title 잘못된 수식 수정)
     posterUrl: resolvePosterUrl(movieDTO.posterPath),
     synopsis: movieDTO.description,
     director: movieDTO.director,

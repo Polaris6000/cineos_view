@@ -8,7 +8,7 @@
  *
  * ※ 백엔드에서 popular/search 응답의 posterPath는 이미 full URL로 내려옴
  *   (https://image.tmdb.org/t/p/w500/xxx.jpg)
- *   → 프론트에서 별도로 base URL 붙일 필요 없음
+ *   → 등록 폼 TMDB 검색·미리보기 전용 (저장 후 표시는 /uploads/ 경로 사용) // 
  */
 
 /**

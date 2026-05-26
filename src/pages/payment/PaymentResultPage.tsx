@@ -2,6 +2,7 @@ import {useEffect, useRef, useState} from 'react'
 import {useNavigate, useSearchParams} from 'react-router-dom'
 import {CheckCircle, Gift, Info, Loader2, Printer, Smartphone, Ticket, X} from 'lucide-react'
 import apiClient from '../../api/apiClient'
+import {clearKioskSeatIdentity} from '../../utils/seatHold'
 
 const PERSON_TYPES: { type: string; label: string }[] = [
     {type: 'adult', label: '성인'},
@@ -140,7 +141,7 @@ function PaymentResultPage() {
                 setShowTicketModal(true)        // 티켓 알림 모달 자동 표시
                 setTicketCountdown(TICKET_REMINDER_COUNTDOWN)
                 localStorage.removeItem('pending_booking_data')
-                localStorage.removeItem('ws_user_id')
+                clearKioskSeatIdentity()
             } catch (err: any) {
                 console.error('[PaymentResultPage] 결제 확인 실패', err)
                 // 적립 정책 미설정 에러 vs 그 외 서버 에러 구분

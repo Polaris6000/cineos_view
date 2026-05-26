@@ -14,9 +14,9 @@
  *
  * FHD(1080×1920) 세로형 키오스크 기준 레이아웃
  */
-import {useCallback, useEffect, useMemo, useState} from 'react'
-import {useNavigate} from 'react-router-dom'
-import {Film, Search, X} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Film, Search, X } from 'lucide-react'
 import axios from 'axios'
 import {
     mapToMovie,
@@ -36,18 +36,18 @@ import styles from './MovieListPage.module.css'
 
 /** 등급 필터 옵션 */
 const RATING_OPTIONS = [
-    {label: '전체', value: ''},
-    {label: '전체관람가', value: 'ALL'},
-    {label: '12세 이상', value: '12'},
-    {label: '15세 이상', value: '15'},
-    {label: '청소년 관람불가', value: '19'},
+    { label: '전체', value: '' },
+    { label: '전체관람가', value: 'ALL' },
+    { label: '12세 이상', value: '12' },
+    { label: '15세 이상', value: '15' },
+    { label: '청소년 관람불가', value: '19' },
 ]
 
 /** 상영관 타입 필터 옵션 */
 const THEATER_TYPE_OPTIONS = [
-    {label: '전체', value: 'ALL'},
-    {label: '일반상영관', value: 'NORMAL'},
-    {label: '리클라이너 상영관', value: 'RECLINER'},
+    { label: '전체', value: 'ALL' },
+    { label: '일반상영관', value: 'NORMAL' },
+    { label: '리클라이너 상영관', value: 'RECLINER' },
 ]
 
 /** 등급 → 표시 텍스트 (카드용 짧은 형식) */
@@ -87,7 +87,7 @@ function MovieListPage() {
     useEffect(() => {
         const axiosMovies = async () => {
             try {
-                const {data} = await axios.get<MovieDTO[]>('/api/movie/all')
+                const { data } = await axios.get<MovieDTO[]>('/api/movie/all')
                 const formattedMovies = data.map((dto) => mapToMovie(dto))
 
                 setNowMovies(formattedMovies)
@@ -104,7 +104,7 @@ function MovieListPage() {
     useEffect(() => {
         const axiosSchedule = async () => {
             try {
-                const {data} = await axios.get<ScheduleDTO[]>('/api/schedule/DTOlist')
+                const { data } = await axios.get<ScheduleDTO[]>('/api/schedule/DTOlist')
                 setSchedule(data.map((dto) => mapToSchedule(dto)))
             } catch (error) {
                 console.error("스케쥴 로딩 중 에러:", error)
@@ -113,11 +113,11 @@ function MovieListPage() {
         axiosSchedule()
     }, [])
 
-// 영화관 정보 조회: GET /api/theater/dtoAll (CustomerController, 인증 불필요)
+    // 영화관 정보 조회: GET /api/theater/dtoAll (CustomerController, 인증 불필요)
     useEffect(() => {
         const axiosTheater = async () => {
             try {
-                const {data} = await axios.get<TheaterDTO[]>('/api/theater/dtoAll')
+                const { data } = await axios.get<TheaterDTO[]>('/api/theater/dtoAll')
                 console.log("영화관 정보 : ", data);
 
 
@@ -300,7 +300,7 @@ function MovieListPage() {
                 <div className={`${styles.filterRow} ${styles.filterRowSearch}`}>
                     <span className={styles.filterLabel}>검색</span>
                     <div className={styles.searchWrap}>
-                        <Search size={18} className={styles.searchIcon}/>
+                        <Search size={18} className={styles.searchIcon} />
                         <input
                             type="text"
                             className={styles.searchInput}
@@ -318,7 +318,7 @@ function MovieListPage() {
                                 onClick={() => setSearchQuery('')}
                                 aria-label="검색어 지우기"
                             >
-                                <X size={18}/>
+                                <X size={18} />
                             </button>
                         )}
                     </div>
@@ -331,7 +331,7 @@ function MovieListPage() {
                 {filteredMovies.length === 0 ? (
                     /* 빈 결과 */
                     <div className={styles.empty}>
-                        <Film size={52} color="var(--text-muted)"/>
+                        <Film size={52} color="var(--text-muted)" />
                         <p className={styles.emptyText}>
                             {searchQuery
                                 ? `"${searchQuery}" 검색 결과가 없습니다.`
@@ -368,9 +368,9 @@ function MovieListPage() {
                                         <h2 className={styles.cardTitle}>{movie.title}</h2>
                                         <div className={styles.cardMeta}>
                                             <div className={styles.cardMetaRow}>
-                        <span className={`${styles.badge} ${styles[`badge${movie.rating}`]}`}>
-                          {(RATING_LABEL as Record<string, string>)[movie.rating] ?? movie.rating}
-                        </span>
+                                                <span className={`${styles.badge} ${styles[`badge${movie.rating}`]}`}>
+                                                    {(RATING_LABEL as Record<string, string>)[movie.rating] ?? movie.rating}
+                                                </span>
                                                 {getMovieTheaterTypes(movie.id).has('RECLINER') && (
                                                     <span className={styles.reclinerBadge}>리클라이너</span>
                                                 )}

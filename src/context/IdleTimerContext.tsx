@@ -10,10 +10,12 @@
  *
  * 주의:
  *   - 홈 화면(/)에서는 타이머가 동작하지 않음 (홈에서 홈으로 리다이렉트 방지)
+ *   - 만료 시 홈 이동 전 임시 좌석 즉시 해제(releaseSeatHoldApi)
  *   - 결제 완료 페이지(/payment/result)에서는 타이머 동작 (완료 후 자동 귀환)
  */
 import {createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState} from 'react'
 import {useLocation, useNavigate} from 'react-router-dom'
+import {releaseSeatHoldApi} from '../utils/seatHold'
 
 /** 비조작 제한 시간 (초) */
 const IDLE_LIMIT = 60 * 2
@@ -99,7 +101,7 @@ export function IdleTimerProvider({children}: { children: ReactNode }) {
             setRemain((prev) => {
                 if (prev <= 1) {
                     clearInterval(intervalRef.current)
-                    // 홈으로 이동 (replace: true → 뒤로가기로 다시 돌아오지 못하게)
+                    void releaseSeatHoldApi()
                     navigate('/', {replace: true})
                     return IDLE_LIMIT
                 }

@@ -20,6 +20,8 @@
  *
  * 주의: 결제 수단 선택 없음 — 백엔드 결제 루트는 CARD(토스) 하나뿐
  *
+ * 임시 좌석: 결제·창 닫기 시 WS 종료만 → 서버 5분 지연 해제. 로고·타이머 홈은 즉시 해제.
+ *
  * [백엔드 요청사항]
  *   POST /api/coupon/auth 응답을 Boolean → CouponDTO로 변경하면
  *   아래 CouponDiscount 로직이 자동으로 활성화됨.
@@ -113,7 +115,6 @@ function PaymentPage() {
 
     /* ── 결제 진행 중 상태 (Toss 팝업 열려있는 동안) ── */
     const [isPaying, setIsPaying] = useState(false)
-
     /* failUrl 리디렉션으로 돌아온 경우 취소 안내 메시지 표시 */
     const [cancelMsg, setCancelMsg] = useState(
         tossErrorCode === 'PAY_PROCESS_CANCELED' ? '결제가 취소되었습니다. 다시 시도해 주세요.' : ''

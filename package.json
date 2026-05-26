@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server/productionServer.mjs"
   },
   "dependencies": {
     "@tosspayments/tosspayments-sdk": "^2.6.0",
+    "busboy": "^1.6.0",
     "axios": "^1.14.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.7.0",
@@ -26,7 +28,9 @@
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "express": "^5.2.1",
     "globals": "^17.4.0",
+    "sirv": "^3.0.2",
     "typescript": "^6.0.2",
     "vite": "^6.3.5"
   },

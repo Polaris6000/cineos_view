@@ -159,7 +159,13 @@ function SeatPage() {
      * wsState.connected - 연결 상태
      * sendToggle        - 좌석 토글 메시지 송신 함수
      */
-    const {wsState, sendToggle} = useWebSocket(schedule.id ?? null)
+    const {wsState, sendToggle, releaseSeats} = useWebSocket(schedule.id ?? null)
+
+    /** 뒤로가기 버튼: 즉시 RELEASE (로고·홈·타이머는 CustomerLayout/IdleTimer에서 처리) */
+    const handleBack = () => {
+        releaseSeats()
+        navigate(-1)
+    }
 
     /* ── 좌석 배치 생성 (메모이제이션) ──────────────────────── */
     /**
@@ -341,7 +347,7 @@ function SeatPage() {
         return (
             <div style={pageWrap}>
                 <p style={{color: 'var(--color-error-text)', fontSize: 16}}>{apiError}</p>
-                <button onClick={() => navigate(-1)} style={backBtn}>← 뒤로</button>
+                <button onClick={handleBack} style={backBtn}>← 뒤로</button>
             </div>
         )
     }
@@ -351,7 +357,7 @@ function SeatPage() {
         <div style={pageWrap}>
 
             {/* ── 뒤로 가기 ── */}
-            <button onClick={() => navigate(-1)} style={backBtn}>
+            <button onClick={handleBack} style={backBtn}>
                 <ChevronLeft size={20}/>
                 날짜 · 시간 선택
             </button>

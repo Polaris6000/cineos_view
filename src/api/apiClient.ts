@@ -189,10 +189,18 @@ export interface PointHistoryDTO {
 
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500'
 
+/**
+ * DB posterPath → 화면 표시용 URL
+ * - /uploads/... : 프론트 uploads 폴더 (신규 등록)  
+ * - http(s)://... : 기존 DB 시드·레거시 TMDB URL    
+ * - /abc.jpg      : TMDB 상대 경로 (레거시)         
+ */
 export function resolvePosterUrl(posterPath: string | null | undefined): string {
     if (!posterPath) return '/placeholder-poster.jpg'
-    if (posterPath.startsWith('http')) return posterPath
-    return `${TMDB_IMAGE_BASE}${posterPath}`
+    if (posterPath.startsWith('http')) return posterPath // 레거시 TMDB full URL
+    // uploads 폴더 정적 경로 (Vite/프론트 서버가 /uploads/** 서빙)
+    if (posterPath.startsWith('/uploads/')) return posterPath
+    return `${TMDB_IMAGE_BASE}${posterPath}` // 레거시 TMDB 상대 경로
 }
 
 export function theaterName(no: number): string {

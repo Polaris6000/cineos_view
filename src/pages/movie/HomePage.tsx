@@ -7,9 +7,9 @@
  *  - 5초마다 자동 전환
  *  - 화면 어디든 터치 → /movie/list 이동
  */
-import {useCallback, useEffect, useRef, useState} from 'react'
-import {useNavigate} from 'react-router-dom'
-import apiClient, {type MovieDTO, resolvePosterUrl} from '../../api/apiClient'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import apiClient, { type MovieDTO, resolvePosterUrl } from '../../api/apiClient'
 import styles from './HomePage.module.css'
 
 /** 슬라이드 자동 전환 간격 (ms) */
@@ -118,7 +118,7 @@ function HomePage() {
         return (
             <div className={styles.home} onClick={handleScreenClick}>
                 <div className={styles.logo}>
-                    <img src="/logo_cineos.svg" alt="CineOS"/>
+                    <img src="/logo_cineos.svg" alt="CineOS" />
                 </div>
                 <div className={styles.empty}>
                     <p className={styles.emptyTitle}>CineOS</p>
@@ -133,7 +133,7 @@ function HomePage() {
         return (
             <div className={styles.home} onClick={handleScreenClick}>
                 <div className={styles.logo}>
-                    <img src="/logo_cineos.svg" alt="CineOS"/>
+                    <img src="/logo_cineos.svg" alt="CineOS" />
                 </div>
                 <div className={styles.empty}>
                     <p className={styles.emptyTitle}>CineOS</p>
@@ -149,7 +149,7 @@ function HomePage() {
 
             {/* ── 로고 (좌상단) ── */}
             <div className={styles.logo} aria-hidden="true">
-                <img src="/logo_cineos.svg" alt="CineOS"/>
+                <img src="/logo_cineos.svg" alt="CineOS" />
             </div>
 
             {/* ── 슬라이드쇼 ── */}
