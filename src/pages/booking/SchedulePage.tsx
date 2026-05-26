@@ -1,5 +1,5 @@
 /**
- * SchedulePage.jsx — 시간·인원 선택
+ * SchedulePage.jsx — 시간/인원 선택
  *
  * 동작 흐름:
  *  1. 당일 상영 시간 선택 (날짜 선택 제거 — 당일 예매만 지원)
@@ -303,7 +303,7 @@ function SchedulePage() {
       {/* ── 페이지 제목 ── */}
       <h2 style={pageTitle}>
         <Clock size={24} style={{marginRight: 10, verticalAlign: 'middle'}}/>
-        시간 · 인원 선택
+        시간 / 인원 선택
       </h2>
       
       {/* 영화 제목 + 날짜 배지 */}
@@ -358,7 +358,7 @@ function SchedulePage() {
                     {s.startTime}
                   </p>
                   <p style={{fontSize: 13, color: 'var(--text-secondary)', margin: 0}}>
-                    {s.theaterName} · ~{s.endTime}
+                    {s.theaterName} / ~{s.endTime}
                     {s.isRecliner && (
                       <span style={{
                         display: 'inline-block',
@@ -482,11 +482,11 @@ function SchedulePage() {
           ))}
         </div>
         
-        {/* 기타 할인 안내 — 유아·장애인·국가유공자 등은 카운터에서 별도 문의 */}
+        {/* 기타 할인 안내 — 유아/장애인/국가유공자 등은 카운터에서 별도 문의 */}
         <div style={otherDiscountNotice}>
           <Info size={14} style={{flexShrink: 0, marginTop: 1}}/>
           <span>
-            유아·장애인·국가유공자 등 기타 할인은 매표소 카운터에서 예매해 주세요.
+            유아/장애인/국가유공자 등 기타 할인은 매표소 카운터에서 예매해 주세요.
           </span>
         </div>
         
@@ -505,7 +505,7 @@ function SchedulePage() {
         {canProceed ? (
           <div style={summaryBox}>
             <Users size={16} style={{marginRight: 6}}/>
-            {fmtDateLabel(today)} · {selectedSched.startTime} · {selectedSched.theaterName} · {totalPersons}명
+            {fmtDateLabel(today)} / {selectedSched.startTime} / {selectedSched.theaterName} / {totalPersons}명
             {earlyBirdAmount > 0 && (
               <span style={{
                 marginLeft: 10,

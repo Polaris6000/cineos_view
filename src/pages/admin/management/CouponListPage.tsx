@@ -22,7 +22,7 @@ import {useAuth} from '../../../context/AuthContext'
 
 /**
  * buildPageRange — 페이지 번호 배열 생성 (... 포함)
- * 7 이하: 모두 표시 / 초과: 1 · ... · (현재±2) · ... · N 구조
+ * 7 이하: 모두 표시 / 초과: 1 / ... / (현재±2) / ... / N 구조
  */
 function buildPageRange(current: number, total: number): (number | '...')[] {
     if (total <= 7) return Array.from({length: total}, (_, i) => i + 1)
@@ -271,7 +271,7 @@ function CouponListPage() {
                         <p style={sectionDesc}>
                             <span style={{color: 'var(--color-info-main)', fontWeight: 800}}>전체 {totalItems}건</span>
                             {' '}(현재 페이지: {currentPage} / {totalPages})
-                            &nbsp;·&nbsp;
+                            &nbsp;/&nbsp;
                             {/* 사용 가능 건수 표시 (초록색) */}
                             <span style={{color: 'var(--color-success-main)', fontWeight: 600}}>
                 사용 가능 {availableCount}건
@@ -352,7 +352,7 @@ function CouponListPage() {
                             이전
                         </button>
 
-                        {/* buildPageRange: 1 · ... · (현재±2) · ... · N 구조 */}
+                        {/* buildPageRange: 1 / ... / (현재±2) / ... / N 구조 */}
                         {buildPageRange(currentPage, totalPages).map((num, idx) =>
                             num === '...'
                                 ? <span key={`ellipsis-${idx}`} style={ellipsisStyle}>…</span>

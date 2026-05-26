@@ -224,7 +224,7 @@ function EtlUploadPage() {
                                     클릭하거나 파일을 드래그해서 올려주세요
                                 </p>
                                 <p className={styles.dropzoneHint}>
-                                    지원 형식: {ALLOWED_EXTENSIONS} &nbsp;·&nbsp; 최대 50MB
+                                    지원 형식: {ALLOWED_EXTENSIONS} &nbsp;/&nbsp; 최대 50MB
                                 </p>
                             </div>
                         )}
@@ -243,7 +243,7 @@ function EtlUploadPage() {
                     <div className={styles.infoBox}>
                         <Info size={14}/>
                         <span>
-              PDF·Word·텍스트·JSON 파일을 지원합니다.
+              PDF/Word/텍스트/JSON 파일을 지원합니다.
               업로드 후 AI가 내용을 분석하고 질문에 답변할 수 있게 됩니다.
             </span>
                     </div>

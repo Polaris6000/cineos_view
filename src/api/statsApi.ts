@@ -34,7 +34,7 @@ export interface StatisticsDTO {
     day: DayOfWeek | null
     revenue: number
     customerCount: number
-    date: string | null   // 'YYYY-MM-DD' — HOUR·MOVIE 타입은 null
+    date: string | null   // 'YYYY-MM-DD' — HOUR/MOVIE 타입은 null
     title: string | null  // HOUR="HH시", MOVIE=영화제목
 }
 

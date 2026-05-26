@@ -4,7 +4,7 @@
  * [TMDB 자동 불러오기]
  *   - 우측 패널에서 인기 영화 조회 & 제목 검색 (리스트 형태)
  *   - 항목 클릭 → 백엔드 상세 조회 후 폼 자동 입력
- *   - 자동 입력 후 사용자가 내용 검토·수정 가능
+ *   - 자동 입력 후 사용자가 내용 검토/수정 가능
  *   - "등록" / "수정" 클릭 시에만 DB 저장
  *
  * [API 연동]
@@ -403,7 +403,7 @@ function MovieFormPage() {
                         <div style={tmdbFilledBanner}>
                             <Sparkles size={14} color="var(--color-brand-default)" style={{flexShrink: 0}}/>
                             <span style={{flex: 1, fontSize: 13, color: 'var(--text-primary)'}}>
-                TMDB 정보를 불러왔습니다. 내용을 검토·수정한 뒤{' '}
+                TMDB 정보를 불러왔습니다. 내용을 검토/수정한 뒤{' '}
                                 <strong>{isEdit ? '수정' : '등록'}</strong>을 눌러주세요.
               </span>
                             <button type="button" onClick={() => setTmdbFilled(false)} style={bannerCloseBtn}>

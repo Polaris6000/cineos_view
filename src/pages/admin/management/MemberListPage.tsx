@@ -17,7 +17,7 @@ import apiClient from '../../../api/apiClient.ts'
 
 /**
  * buildPageRange — 페이지 번호 배열 생성 (... 포함)
- * 7 이하: 모두 표시 / 초과: 1 · ... · (현재±2) · ... · N 구조
+ * 7 이하: 모두 표시 / 초과: 1 / ... / (현재±2) / ... / N 구조
  */
 function buildPageRange(current: number, total: number): (number | '...')[] {
     if (total <= 7) return Array.from({length: total}, (_, i) => i + 1)
@@ -104,7 +104,7 @@ function MemberListPage() {
                 <div>
                     <h2 style={pageTitle}>회원 정보 관리</h2>
                     <p style={pageDesc}>
-                        전체 {totalElements}명 · 현재 페이지 {filtered.length}명 표시
+                        전체 {totalElements}명 / 현재 페이지 {filtered.length}명 표시
                     </p>
                 </div>
                 {/* 클릭 시 ActivityLogPage로 이동 (모달 → 별도 페이지로 변경) */}
@@ -201,7 +201,7 @@ function MemberListPage() {
                         <ChevronLeft size={14}/>
                     </button>
 
-                    {/* buildPageRange: 1 · ... · (현재±2) · ... · N 구조 */}
+                    {/* buildPageRange: 1 / ... / (현재±2) / ... / N 구조 */}
                     {buildPageRange(currentPage, totalPages).map((p, idx) =>
                         p === '...'
                             ? <span key={`ellipsis-${idx}`} style={ellipsisStyle}>…</span>
@@ -275,7 +275,7 @@ function PointHistoryModal({member, onClose}: { member: Member; onClose: () => v
                     <div>
                         <h3 style={modalTitle}>{member.phone} 포인트 내역</h3>
                         <p style={{fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0'}}>
-                            전체 {pointLog.length}건 · 잔여 {member.point.toLocaleString()}P
+                            전체 {pointLog.length}건 / 잔여 {member.point.toLocaleString()}P
                         </p>
                     </div>
                     <button style={closeIconBtn} onClick={onClose}>✕</button>

@@ -64,7 +64,7 @@ function StatsByDayPage() {
         try {
             const data: StatisticsDTO[] = await fetchStatistics(from, to, 'DAY')
 
-            // 요일별로 집계 (SUNDAY~SATURDAY 각각의 합계·건수 계산)
+            // 요일별로 집계 (SUNDAY~SATURDAY 각각의 합계/건수 계산)
             const map = new Map<DayOfWeek, { revSum: number; ticketSum: number; count: number }>()
 
             data.forEach((row) => {

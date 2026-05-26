@@ -323,7 +323,7 @@ function PolicyListPage() {
                     <div>
                         <h2 style={sectionTitle}>할인 정책</h2>
                         <p style={sectionDesc}>
-                            시간대·연령·직업·쿠폰 등 조건별 할인 정책을 관리합니다.
+                            시간대/연령/직업/쿠폰 등 조건별 할인 정책을 관리합니다.
                         </p>
                     </div>
                     {/* ROLE_POLICY_EDIT 없으면 등록 버튼 숨김 */}

@@ -4,13 +4,13 @@
  * 기능:
  *  1. GET /api/payment/list — 전체 결제내역 조회
  *  2. 상태별 필터링 (PAY / RETURN / FAIL)
- *  3. 영화명·전화번호·예매번호 클라이언트 검색
+ *  3. 영화명/전화번호/예매번호 클라이언트 검색
  *  4. 상세 버튼 클릭 → /admin/management/payment-log/:id 상세 페이지로 이동
  *     (이전: 모달 → 변경: 별도 페이지)
  */
 /**
  * buildPageRange — 페이지 번호 배열 생성 (... 포함)
- * 7 이하: 모두 표시 / 초과: 1 · ... · (현재±2) · ... · N 구조
+ * 7 이하: 모두 표시 / 초과: 1 / ... / (현재±2) / ... / N 구조
  */
 function buildPageRange(current: number, total: number): (number | '...')[] {
     if (total <= 7) return Array.from({length: total}, (_, i) => i + 1)
@@ -120,7 +120,7 @@ function PaymentLogPage() {
             .filter((p) => {
                 // 상태 필터
                 if (filterStatus !== 'ALL' && p.status !== filterStatus) return false
-                // 키워드 검색 (영화명·전화번호·예매번호)
+                // 키워드 검색 (영화명/전화번호/예매번호)
                 if (keyword) {
                     const kw = keyword.toLowerCase()
                     const movieTitle = (p.reservation?.schedule?.movie?.title ?? '').toLowerCase()
@@ -193,7 +193,7 @@ function PaymentLogPage() {
                 <input
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
-                    placeholder="영화명 · 전화번호 · 예매번호 검색"
+                    placeholder="영화명 / 전화번호 / 예매번호 검색"
                     style={searchInput}
                 />
 
@@ -217,7 +217,7 @@ function PaymentLogPage() {
                     >
                         이전
                     </button>
-                    {/* buildPageRange: 1 · ... · (현재±2) · ... · N 구조 */}
+                    {/* buildPageRange: 1 / ... / (현재±2) / ... / N 구조 */}
                     {buildPageRange(currentPage, totalPages).map((n, idx) =>
                         n === '...'
                             ? <span key={`ellipsis-${idx}`} style={ellipsisStyle}>…</span>
@@ -257,7 +257,7 @@ function PaymentLogPage() {
             {!loading && !error && (
                 <>
                     <p style={{fontSize: 12, color: 'var(--text-muted)', marginBottom: 8}}>
-                        {filtered.length}건 표시 / 현재 페이지 {paymentList.length}건 · 전체 {totalItems}건
+                        {filtered.length}건 표시 / 현재 페이지 {paymentList.length}건 / 전체 {totalItems}건
                         ({currentPage}/{totalPages} 페이지)
                     </p>
                     <div style={tableWrapper}>

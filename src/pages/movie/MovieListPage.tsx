@@ -3,9 +3,9 @@
  *
  * 기능:
  *  - 탭: 현재 상영 중 / 상영 예정 전환
- *  - 필터: 장르 · 등급 (단일 선택 칩)
+ *  - 필터: 장르 / 등급 (단일 선택 칩)
  *  - 검색: 키워드로 영화 제목 필터링 (터치 키보드 연동)
- *  - 카드 그리드: 포스터 · 제목 · 장르 · 등급 배지 · 런타임
+ *  - 카드 그리드: 포스터 / 제목 / 장르 / 등급 배지 / 런타임
  *  - 카드 클릭 → 영화 상세 페이지로 이동
  *
  * 터치 키보드:
@@ -100,7 +100,7 @@ function MovieListPage() {
     axiosMovies();
   }, []); // 빈 배열: 페이지 처음 들어올 때만 실행
   
-  // 스케줄 정보 로드 (상영관 타입 · 오늘 남은 회차 필터용)
+  // 스케줄 정보 로드 (상영관 타입 / 오늘 남은 회차 필터용)
   useEffect(() => {
     const axiosSchedule = async () => {
       try {
@@ -109,7 +109,7 @@ function MovieListPage() {
       } catch (error) {
         console.error("스케줄 로딩 중 에러:", error)
       } finally {
-        // 성공·실패 무관하게 로드 완료 처리 → 필터가 올바르게 동작하도록
+        // 성공/실패 무관하게 로드 완료 처리 → 필터가 올바르게 동작하도록
         setSchedulesLoaded(true)
       }
     }
@@ -222,7 +222,7 @@ function MovieListPage() {
       if (searchQuery.trim() && !movie.title.includes(searchQuery.trim())) return false
       return true
     })
-    // schedules · schedulesLoaded는 비동기 로드 완료 시 재계산이 필요하므로 반드시 deps에 포함
+    // schedules / schedulesLoaded는 비동기 로드 완료 시 재계산이 필요하므로 반드시 deps에 포함
   }, [nowMovies, selectedGenre, selectedRating, selectedTheaterType, searchQuery, parseGenres, schedules, schedulesLoaded, theaters])
   
   /** 카드 클릭 → 영화 상세 페이지 */

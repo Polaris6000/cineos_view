@@ -16,7 +16,7 @@ import { CalendarDays, ChevronLeft, Clock, Film, Tag } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import apiClient, { type MovieDTO, resolvePosterUrl } from '../../api/apiClient'
 
-/** 관람등급 → 표시 텍스트·색상 */
+/** 관람등급 → 표시 텍스트/색상 */
 const RATING_INFO: Record<string, { label: string; color: string }> = {
     ALL: { label: '전체관람가', color: '#4caf50' },
     '12': { label: '12세 이상', color: '#2a88c8' },

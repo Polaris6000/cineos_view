@@ -50,7 +50,7 @@ const STATUS_COLOR = {
 /* ── 유틸: 스케줄 드롭다운 레이블 포맷 ──────────────────────── */
 /**
  * 스케줄 드롭다운 옵션 텍스트 생성
- * '영화제목 · 4/19(토) 14:30' 형식으로 표시
+ * '영화제목 / 4/19(토) 14:30' 형식으로 표시
  *
  * @param schedule      - ScheduleDTO
  * @param movieTitleMap - movieId → 영화 제목 매핑 (API 조회 후 전달)
@@ -64,7 +64,7 @@ function formatScheduleLabel(schedule: ScheduleDTO, movieTitleMap: Record<number
     const hh = String(d.getHours()).padStart(2, '0')
     const mm = String(d.getMinutes()).padStart(2, '0')
     const title = movieTitleMap[schedule.movieId] ?? `영화 #${schedule.movieId}`
-    return `${title} · ${month}/${day}(${dow}) ${hh}:${mm}${!schedule.activation ? ' [비활성]' : ''}`
+    return `${title} / ${month}/${day}(${dow}) ${hh}:${mm}${!schedule.activation ? ' [비활성]' : ''}`
 }
 
 /* ── 컴포넌트 ───────────────────────────────────────────────── */
@@ -251,8 +251,8 @@ function SeatListPage() {
                             const cfg = THEATER_CONFIG[no]
                             return (
                                 <option key={no} value={no}>
-                                    {no}관 · {cfg.rows}×{cfg.cols} ({cfg.rows * cfg.cols}석
-                                    {cfg.hasRecliner ? ' · 리클라이너' : ''})
+                                    {no}관 / {cfg.rows}×{cfg.cols} ({cfg.rows * cfg.cols}석
+                                    {cfg.hasRecliner ? ' / 리클라이너' : ''})
                                 </option>
                             )
                         })}
@@ -445,7 +445,7 @@ function SeatListPage() {
                                                 return (
                                                     <div
                                                         key={seat.id}
-                                                        title={`${seat.id} · ${SEAT_TYPE_LABEL[seat.seatType]}`}
+                                                        title={`${seat.id} / ${SEAT_TYPE_LABEL[seat.seatType]}`}
                                                         onClick={() => isClickable && toggleSeat(seat.id)}
                                                         style={{
                                                             ...seatStyle,

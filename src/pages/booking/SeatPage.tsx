@@ -161,7 +161,7 @@ function SeatPage() {
      */
     const {wsState, sendToggle, releaseSeats} = useWebSocket(schedule.id ?? null)
 
-    /** 뒤로가기 버튼: 즉시 RELEASE (로고·홈·타이머는 CustomerLayout/IdleTimer에서 처리) */
+    /** 뒤로가기 버튼: 즉시 RELEASE (로고/홈/타이머는 CustomerLayout/IdleTimer에서 처리) */
     const handleBack = () => {
         releaseSeats()
         navigate(-1)
@@ -223,7 +223,7 @@ function SeatPage() {
     const handleSeatClick = (seat: SeatItem) => {
         const status = getSeatDisplayStatus(seat.id)
 
-        // 예약완료 · 타인점유는 클릭 불가
+        // 예약완료 / 타인점유는 클릭 불가
         if (status === 'sold_out' || status === 'occupied') return
 
         // 이미 내가 선택한 좌석 → 해제
@@ -359,7 +359,7 @@ function SeatPage() {
             {/* ── 뒤로 가기 ── */}
             <button onClick={handleBack} style={backBtn}>
                 <ChevronLeft size={20}/>
-                날짜 · 시간 선택
+                날짜 / 시간 선택
             </button>
 
             {/* ── 헤더 정보 ── */}
@@ -381,7 +381,7 @@ function SeatPage() {
             </div>
 
             <p style={subInfo}>
-                {movieTitle} · {schedule.theaterName ?? `${schedule.no}관`} · {schedule.startTime ?? ''}
+                {movieTitle} / {schedule.theaterName ?? `${schedule.no}관`} / {schedule.startTime ?? ''}
             </p>
             <p style={subInfo}>
                 선택:{' '}
@@ -389,7 +389,7 @@ function SeatPage() {
                 {' '}/ {totalPersons}석
                 {seatPolicy && (
                     <span style={{marginLeft: 12, fontSize: 13, color: 'var(--text-muted)'}}>
-            ({seatPolicy.name} · 1석 {seatPolicy.cost.toLocaleString()}원)
+            ({seatPolicy.name} / 1석 {seatPolicy.cost.toLocaleString()}원)
           </span>
                 )}
             </p>
@@ -462,7 +462,7 @@ function SeatPage() {
                                 <button
                                     key={seat.id}
                                     onClick={() => handleSeatClick(seat)}
-                                    title={`${seat.id} (${SEAT_TYPE_LABEL[seat.seatType] ?? '일반'} · ${getSeatPrice(seat.seatType).toLocaleString()}원)`}
+                                    title={`${seat.id} (${SEAT_TYPE_LABEL[seat.seatType] ?? '일반'} / ${getSeatPrice(seat.seatType).toLocaleString()}원)`}
                                     style={{
                                         ...seatBase,
                                         ...getSeatStyle(displayStatus, seat.seatType),
@@ -521,7 +521,7 @@ function SeatPage() {
                     <div style={{fontSize: 13, color: 'var(--text-secondary)'}}>
                         {Object.entries(selectedSeatsSummary).map(([type, cnt]) => (
                             <span key={type} style={{marginRight: 12}}>
-                {SEAT_TYPE_LABEL[type as keyof typeof SEAT_TYPE_LABEL] ?? '일반'} {cnt as number}석 · {(getSeatPrice(type) * (cnt as number)).toLocaleString()}원
+                {SEAT_TYPE_LABEL[type as keyof typeof SEAT_TYPE_LABEL] ?? '일반'} {cnt as number}석 / {(getSeatPrice(type) * (cnt as number)).toLocaleString()}원
               </span>
                         ))}
                     </div>
@@ -559,7 +559,7 @@ function SeatPage() {
     )
 }
 
-/* ── 좌석 상태·타입별 스타일 반환 ─────────────────────────── */
+/* ── 좌석 상태/타입별 스타일 반환 ─────────────────────────── */
 /**
  * @param displayStatus - 'selected' | 'sold_out' | 'occupied' | 'empty'
  * @param seatType      - 'NORMAL' | 'RECLINER'

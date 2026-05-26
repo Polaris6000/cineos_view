@@ -190,7 +190,7 @@ function StatsDashboardPage() {
                                 {topMovie.title}
                             </p>
                             <p style={{fontSize: 14, color: 'var(--text-muted)', margin: 0}}>
-                                {topMovie.customerCount.toLocaleString()}명 · {fmtWon(topMovie.revenue)}
+                                {topMovie.customerCount.toLocaleString()}명 / {fmtWon(topMovie.revenue)}
                             </p>
                         </div>
                     )}
