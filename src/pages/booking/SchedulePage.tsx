@@ -47,11 +47,11 @@ const BOOKING_GRACE_MINUTES = 10
  * 예매 불가 상태인지 확인
  * 상영 시작 후 BOOKING_GRACE_MINUTES분이 지났을 때 비로소 예매 불가 처리
  * daySchedules는 이미 오늘 날짜 기준이므로 시분 비교만으로 충분
+ * now를 외부에서 주입받아 setInterval 갱신 시 최신 시각을 반영
  */
-function isPast(startTime: string): boolean {
-  const now = new Date()
+function isPast(startTime: string, now: Date): boolean {
   const [h, m] = startTime.split(':').map(Number)
-  const deadline = new Date()
+  const deadline = new Date(now)
   // 시작 시각 + 유예 시간 = 실제 예매 마감 시각
   deadline.setHours(h, m + BOOKING_GRACE_MINUTES, 0, 0)
   return now > deadline
@@ -61,10 +61,9 @@ function isPast(startTime: string): boolean {
  * 상영이 이미 시작됐지만 유예 시간 내(= 예매 가능)인지 확인
  * isPast가 false이고 현재 시각이 시작 시각을 넘은 경우
  */
-function isOngoing(startTime: string): boolean {
-  const now = new Date()
+function isOngoing(startTime: string, now: Date): boolean {
   const [h, m] = startTime.split(':').map(Number)
-  const start = new Date()
+  const start = new Date(now)
   start.setHours(h, m, 0, 0)
   return now > start
 }
@@ -185,9 +184,20 @@ function SchedulePage() {
   }, [movieId, schedules.length]); // schedules 전체를 넣으면 무한루프 위험이 있어 length 권장
   
   
+  /**
+   * 현재 시각을 1분마다 갱신하는 state
+   * React는 시간이 흘러도 자동으로 재렌더하지 않으므로,
+   * setInterval로 강제 갱신해 isPast / isOngoing 결과가 실시간 반영되게 함
+   */
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000) // 1분마다 갱신
+    return () => clearInterval(id)
+  }, [])
+
   // 오늘 날짜 고정 (당일 예매만 가능) — KST 기준 로컬 날짜 사용
   // toISOString()은 UTC 기준이라 한국 자정~오전 9시에 날짜 어긋남 → toLocaleDateString 사용
-  const today = new Date().toLocaleDateString('en-CA')
+  const today = now.toLocaleDateString('en-CA')
   
   // ── 선택 상태 ──
   // preSelectedSchedule: 상세 페이지에서 시간 클릭 시 초기값으로 세팅
@@ -217,10 +227,10 @@ function SchedulePage() {
     [schedules, today]
   )
   
-  // 아직 시작 안 한 상영만 — 남은 상영이 있는지 판단에 사용
+  // 예매 가능한 상영 목록 — 종료 배너 표시 여부 판단에 사용 (now 변경 시 재계산)
   const futureSchedules = useMemo(
-    () => daySchedules.filter((s) => !isPast(s.startTime)),
-    [daySchedules]
+    () => daySchedules.filter((s) => !isPast(s.startTime, now)),
+    [daySchedules, now]
   )
   
   /** 인원 수 변경 (+/-) */
@@ -336,9 +346,10 @@ function SchedulePage() {
         {daySchedules.length === 0 ? null : (
           <div style={timeGrid}>
             {daySchedules.map((s) => {
-              const past = isPast(s.startTime)
+              // now state 기준으로 판단 — setInterval 갱신 시 자동 반영
+              const past = isPast(s.startTime, now)
               // 상영 시작 후 유예 시간 내 = 상영중이지만 예매 가능
-              const ongoing = !past && isOngoing(s.startTime)
+              const ongoing = !past && isOngoing(s.startTime, now)
               const soldOut = !past && s.availableSeats === 0
               const isSelected = selectedSched?.scheduleId === s.scheduleId
               const disabled = past || soldOut
@@ -641,7 +652,7 @@ const personRow: React.CSSProperties = {
 const counter: React.CSSProperties = {display: 'flex', alignItems: 'center', gap: 16}
 const counterBtn: React.CSSProperties = {
   width: 48, height: 48, borderRadius: '50%',
-  border: '1px solid var(--border-default)',
+  border: '1px solid var(--border-efault)',
   background: 'var(--bg-base)', color: 'var(--text-primary)',
   cursor: 'pointer',
   display: 'flex', alignItems: 'center', justifyContent: 'center',

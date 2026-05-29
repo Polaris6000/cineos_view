@@ -23,7 +23,6 @@ function getDefaultPos(): { x: number; y: number } {
 /**
  * localStorage에서 저장된 위치 복원.
  * 저장된 좌표가 현재 뷰포트 밖을 벗어나면 기본 위치로 초기화.
- * (다른 해상도/창 크기에서 저장된 위치가 화면 밖에 찍히는 문제 방지)
  */
 function loadPos(): { x: number; y: number } {
   try {
@@ -42,8 +41,6 @@ function loadPos(): { x: number; y: number } {
   }
   return getDefaultPos()
 }
-
-/* ── 바로가기 링크 정의 ── */
 
 const CUSTOMER_LINKS = [
   {label: '홈', path: '/'},
@@ -78,7 +75,6 @@ const ADMIN_LINKS = [
   {label: '환불', path: '/admin/refund'},
 ]
 
-/* ── 인라인 스타일 ── */
 const panelBase: React.CSSProperties = {
   position: 'fixed',
   zIndex: 9000,
