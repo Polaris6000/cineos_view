@@ -199,7 +199,7 @@ export function resolvePosterUrl(posterPath: string | null | undefined): string 
     if (!posterPath) return '/placeholder-poster.jpg'
     if (posterPath.startsWith('http')) return posterPath // 레거시 TMDB full URL
     // uploads 폴더 정적 경로 (Vite/프론트 서버가 /uploads/** 서빙)
-    if (posterPath.startsWith('/uploads/')) return posterPath
+    if (posterPath.startsWith('/uploads/')) return `https://cineos-server.duckdns.org${posterPath}`
     return `${TMDB_IMAGE_BASE}${posterPath}` // 레거시 TMDB 상대 경로
 }
 
