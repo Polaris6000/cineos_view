@@ -89,7 +89,7 @@ function MovieListAdminPage() {
 
     // 버튼 표시 여부
     // canRegister: 영화 등록 버튼 (ROLE_MOVIE_REGISTER)
-    // canEdit: 영화 목록의 수정·삭제 버튼 (ROLE_MOVIE_EDIT = 영화 편집 권한)
+    // canEdit: 영화 목록의 수정/삭제 버튼 (ROLE_MOVIE_EDIT = 영화 편집 권한)
     const canRegister = hasPermission('ROLE_MOVIE_REGISTER')
     const canEdit = hasPermission('ROLE_MOVIE_EDIT')
 
@@ -296,7 +296,7 @@ function MovieListAdminPage() {
                                                         style={editBtn}
                                                     >수정</button>
                                                 )}
-                                                {/* ROLE_MOVIE_EDIT 없으면 삭제 버튼 숨김 (등록·수정·삭제 권한 통합) */}
+                                                {/* ROLE_MOVIE_EDIT 없으면 삭제 버튼 숨김 (등록/수정/삭제 권한 통합) */}
                                                 {canEdit && status !== 'ENDED' && (
                                                     <button
                                                         onClick={() => handleDelete(m)}

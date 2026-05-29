@@ -551,7 +551,7 @@ ${pointEarned > 0 ? `<div class="divider"></div><div class="row"><span class="la
                                 +{pointEarned.toLocaleString()}P
                             </p>
                             <p style={{fontSize: 12, color: 'var(--text-muted)', margin: '6px 0 0'}}>
-                                결제 금액의 5% 적립 · 즉시 사용 가능
+                                결제 금액의 5% 적립 / 즉시 사용 가능
                             </p>
                         </div>
                     </div>

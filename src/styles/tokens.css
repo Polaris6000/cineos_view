@@ -83,7 +83,7 @@
     --primitive-info-700: #005896; /* 어두운 톤 */
     --primitive-info-900: #001c38; /* 다크 배경 */
 
-    /* ── Accent: 차트·통계 전용 ──────────────────────── */
+    /* ── Accent: 차트/통계 전용 ──────────────────────── */
     --primitive-accent-purple: #9c7aff;
     --primitive-accent-bronze: #c87d3a;
 
@@ -102,14 +102,14 @@
 
     /* ── 배경 레이어 ─────────────────────────────────── */
     --bg-base: var(--primitive-neutral-900); /* #0e0b08  페이지 최하단 배경 */
-    --bg-surface: var(--primitive-neutral-700); /* #2e2820  카드·섹션 배경    */
-    --bg-modal: var(--primitive-neutral-800); /* #1a1410  모달·드롭다운      */
+    --bg-surface: var(--primitive-neutral-700); /* #2e2820  카드/섹션 배경    */
+    --bg-modal: var(--primitive-neutral-800); /* #1a1410  모달/드롭다운      */
     --bg-overlay: rgba(14, 11, 8, 0.72); /* 딤처리 오버레이             */
 
     /* ── 텍스트 ──────────────────────────────────────── */
     --text-primary: var(--primitive-neutral-50); /* #fff8f0 본문 주텍스트   */
     --text-secondary: var(--primitive-neutral-300); /* #b6a999 보조 텍스트     */
-    --text-muted: var(--primitive-neutral-400); /* #4f4537 비활성·힌트     */
+    --text-muted: var(--primitive-neutral-400); /* #4f4537 비활성/힌트     */
     --text-on-brand: var(--primitive-brand-800); /* #4c1c00 골드 버튼 위 글자 */
     --text-disabled: var(--primitive-neutral-400); /* 비활성화 상태 텍스트    */
 
@@ -171,14 +171,14 @@
 
     /* ── 배경 레이어 ─────────────────────────────────── */
     --bg-base: var(--primitive-neutral-100); /* #f5f3ef 라이트 기본 배경  */
-    --bg-surface: var(--primitive-neutral-0); /* #ffffff 카드·섹션 배경   */
-    --bg-modal: var(--primitive-neutral-0); /* #ffffff 모달·드롭다운    */
+    --bg-surface: var(--primitive-neutral-0); /* #ffffff 카드/섹션 배경   */
+    --bg-modal: var(--primitive-neutral-0); /* #ffffff 모달/드롭다운    */
     --bg-overlay: rgba(0, 0, 0, 0.45); /* 딤처리 오버레이           */
 
     /* ── 텍스트 ──────────────────────────────────────── */
     --text-primary: var(--primitive-neutral-900); /* #0e0b08 본문 주텍스트   */
     --text-secondary: var(--primitive-neutral-400); /* #4f4537 보조 텍스트     */
-    --text-muted: var(--primitive-neutral-300); /* #b6a999 비활성·힌트     */
+    --text-muted: var(--primitive-neutral-300); /* #b6a999 비활성/힌트     */
     --text-disabled: var(--primitive-neutral-300); /* 비활성화 텍스트         */
     /* --text-on-brand 은 모드 불변이므로 오버라이드 불필요 */
 

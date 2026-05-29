@@ -20,7 +20,7 @@
  *
  * 주의: 결제 수단 선택 없음 — 백엔드 결제 루트는 CARD(토스) 하나뿐
  *
- * 임시 좌석: 결제·창 닫기 시 WS 종료만 → 서버 5분 지연 해제. 로고·타이머 홈은 즉시 해제.
+ * 임시 좌석: 결제/창 닫기 시 WS 종료만 → 서버 5분 지연 해제. 로고/타이머 홈은 즉시 해제.
  *
  * [백엔드 요청사항]
  *   POST /api/coupon/auth 응답을 Boolean → CouponDTO로 변경하면
@@ -266,8 +266,8 @@ function PaymentPage() {
      * ─── 백엔드 응답 분기 ────────────────────────────────────────────────
      *  [현재] Boolean 반환:
      *    200 + true                   → 유효 (할인 금액 불명)
-     *    202 + string 메시지          → IllegalStateException (만료·비활성화)
-     *    400                          → IllegalArgumentException (쿠폰번호·정책 불일치)
+     *    202 + string 메시지          → IllegalStateException (만료/비활성화)
+     *    400                          → IllegalArgumentException (쿠폰번호/정책 불일치)
      *    404                          → NoSuchElementException (쿠폰/정책 미존재)
      *
      *  [백엔드 수정 후] CouponDTO 반환:
@@ -332,7 +332,7 @@ function PaymentPage() {
             }
         } catch (e: any) {
             // GlobalExceptionHandler HTTP 상태별 에러 메시지:
-            //   400 → IllegalArgumentException: 쿠폰번호·정책 불일치 (이미 사용된 쿠폰 포함)
+            //   400 → IllegalArgumentException: 쿠폰번호/정책 불일치 (이미 사용된 쿠폰 포함)
             //   404 → NoSuchElementException:   쿠폰 번호가 DB에 없음
             //   기타 → 서버 장애 또는 네트워크 오류
             const status = e?.response?.status
@@ -388,7 +388,7 @@ function PaymentPage() {
         [totalAmount, couponDiscountAmount, pointUsed],
     )
     const pointEarned = Math.floor(finalAmount * POINT_RATE)
-    // 0원 결제 조건: 쿠폰·포인트로 전액 차감됐을 때 OR 원래 금액이 0
+    // 0원 결제 조건: 쿠폰/포인트로 전액 차감됐을 때 OR 원래 금액이 0
     const isZeroPayment = finalAmount === 0
 
     /* ── Toss SDK 초기화 ── */
@@ -678,7 +678,7 @@ function PaymentPage() {
             )}
 
             {/* ══════════════════════════════════════════════════
-          [모달 3] 개인정보 수집·이용 전문 모달
+          [모달 3] 개인정보 수집/이용 전문 모달
           "자세히 보기" 클릭 시 표시. 닫기 버튼으로만 종료.
           ══════════════════════════════════════════════════ */}
             {showPrivacyModal && (
@@ -706,7 +706,7 @@ function PaymentPage() {
                             <p style={privacySection}><strong>1. 수집하는 개인정보 항목</strong></p>
                             <p style={privacyText}>휴대폰 번호</p>
 
-                            <p style={privacySection}><strong>2. 개인정보 수집·이용 목적</strong></p>
+                            <p style={privacySection}><strong>2. 개인정보 수집/이용 목적</strong></p>
                             <p style={privacyText}>
                                 영화 예매 서비스 제공, 예매 확인 및 티켓 발송,<br/>
                                 포인트 적립 및 사용 관리, 쿠폰 서비스 제공
@@ -718,9 +718,9 @@ function PaymentPage() {
                                 단, 관계 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.
                             </p>
 
-                            <p style={privacySection}><strong>4. 개인정보 수집·이용 거부 권리</strong></p>
+                            <p style={privacySection}><strong>4. 개인정보 수집/이용 거부 권리</strong></p>
                             <p style={privacyText}>
-                                귀하는 개인정보 수집·이용에 대한 동의를 거부할 수 있습니다.<br/>
+                                귀하는 개인정보 수집/이용에 대한 동의를 거부할 수 있습니다.<br/>
                                 단, 동의 거부 시 포인트 적립 및 쿠폰 서비스 이용이 제한됩니다.
                             </p>
 

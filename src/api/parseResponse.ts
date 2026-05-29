@@ -1,5 +1,5 @@
 /**
- * 빈 본문·비 JSON 응답 파싱 오류 방지 (백엔드 ResponseEntity<Void> 등)
+ * 빈 본문/비 JSON 응답 파싱 오류 방지 (백엔드 ResponseEntity<Void> 등)
  */
 export async function parseJsonResponse<T extends object = object>(
     res: Response,

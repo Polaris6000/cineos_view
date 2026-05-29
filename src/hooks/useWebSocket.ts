@@ -39,8 +39,8 @@
  *
  * ─── 점유 해제 정책 ─────────────────────────────────────────────
  *   UUID: localStorage(cineos_kiosk_ws_user_id) — 창 닫아도 유지
- *   UUID 삭제: 결제 완료·뒤로가기·홈·타이머 만료 (clearKioskSeatIdentity)
- *   즉시 해제: 뒤로가기·로고·홈·타이머 (releaseSeatHoldApi + UUID 삭제)
+ *   UUID 삭제: 결제 완료/뒤로가기/홈/타이머 만료 (clearKioskSeatIdentity)
+ *   즉시 해제: 뒤로가기/로고/홈/타이머 (releaseSeatHoldApi + UUID 삭제)
  *   지연 해제: 창 닫기만 — WS 종료 후 서버 5분 타이머 (UUID는 localStorage에 유지)
  */
 import {useCallback, useEffect, useRef, useState} from 'react'
@@ -111,7 +111,7 @@ const RETRY_DELAY_MS = 2_000
  */
 export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
   // ── refs (렌더링 주기와 독립적으로 최신값 참조) ──────────
-  /** localStorage UUID — 창을 닫았다 열어도 동일 (홈·결제완료·뒤로가기 시에만 삭제) */
+  /** localStorage UUID — 창을 닫았다 열어도 동일 (홈/결제완료/뒤로가기 시에만 삭제) */
   const userIdRef = useRef<string>(getOrCreateKioskWsUserId())
   /** WS 인스턴스 ref — onclose에서 stale 여부 확인에도 사용 */
   const wsRef = useRef<WebSocket | null>(null)
@@ -156,7 +156,7 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
     for (const seat of allSeats) {
       map.set(seat, mySeatsRef.current.has(seat) ? userIdRef.current : 'other')
     }
-    // flat 목록에 없어도 내 선택은 항상 myId로 표시 (재접속·INIT 지연 대비)
+    // flat 목록에 없어도 내 선택은 항상 myId로 표시 (재접속/INIT 지연 대비)
     for (const seat of mySeatsRef.current) {
       map.set(seat, userIdRef.current)
     }
@@ -336,7 +336,7 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
     void fetchReserved()
     connect()
     
-    // cleanup: RELEASE 없이 WS만 종료 → 창 닫기·결제 이동 시 서버 지연 해제(5분)
+    // cleanup: RELEASE 없이 WS만 종료 → 창 닫기/결제 이동 시 서버 지연 해제(5분)
     return () => {
       console.log('[WS] cleanup — 연결 종료 (점유 유지, 서버 타이머 대기)')
       const ws = wsRef.current
@@ -407,7 +407,7 @@ export function useWebSocket(scheduleId: number | null): UseWebSocketReturn {
     }))
   }, [sendAction, buildOccupiedMap])
   
-  /** 뒤로가기·홈 이동 등 명시적 이탈 시 즉시 RELEASE (WS + REST) */
+  /** 뒤로가기/홈 이동 등 명시적 이탈 시 즉시 RELEASE (WS + REST) */
   const releaseSeats = useCallback(() => {
     const hold =
       scheduleIdRef.current != null

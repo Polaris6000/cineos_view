@@ -21,7 +21,7 @@
  *
  * 권한 체계:
  *   SUPER_ADMIN — 전 페이지 접근
- *   MANAGER     — 통계·정책·회원·계정 페이지 접근 불가 (ForbiddenPage 리다이렉트)
+ *   MANAGER     — 통계/정책/회원/계정 페이지 접근 불가 (ForbiddenPage 리다이렉트)
  */
 import {BrowserRouter, Route, Routes, useLocation} from 'react-router-dom'
 import {useEffect} from 'react'
@@ -122,7 +122,7 @@ function AnimatedRoutes() {
         
         {/* ─── 관리자 영역 ─── */}
         <Route path="admin">
-          {/* 로그인·접근거부는 인증 없이 접근 가능 */}
+          {/* 로그인/접근거부는 인증 없이 접근 가능 */}
           <Route path="login" element={<AdminLoginPage/>}/>
           <Route path="forbidden" element={<ForbiddenPage/>}/>
           
@@ -173,7 +173,7 @@ function AnimatedRoutes() {
             </Route>
             
             {/* 계정/권한 관리 — 로그인만 필요 (컴포넌트 내부에서 SUPER_ADMIN/MANAGER 역할 분기)
-                SUPER_ADMIN: 모든 계정 권한 조회·수정 가능
+                SUPER_ADMIN: 모든 계정 권한 조회/수정 가능
                 MANAGER: 본인 계정 권한 조회만 가능 (읽기 전용) */}
             <Route element={<PrivateRoute/>}>
               <Route path="management/accounts" element={<AdminAccountPage/>}/>

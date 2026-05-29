@@ -23,7 +23,7 @@ import apiClient from '../../../api/apiClient'
 
 /**
  * buildPageRange — 페이지 번호 배열 생성 (... 포함)
- * 7 이하: 모두 표시 / 초과: 1 · ... · (현재±2) · ... · N 구조
+ * 7 이하: 모두 표시 / 초과: 1 / ... / (현재±2) / ... / N 구조
  */
 function buildPageRange(current: number, total: number): (number | '...')[] {
     if (total <= 7) return Array.from({length: total}, (_, i) => i + 1)
@@ -48,7 +48,7 @@ interface PointHistory {
     phone: string
 }
 
-/** 타입별 색상·라벨·부호 설정 */
+/** 타입별 색상/라벨/부호 설정 */
 const TYPE_META: Record<PointHistory['type'], { color: string; label: string; sign: string }> = {
     EARN: {color: 'var(--color-success-main)', label: '적립', sign: '+'},
     USE: {color: 'var(--color-brand-default)', label: '사용', sign: '−'},
@@ -238,7 +238,7 @@ function ActivityLogPage() {
                         <ChevronLeft size={14}/>
                     </button>
 
-                    {/* buildPageRange: 1 · ... · (현재±2) · ... · N 구조 */}
+                    {/* buildPageRange: 1 / ... / (현재±2) / ... / N 구조 */}
                     {buildPageRange(currentPage, totalPages).map((p, idx) =>
                         p === '...'
                             ? <span key={`ellipsis-${idx}`} style={ellipsis}>…</span>

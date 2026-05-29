@@ -14,7 +14,7 @@ import {BookingDTO, mapToBooking, PaymentDTO} from '../../../api/typeData'
 
 /**
  * buildPageRange — 페이지 번호 배열 생성 (... 포함)
- * 7 이하: 모두 표시 / 초과: 1 · ... · (현재±2) · ... · N 구조
+ * 7 이하: 모두 표시 / 초과: 1 / ... / (현재±2) / ... / N 구조
  */
 function buildPageRange(current: number, total: number): (number | '...')[] {
     if (total <= 7) return Array.from({length: total}, (_, i) => i + 1)
@@ -294,7 +294,7 @@ function RefundPage() {
                                     이전
                                 </button>
 
-                                {/* buildPageRange: 1·...·(현재±2)·...·N 구조로 페이지 번호 생성 */}
+                                {/* buildPageRange: 1/.../(현재±2)/.../N 구조로 페이지 번호 생성 */}
                                 {buildPageRange(listPage, listTotalPages).map((n, idx) =>
                                     n === '...'
                                         ? <span key={`ellipsis-${idx}`} style={ellipsis}>…</span>

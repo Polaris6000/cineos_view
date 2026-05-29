@@ -1,8 +1,8 @@
 /**
  * 키오스크 임시 좌석 점유 — localStorage 기반 고객 UUID
  *
- * UUID 유지: 창 닫기·새로고침·결제 페이지 이동 (재접속 시 동일 userId로 서버 복구)
- * UUID 삭제: 결제 완료, 뒤로가기, 로고·홈, 비활성 타이머 만료 (+ 서버 즉시 해제)
+ * UUID 유지: 창 닫기/새로고침/결제 페이지 이동 (재접속 시 동일 userId로 서버 복구)
+ * UUID 삭제: 결제 완료, 뒤로가기, 로고/홈, 비활성 타이머 만료 (+ 서버 즉시 해제)
  */
 import apiClient from '../api/apiClient'
 
@@ -103,7 +103,7 @@ export function clearSeatHold(): void {
 }
 
 /**
- * 결제 완료·뒤로가기·홈·타이머 만료 시 호출.
+ * 결제 완료/뒤로가기/홈/타이머 만료 시 호출.
  * localStorage UUID + hold 제거 (다음 예매는 새 UUID).
  */
 export function clearKioskSeatIdentity(): void {

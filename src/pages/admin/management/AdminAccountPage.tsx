@@ -29,7 +29,7 @@ function AdminAccountPage() {
     // 전체 관리자 계정 목록 (GET /api/admin/list)
     const [accounts, setAccounts] = useState<AdminUser[]>([])
 
-    // 전체 권한 목록 (GET /api/admin/role/list) — 그룹핑·저장 모두 이걸 기준으로 함
+    // 전체 권한 목록 (GET /api/admin/role/list) — 그룹핑/저장 모두 이걸 기준으로 함
     const [roleList, setRoleList] = useState<RoleItem[]>([])
 
     // 저장 중 로딩 상태와 저장 완료 메시지 (계정 loginId별로 관리)

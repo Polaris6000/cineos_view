@@ -265,7 +265,7 @@ function MovieManagePage() {
         }
     }, [newTheater, newDate, lastEndTime, selectedMovieId])
 
-    /** 종료 예상 시간 (분 단위) — 유효성 검사·표시에 공통 사용 */
+    /** 종료 예상 시간 (분 단위) — 유효성 검사/표시에 공통 사용 */
     const previewEndMin = useMemo((): number => {
         const runtime = selectedMovie?.runtime ?? 120
         const cleanup = selectedTheater?.cleanupTime ?? 10
@@ -482,7 +482,7 @@ function MovieManagePage() {
                 </select>
                 {selectedMovie && (
                     <p style={{fontSize: 12, color: 'var(--text-muted)', marginTop: 6}}>
-                        감독: {selectedMovie.director} · 런타임: {selectedMovie.runtime}분 · 등급:{' '}
+                        감독: {selectedMovie.director} / 런타임: {selectedMovie.runtime}분 / 등급:{' '}
                         {selectedMovie.rating === 'ALL' ? '전체관람가' : `${selectedMovie.rating}세 이상`}
                     </p>
                 )}
@@ -560,7 +560,7 @@ function MovieManagePage() {
             {/* ── 타임라인 ── */}
             <div style={card}>
                 <p style={sLabel}>
-                    {selectedTheater?.no ?? '-'} · {newDate} 기존 스케줄
+                    {selectedTheater?.no ?? '-'} / {newDate} 기존 스케줄
                     {lastEndTime && (
                         <span style={{color: 'var(--text-muted)', fontSize: 12, marginLeft: 8}}>
               (마지막 종료: {lastEndTime.slice(11, 16)})
@@ -729,7 +729,7 @@ function MovieManagePage() {
                             </span>
                                                         <br/>
                                                         <span style={{fontSize: 12, color: 'var(--text-secondary)'}}>
-                              {s.no}관 · {s.availableSeats}/{s.totalSeats}석
+                              {s.no}관 / {s.availableSeats}/{s.totalSeats}석
                             </span>
                                                         <br/>
                                                         <span style={{
