@@ -29,6 +29,7 @@ import {AnimatePresence} from 'framer-motion'
 
 // 전역 Context
 import {AuthProvider} from './context/AuthContext'
+import {AiChatProvider} from './context/AiChatContext'
 import {IdleTimerProvider} from './context/IdleTimerContext'
 
 // 레이아웃 컴포넌트
@@ -201,14 +202,21 @@ function App() {
     <BrowserRouter>
       {/* AuthProvider: 관리자 로그인 상태 전역 관리 */}
       <AuthProvider>
-        {/* IdleTimerProvider: 고객 화면 유휴 감지 → 홈으로 이동 */}
-        <IdleTimerProvider>
-          <AnimatedRoutes/>
-          {/* 포트폴리오 데모용 네비게이션 — 면접관이 모든 화면을 자유롭게 탐색할 수 있도록 상시 표시 */}
-          <DevNav/>
-        </IdleTimerProvider>
-        {/* 전역 Toast 알림 — 우하단 고정, apiClient 에맬 인터셉터와 연동 */}
-        <GlobalToast/>
+        {/*
+          AiChatProvider: AI 챗봇 상태 전역 관리
+          AnimatedRoutes가 key={pathname}으로 리마운트되어도 챗봇 상태를 유지하기 위해
+          AnimatedRoutes 바깥에 위치시킴
+        */}
+        <AiChatProvider>
+          {/* IdleTimerProvider: 고객 화면 유휴 감지 → 홈으로 이동 */}
+          <IdleTimerProvider>
+            <AnimatedRoutes/>
+            {/* 포트폴리오 데모용 네비게이션 — 면접관이 모든 화면을 자유롭게 탐색할 수 있도록 상시 표시 */}
+            <DevNav/>
+          </IdleTimerProvider>
+          {/* 전역 Toast 알림 — 우하단 고정, apiClient 에맬 인터셉터와 연동 */}
+          <GlobalToast/>
+        </AiChatProvider>
       </AuthProvider>
     </BrowserRouter>
   )
