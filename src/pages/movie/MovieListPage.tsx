@@ -171,21 +171,24 @@ function MovieListPage() {
   /**
    * 장르 옵션 동적 추출
    *
-   * nowMovies가 바뀔 때마다 실제 존재하는 장르만 칩으로 표시.
-   * movie.genre는 "액션,SF" 처럼 쉼표 구분 문자열일 수 있으므로 split 후 중복 제거.
-   * '전체'는 항상 첫 번째, 나머지는 가나다/알파벳 정렬.
+   * 오늘 상영 중인 영화(남은 회차가 있는 것)에서만 장르를 추출해 칩으로 표시.
+   * 이미 종료됐거나 오늘 스케줄이 없는 영화의 장르는 노출하지 않음.
+   * schedulesLoaded가 false(로딩 중)이면 hasRemainingToday가 true를 반환하므로
+   * 로딩 완료 전까지는 전체 영화 기준으로 표시 → 깜박임 방지.
    */
   const genreOptions = useMemo(() => {
     const genreSet = new Set<string>()
-    nowMovies.forEach(movie => {
-      movie.genre
-        .split(',')                  // "액션,SF" → ["액션", "SF"]
-        .map(g => g.trim())          // 앞뒤 공백 제거
-        .filter(Boolean)             // 빈 문자열 제거
-        .forEach(g => genreSet.add(g))
-    })
+    nowMovies
+      .filter(movie => hasRemainingToday(movie.id))  // 오늘 상영 중인 영화만
+      .forEach(movie => {
+        movie.genre
+          .split(',')           // "액션,SF" → ["액션", "SF"]
+          .map(g => g.trim())   // 앞뒤 공백 제거
+          .filter(Boolean)      // 빈 문자열 제거
+          .forEach(g => genreSet.add(g))
+      })
     return ['전체', ...Array.from(genreSet).sort()]
-  }, [nowMovies])
+  }, [nowMovies, schedules, schedulesLoaded])
   
   /**
    * 영화 목록이 바뀌어 현재 선택된 장르가 더 이상 존재하지 않으면 '전체'로 리셋.
