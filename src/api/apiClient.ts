@@ -12,7 +12,7 @@ export const getAccessToken = () => inMemoryAccessToken;
 
 const apiClient = axios.create({
     baseURL: '/api',
-    timeout: 15_000,
+    timeout: 30_000,
     headers: {'Content-Type': 'application/json'},
     withCredentials: true, // RefreshToken 쿠키 자동 전송을 위해 추가
 })
